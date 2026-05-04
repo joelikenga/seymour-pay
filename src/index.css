@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+/* Client pay shell — safe areas + touch scrolling */
+.client-touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+#root {
+  min-height: 100svh;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  text-align: initial;
+  border: none;
+}
+
+@keyframes client-scan-line {
+  0%,
+  100% {
+    top: 16%;
+    opacity: 0.75;
+  }
+  50% {
+    top: 78%;
+    opacity: 1;
+  }
+}
+
+.animate-scan-line {
+  animation: client-scan-line 2.5s ease-in-out infinite;
+}
+
+@keyframes client-spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: client-spin-slow 1.15s linear infinite;
+}

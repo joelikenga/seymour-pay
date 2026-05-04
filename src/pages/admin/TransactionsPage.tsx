@@ -1,0 +1,318 @@
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import AdminPagination from '../../components/admin/AdminPagination'
+import TableSearchInput from '../../components/admin/TableSearchInput'
+import TableToolbar from '../../components/admin/TableToolbar'
+import TransactionDateFilterDropdown from '../../components/admin/TransactionDateFilterDropdown'
+import { useAdminData } from '../../context/AdminDataContext'
+import { totalVolume } from '../../lib/dashboardStats'
+import { channelLabel, channelPillClass } from '../../lib/channelStyles'
+import { vehicleLabel, vehiclePillClass } from '../../lib/vehicleStyles'
+import { formatDateShort, formatMoney } from '../../lib/formatters'
+import { statusPillClass } from '../../lib/statusStyles'
+import { usePagination } from '../../hooks/usePagination'
+import {
+  type DateFilterSelection,
+  filterRowsByDateSelection,
+  monthsThroughCurrent,
+  parseFilterValue,
+  transactionsToCsv,
+} from '../../lib/transactionDateFilter'
+
+const PAGE_SIZE = 12
+
+function downloadCsv(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+export default function TransactionsPage() {
+  const { transactions } = useAdminData()
+  const [q, setQ] = useState('')
+  const [filterValue, setFilterValue] = useState<string>('all')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
+
+  const earliest = useMemo(() => {
+    let min: Date | null = null
+    for (const t of transactions) {
+      const d = new Date(t.createdAt)
+      if (!Number.isFinite(d.getTime())) continue
+      if (!min || d < min) min = d
+    }
+    return min
+  }, [transactions])
+
+  const monthOptions = useMemo(
+    () => monthsThroughCurrent(earliest, new Date()),
+    [earliest],
+  )
+
+  const dateSelection: DateFilterSelection = useMemo(() => {
+    const parsed = parseFilterValue(filterValue, customStart, customEnd)
+    if (parsed.kind === 'custom' && (!customStart.trim() || !customEnd.trim())) {
+      return { kind: 'all' }
+    }
+    return parsed
+  }, [filterValue, customStart, customEnd])
+
+  const customIncomplete =
+    filterValue === 'custom' &&
+    (!customStart.trim() || !customEnd.trim())
+
+  const dateFiltered = useMemo(
+    () => filterRowsByDateSelection(transactions, dateSelection),
+    [transactions, dateSelection],
+  )
+
+  const sorted = useMemo(
+    () =>
+      [...dateFiltered].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    [dateFiltered],
+  )
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    if (!s) return sorted
+    return sorted.filter((t) => {
+      const blob =
+        `${t.reference} ${t.customerName} ${t.notes} ${t.amount} ${vehicleLabel[t.vehicleType]}`.toLowerCase()
+      return blob.includes(s)
+    })
+  }, [sorted, q])
+
+  const grand = useMemo(() => totalVolume(filtered), [filtered])
+
+  const { page, setPage, totalPages, paginated, total } = usePagination(
+    filtered,
+    PAGE_SIZE,
+    `${q}|${filterValue}|${customStart}|${customEnd}`,
+  )
+
+  const rowsForExport = useMemo(() => {
+    const byDate = filterRowsByDateSelection(transactions, dateSelection)
+    const s = q.trim().toLowerCase()
+    if (!s) return byDate
+    return byDate.filter((t) => {
+      const blob =
+        `${t.reference} ${t.customerName} ${t.notes} ${t.amount} ${vehicleLabel[t.vehicleType]}`.toLowerCase()
+      return blob.includes(s)
+    })
+  }, [transactions, dateSelection, q])
+
+  const canExportCustom =
+    filterValue !== 'custom' ||
+    (customStart.trim().length > 0 && customEnd.trim().length > 0)
+
+  function handleExport() {
+    if (!canExportCustom) return
+    const csv = transactionsToCsv(
+      rowsForExport.map((t) => ({
+        reference: t.reference,
+        customerName: t.customerName,
+        vehicleType: vehicleLabel[t.vehicleType],
+        channel: channelLabel[t.channel],
+        amount: t.amount,
+        status: t.status,
+        createdAt: t.createdAt,
+        notes: t.notes,
+      })),
+    )
+    const stamp = new Date().toISOString().slice(0, 10)
+    downloadCsv(`transactions-export-${stamp}.csv`, csv)
+  }
+
+  const filterSummary = useMemo(() => {
+    if (filterValue === 'all') return 'All time'
+    if (filterValue === 'today') return 'Today'
+    if (filterValue === '7d') return 'Last 7 days'
+    if (filterValue === '30d') return 'Last 30 days'
+    if (filterValue === 'custom') {
+      if (!customStart || !customEnd) return 'Custom range (set dates)'
+      return `Custom: ${customStart} → ${customEnd}`
+    }
+    const mo = monthOptions.find((m) => m.value === filterValue)
+    return mo?.label ?? 'Month'
+  }, [filterValue, customStart, customEnd, monthOptions])
+
+  return (
+    <div className="space-y-8">
+      <header className="relative overflow-hidden rounded-3xl border border-zinc-200/90 bg-linear-to-br from-white via-white to-orange-50/35 p-6 shadow-[0_12px_48px_-28px_rgba(15,23,42,0.1)] ring-1 ring-zinc-950/5 sm:p-8">
+        <div
+          className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-orange-400/20 blur-3xl"
+          aria-hidden
+        />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-700/90">
+              Ledger
+            </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-950">
+              Transactions
+            </h1>
+            <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">
+              Full history across every payment type. Filter by period, search,
+              then export matching rows as CSV.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                {dateSelection.kind === 'all' ? 'Dataset volume' : 'Filtered volume'}
+              </p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-zinc-950">
+                {formatMoney(grand)}
+              </p>
+
+            </div>
+            <Link
+              to="/admin/settlement"
+              className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-5 py-3 text-sm font-semibold text-sky-950 shadow-sm transition hover:border-sky-300 hover:bg-sky-100/90"
+            >
+              Settlement →
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <section className="overflow-hidden rounded-3xl border border-zinc-200/90 bg-white shadow-[0_8px_40px_-28px_rgba(15,23,42,0.12)] ring-1 ring-zinc-950/5">
+        <TableToolbar
+          right={
+            <>
+              <span className="tabular-nums">
+                <span className="font-bold text-zinc-900">
+                  {transactions.length}
+                </span>{' '}
+                in dataset ·{' '}
+                <span className="font-bold text-zinc-900">
+                  {dateFiltered.length}
+                </span>{' '}
+                in period
+              </span>
+              <span aria-hidden className="text-zinc-300">·</span>
+              <TransactionDateFilterDropdown
+                filterValue={filterValue}
+                onFilterChange={setFilterValue}
+                monthOptions={monthOptions}
+                triggerLabel={filterSummary}
+                customStart={customStart}
+                customEnd={customEnd}
+                onCustomStartChange={setCustomStart}
+                onCustomEndChange={setCustomEnd}
+              />
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={!canExportCustom || rowsForExport.length === 0}
+                title={
+                  !canExportCustom
+                    ? 'Enter start and end dates for a custom export'
+                    : rowsForExport.length === 0
+                      ? 'No rows match the current filters'
+                      : `Export ${rowsForExport.length} row(s) as CSV`
+                }
+                className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-950 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Export CSV
+              </button>
+            </>
+          }
+          footer={
+            customIncomplete ? (
+              <p className="text-sm text-amber-800">
+                Open <strong>Date range</strong>, pick{' '}
+                <strong>Custom range</strong>, set start and end, then press{' '}
+                <strong>Done</strong>.
+              </p>
+            ) : null
+          }
+        >
+          <TableSearchInput
+            value={q}
+            onChange={setQ}
+            placeholder="Search ticket ID, customer, notes…"
+            ariaLabel="Search transactions"
+          />
+        </TableToolbar>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[880px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-zinc-100 bg-zinc-50/95 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                <th className="whitespace-nowrap px-5 py-3.5">Ticket ID</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Customer</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Vehicle</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Payment type</th>
+                <th className="whitespace-nowrap px-5 py-3.5 text-right">
+                  Amount
+                </th>
+                <th className="whitespace-nowrap px-5 py-3.5">Status</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {paginated.map((t) => (
+                <tr key={t.id} className="transition hover:bg-orange-50/50">
+                  <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
+                    {t.reference}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3.5 font-medium text-zinc-800">
+                    {t.customerName}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3.5">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[t.vehicleType]}`}
+                    >
+                      {vehicleLabel[t.vehicleType]}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3.5">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[t.channel]}`}
+                    >
+                      {channelLabel[t.channel]}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
+                    {formatMoney(t.amount)}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3.5">
+                    <span
+                      className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold capitalize ring-1 ring-inset ${statusPillClass[t.status]}`}
+                    >
+                      {t.status}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
+                    {formatDateShort(t.createdAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="border-t border-zinc-100 px-5 pb-5 pt-2">
+          <AdminPagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={total}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </div>
+      </section>
+    </div>
+  )
+}
