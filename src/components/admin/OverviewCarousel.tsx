@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useId, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   Bar,
   BarChart,
@@ -17,7 +24,7 @@ import {
   channelLabel,
 } from '../../lib/channelStyles'
 import {
-  FIDELITY_RAILS,
+  OVERVIEW_PAYMENT_TYPES,
   monthlyChannelCounts,
   todayChannelCounts,
   weekdayChannelCounts,
@@ -27,6 +34,24 @@ import type { PaymentChannel, Transaction } from '../../types/transaction'
 
 const ROTATE_MS = 6000
 const PANEL_MIN_HEIGHT = 'min-h-[260px] sm:min-h-[280px]'
+
+function ChartSlot({
+  active,
+  children,
+  minClassName = 'min-h-[180px] sm:min-h-[200px]',
+}: {
+  active: boolean
+  children: ReactNode
+  minClassName?: string
+}) {
+  if (active) return <>{children}</>
+  return (
+    <div
+      className={`mt-3 ${minClassName} rounded-xl bg-zinc-50/40 ring-1 ring-zinc-100/80`}
+      aria-hidden
+    />
+  )
+}
 
 export interface OverviewCarouselProps {
   /** Headline slide content — full width of the slot. */
@@ -46,7 +71,7 @@ interface SlideMeta {
 
 const SLIDES: SlideMeta[] = [
   { id: 'total', label: 'Total volume' },
-  { id: 'today', label: 'Pay-rail today' },
+  { id: 'today', label: 'Payments today' },
   { id: 'week', label: 'This week' },
   { id: 'month', label: 'This year' },
 ]
@@ -79,7 +104,7 @@ export default function OverviewCarousel(props: OverviewCarouselProps) {
 
   return (
     <div
-      className="relative min-w-0 flex-1"
+      className="relative min-w-0 w-full"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -104,13 +129,13 @@ export default function OverviewCarousel(props: OverviewCarouselProps) {
             />
           </SlideShell>
           <SlideShell active={index === 1} label={SLIDES[1].label}>
-            <TodayChannelSlide transactions={transactions} />
+            <TodayChannelSlide active={index === 1} transactions={transactions} />
           </SlideShell>
           <SlideShell active={index === 2} label={SLIDES[2].label}>
-            <WeekdayChannelSlide transactions={transactions} />
+            <WeekdayChannelSlide active={index === 2} transactions={transactions} />
           </SlideShell>
           <SlideShell active={index === 3} label={SLIDES[3].label}>
-            <MonthlyChannelSlide transactions={transactions} />
+            <MonthlyChannelSlide active={index === 3} transactions={transactions} />
           </SlideShell>
         </div>
       </div>
@@ -200,21 +225,20 @@ function TotalVolumeSlide({
         Total payment volume
       </p>
       <p
-        className="mt-1 bg-linear-to-br from-zinc-950 to-zinc-700 bg-clip-text text-4xl font-bold tracking-tight text-transparent tabular-nums sm:text-5xl sm:leading-[1.08]"
+        className="mt-1 min-w-0 max-w-full wrap-break-word bg-linear-to-br from-zinc-950 to-zinc-700 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl md:text-5xl md:leading-[1.08]"
         aria-label={`Total payment volume ${formatMoney(amount)}`}
       >
         {amountText}
       </p>
       <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-500">
-        All figures in Nigerian Naira (₦). Same totals as your ledger and
-        exports for this car park.
+        Shows total transaction revenue.
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         <span className="inline-flex items-center rounded-full border border-zinc-200/90 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-700">
-          {totalCount} records
+          {9999}+ records
         </span>
         <span className="inline-flex items-center rounded-full border border-zinc-200/90 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-700">
-          {channelsUsed} rails active
+          {channelsUsed} payment {channelsUsed === 1 ? 'type' : 'types'} used
         </span>
         {wow != null ? (
           <span
@@ -280,204 +304,234 @@ function todayBarLabel(value: unknown): [string, string] {
   return [`${n} tx`, 'Today']
 }
 
-function TodayChannelSlide({ transactions }: { transactions: Transaction[] }) {
-  const data = todayChannelCounts(transactions).map((row) => ({
-    label: channelLabel[row.channel],
-    channel: row.channel,
-    count: row.count,
-  }))
-  const total = data.reduce((a, r) => a + r.count, 0)
+function TodayChannelSlide({
+  active,
+  transactions,
+}: {
+  active: boolean
+  transactions: Transaction[]
+}) {
+  const data = useMemo(
+    () =>
+      todayChannelCounts(transactions).map((row) => ({
+        label: channelLabel[row.channel],
+        channel: row.channel,
+        count: row.count,
+      })),
+    [transactions],
+  )
+  const total = useMemo(
+    () => data.reduce((a, r) => a + r.count, 0),
+    [data],
+  )
 
   return (
     <div className="flex h-full flex-col">
       <SlideHeader
-        eyebrow="Pay-rail usage"
-        title="How rails were charged today"
-        subtitle={`${total} ${total === 1 ? 'transaction' : 'transactions'} routed today across the 4 Fidelity rails`}
+        eyebrow="Today's payments"
+        title="Payments by type today"
+        subtitle={`${total} ${total === 1 ? 'transaction' : 'transactions'} taken today across cash, POS, transfer, e-payment and USSD`}
       />
-      <div className="mt-3 -mx-2 h-[180px] sm:h-[200px]">
-        <ResponsiveContainer width="100%" height="100%" debounce={80}>
-          <BarChart
-            data={data}
-            margin={{ top: 12, right: 8, left: 0, bottom: 4 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 11, fill: '#52525b' }}
-              tickLine={false}
-              axisLine={{ stroke: '#e4e4e7' }}
-              height={26}
-            />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fontSize: 10, fill: '#71717a' }}
-              tickLine={false}
-              axisLine={false}
-              width={28}
-            />
-            <Tooltip
-              cursor={{ fill: 'rgba(244,244,245,0.6)' }}
-              formatter={todayBarLabel}
-              contentStyle={tooltipStyle()}
-            />
-            <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={42}>
-              {data.map((row) => (
-                <Cell key={row.channel} fill={channelChartHex[row.channel]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <ChartSlot active={active}>
+        <div className="mt-3 -mx-2 h-[180px] sm:h-[200px]">
+          <ResponsiveContainer width="100%" height="100%" debounce={80}>
+            <BarChart
+              data={data}
+              barCategoryGap="38%"
+              margin={{ top: 12, right: 8, left: 0, bottom: 4 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: '#52525b' }}
+                tickLine={false}
+                axisLine={{ stroke: '#e4e4e7' }}
+                height={26}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 10, fill: '#71717a' }}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+              />
+              <Tooltip
+                cursor={{ fill: 'rgba(244,244,245,0.6)' }}
+                formatter={todayBarLabel}
+                contentStyle={tooltipStyle()}
+              />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={14}>
+                {data.map((row) => (
+                  <Cell key={row.channel} fill={channelChartHex[row.channel]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartSlot>
     </div>
   )
 }
 
 function WeekdayChannelSlide({
+  active,
   transactions,
 }: {
+  active: boolean
   transactions: Transaction[]
 }) {
-  const data = weekdayChannelCounts(transactions)
+  const data = useMemo(
+    () => (active ? weekdayChannelCounts(transactions) : []),
+    [active, transactions],
+  )
 
   return (
     <div className="flex h-full flex-col">
       <SlideHeader
         eyebrow="This week's traffic"
-        title="Pay-rail count by weekday"
-        subtitle="Transactions per rail, Mon → Sun (current week)"
+        title="Payments by weekday"
+        subtitle="Transactions per payment type, Mon → Sun (current week)"
       />
-      <div className="mt-3 -mx-2 h-[200px] sm:h-[210px]">
-        <ResponsiveContainer width="100%" height="100%" debounce={80}>
-          <LineChart
-            data={data}
-            margin={{ top: 14, right: 12, left: 0, bottom: 4 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 11, fill: '#52525b' }}
-              tickLine={false}
-              axisLine={{ stroke: '#e4e4e7' }}
-              height={26}
-            />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fontSize: 10, fill: '#71717a' }}
-              tickLine={false}
-              axisLine={false}
-              width={28}
-            />
-            <Tooltip
-              contentStyle={tooltipStyle()}
-              formatter={txCountLabel}
-            />
-            <Legend
-              verticalAlign="bottom"
-              align="center"
-              iconType="circle"
-              iconSize={7}
-              wrapperStyle={{
-                paddingTop: 4,
-                fontSize: 11,
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: '4px 12px',
-              }}
-              formatter={legendFormatter}
-            />
-            {FIDELITY_RAILS.map((ch) => (
-              <Line
-                key={ch}
-                type="linear"
-                dataKey={ch}
-                name={ch}
-                stroke={channelChartHex[ch]}
-                strokeWidth={2}
-                dot={{ r: 2.5, strokeWidth: 0, fill: channelChartHex[ch] }}
-                activeDot={{ r: 4, strokeWidth: 0, fill: channelChartHex[ch] }}
-                isAnimationActive={false}
+      <ChartSlot active={active} minClassName="min-h-[200px] sm:min-h-[210px]">
+        <div className="mt-3 -mx-2 h-[200px] sm:h-[210px]">
+          <ResponsiveContainer width="100%" height="100%" debounce={80}>
+            <LineChart
+              data={data}
+              margin={{ top: 14, right: 12, left: 0, bottom: 4 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: '#52525b' }}
+                tickLine={false}
+                axisLine={{ stroke: '#e4e4e7' }}
+                height={26}
               />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 10, fill: '#71717a' }}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle()}
+                formatter={txCountLabel}
+              />
+              <Legend
+                verticalAlign="bottom"
+                align="center"
+                iconType="circle"
+                iconSize={7}
+                wrapperStyle={{
+                  paddingTop: 4,
+                  fontSize: 11,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  gap: '4px 12px',
+                }}
+                formatter={legendFormatter}
+              />
+              {OVERVIEW_PAYMENT_TYPES.map((ch) => (
+                <Line
+                  key={ch}
+                  type="linear"
+                  dataKey={ch}
+                  name={ch}
+                  stroke={channelChartHex[ch]}
+                  strokeWidth={2}
+                  dot={{ r: 2.5, strokeWidth: 0, fill: channelChartHex[ch] }}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: channelChartHex[ch] }}
+                  isAnimationActive={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartSlot>
     </div>
   )
 }
 
 function MonthlyChannelSlide({
+  active,
   transactions,
 }: {
+  active: boolean
   transactions: Transaction[]
 }) {
   const year = new Date().getFullYear()
-  const data = monthlyChannelCounts(transactions, year)
+  const data = useMemo(
+    () => (active ? monthlyChannelCounts(transactions, year) : []),
+    [active, transactions, year],
+  )
 
   return (
     <div className="flex h-full flex-col">
       <SlideHeader
         eyebrow={`${year}`}
-        title="Pay-rail count by month"
-        subtitle={`Transactions per rail, January → December ${year}`}
+        title="Payments by month"
+        subtitle={`Transactions per payment type, January → December ${year}`}
       />
-      <div className="mt-3 -mx-2 h-[200px] sm:h-[210px]">
-        <ResponsiveContainer width="100%" height="100%" debounce={80}>
-          <LineChart
-            data={data}
-            margin={{ top: 14, right: 12, left: 0, bottom: 4 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 11, fill: '#52525b' }}
-              tickLine={false}
-              axisLine={{ stroke: '#e4e4e7' }}
-              height={26}
-            />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fontSize: 10, fill: '#71717a' }}
-              tickLine={false}
-              axisLine={false}
-              width={28}
-            />
-            <Tooltip
-              contentStyle={tooltipStyle()}
-              formatter={txCountLabel}
-            />
-            <Legend
-              verticalAlign="bottom"
-              align="center"
-              iconType="circle"
-              iconSize={7}
-              wrapperStyle={{
-                paddingTop: 4,
-                fontSize: 11,
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: '4px 12px',
-              }}
-              formatter={legendFormatter}
-            />
-            {FIDELITY_RAILS.map((ch) => (
-              <Line
-                key={ch}
-                type="linear"
-                dataKey={ch}
-                name={ch}
-                stroke={channelChartHex[ch]}
-                strokeWidth={2}
-                dot={{ r: 2, strokeWidth: 0, fill: channelChartHex[ch] }}
-                activeDot={{ r: 4, strokeWidth: 0, fill: channelChartHex[ch] }}
-                isAnimationActive={false}
+      <ChartSlot active={active} minClassName="min-h-[200px] sm:min-h-[210px]">
+        <div className="mt-3 -mx-2 h-[200px] sm:h-[210px]">
+          <ResponsiveContainer width="100%" height="100%" debounce={80}>
+            <LineChart
+              data={data}
+              margin={{ top: 14, right: 12, left: 0, bottom: 4 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: '#52525b' }}
+                tickLine={false}
+                axisLine={{ stroke: '#e4e4e7' }}
+                height={26}
               />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 10, fill: '#71717a' }}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle()}
+                formatter={txCountLabel}
+              />
+              <Legend
+                verticalAlign="bottom"
+                align="center"
+                iconType="circle"
+                iconSize={7}
+                wrapperStyle={{
+                  paddingTop: 4,
+                  fontSize: 11,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  gap: '4px 12px',
+                }}
+                formatter={legendFormatter}
+              />
+              {OVERVIEW_PAYMENT_TYPES.map((ch) => (
+                <Line
+                  key={ch}
+                  type="linear"
+                  dataKey={ch}
+                  name={ch}
+                  stroke={channelChartHex[ch]}
+                  strokeWidth={2}
+                  dot={{ r: 2, strokeWidth: 0, fill: channelChartHex[ch] }}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: channelChartHex[ch] }}
+                  isAnimationActive={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartSlot>
     </div>
   )
 }

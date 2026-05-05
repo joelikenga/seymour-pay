@@ -18,25 +18,7 @@ import { SEYMOUR_ADMIN_TAB_SESSION_KEY } from '../../components/admin/SessionLog
 import { VehicleTypeIconBadge } from '../../components/admin/VehicleTypeGlyph'
 import fidelityLogo from '../../assets/Fidelity_Bank_Plc_Main_Logo.svg'
 import { useAdminData } from '../../context/AdminDataContext'
-import {
-  activeChannelCount,
-  customerTrafficByMonth,
-  fidelityChannelMix,
-  dailyVolumeSeries,
-  monthToDateRange,
-  pctChangeWeekOverWeek,
-  pipelineVolume,
-  settledVolume,
-  todayTransactionCount,
-  todayVolume,
-  todayYmd,
-  totalVolume,
-  volumeByStatus,
-  volumeInYmdRange,
-  weekToDateRange,
-  yesterdayLagosYmd,
-  yesterdayVolume,
-} from '../../lib/dashboardStats'
+import { computeOverviewDashboardStats } from '../../lib/dashboardStats'
 import {
   channelChartHex,
   channelLabel,
@@ -50,9 +32,8 @@ import {
 } from '../../lib/vehicleStyles'
 import {
   formatDateShort,
-  formatDayStamp,
   formatMoney,
-  formatYmdRange,
+  formatMoneyAbbreviated,
 } from '../../lib/formatters'
 import { statusPillClass } from '../../lib/statusStyles'
 import { usePagination } from '../../hooks/usePagination'
@@ -76,7 +57,7 @@ const OPS_PROFILE = {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { transactions, logs, appendLog } = useAdminData()
+  const { transactions, appendLog } = useAdminData()
   const [q, setQ] = useState('')
   const [avatarFailed, setAvatarFailed] = useState(false)
   const avatarUrl = useMemo(
@@ -86,59 +67,10 @@ export default function Dashboard() {
   )
   const onAvatarError = useCallback(() => setAvatarFailed(true), [])
 
-  const stats = useMemo(() => {
-    const grand = totalVolume(transactions)
-    const fidelityMix = fidelityChannelMix(transactions)
-    const wow = pctChangeWeekOverWeek(transactions)
-    const totalCount = transactions.length
-    const channelsUsed = activeChannelCount(transactions)
-    const customerTraffic = customerTrafficByMonth(transactions)
-    const trafficYear = new Date().getFullYear()
-    const trafficTotal = customerTraffic.reduce((a, r) => a + r.count, 0)
-    const today = todayVolume(transactions)
-    const todaySessions = todayTransactionCount(transactions)
-    const yesterday = yesterdayVolume(transactions)
-    const weekRange = weekToDateRange()
-    const monthRange = monthToDateRange()
-    const weekToDate = volumeInYmdRange(transactions, weekRange)
-    const monthToDate = volumeInYmdRange(transactions, monthRange)
-    const todayLabel = formatDayStamp(todayYmd())
-    const yesterdayLabel = formatDayStamp(yesterdayLagosYmd())
-    const weekLabel = formatYmdRange(weekRange.start, weekRange.end)
-    const monthLabel = formatYmdRange(monthRange.start, monthRange.end)
-    const settledVol = settledVolume(transactions)
-    const pipelineVol = pipelineVolume(transactions)
-    const byStatus = volumeByStatus(transactions)
-    const avgTicket =
-      totalCount > 0 ? Math.round(grand / totalCount) : 0
-    const settledSharePct =
-      grand > 0 ? Math.round((settledVol / grand) * 100) : 0
-
-    return {
-      grand,
-      fidelityMix,
-      wow,
-      totalCount,
-      channelsUsed,
-      customerTraffic,
-      trafficYear,
-      trafficTotal,
-      today,
-      todaySessions,
-      yesterday,
-      weekToDate,
-      monthToDate,
-      todayLabel,
-      yesterdayLabel,
-      weekLabel,
-      monthLabel,
-      settledVol,
-      pipelineVol,
-      byStatus,
-      avgTicket,
-      settledSharePct,
-    }
-  }, [transactions, logs])
+  const stats = useMemo(
+    () => computeOverviewDashboardStats(transactions),
+    [transactions],
+  )
 
   const sortedTransactions = useMemo(
     () =>
@@ -167,15 +99,6 @@ export default function Dashboard() {
     total,
   } = usePagination(filtered, PAGE_SIZE, q)
 
-  const weekSeries = useMemo(
-    () => dailyVolumeSeries(transactions, 7),
-    [transactions],
-  )
-  const weekMax = useMemo(
-    () => Math.max(1, ...weekSeries),
-    [weekSeries],
-  )
-
   return (
     <div className="space-y-8 pb-4">
       <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200/90 bg-linear-to-r from-white via-orange-50/20 to-zinc-50/90 px-5 py-4 shadow-sm ring-1 ring-zinc-950/5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -194,62 +117,76 @@ export default function Dashboard() {
         <OverviewClock />
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-12 lg:items-stretch">
-        <div className="relative overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.35)] ring-1 ring-zinc-950/[0.04] sm:p-8 lg:col-span-8">
+      <div className="grid gap-5 lg:grid-cols-[3fr_2fr] lg:items-stretch">
+        <div className="relative overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.35)] ring-1 ring-zinc-950/4 sm:p-8">
           <div
             className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-orange-200/60 to-transparent"
             aria-hidden
           />
-          <div className="flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
-            <OverviewCarousel
-              totalAmount={stats.grand}
-              totalAmountText={formatMoney(stats.grand)}
-              totalCount={stats.totalCount}
-              channelsUsed={stats.channelsUsed}
-              wow={stats.wow}
-              transactions={transactions}
-            />
+          <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[3fr_2fr] lg:items-start lg:gap-6">
+            <div className="min-w-0">
+              <OverviewCarousel
+                totalAmount={stats.grand}
+                totalAmountText={formatMoneyAbbreviated(stats.grand)}
+                totalCount={stats.totalCount}
+                channelsUsed={stats.channelsUsed}
+                wow={stats.wow}
+                transactions={transactions}
+              />
+            </div>
 
-            <div className="grid shrink-0 grid-cols-2 gap-3 sm:gap-4 xl:w-[380px]">
-              <div className="rounded-2xl border border-zinc-100 bg-linear-to-b from-orange-50/80 to-white p-4 ring-1 ring-orange-100/80">
+            <div className="grid min-w-0 shrink-0 grid-cols-2 gap-2.5 sm:gap-3">
+              <div className="rounded-2xl border border-zinc-100 bg-linear-to-b from-orange-50/80 to-white p-3.5 ring-1 ring-orange-100/80 sm:p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-orange-800/70">
                   Today
                 </p>
-                <p className="mt-2 text-xl font-bold tabular-nums text-zinc-950 sm:text-2xl">
-                  {formatMoney(stats.today)}
+                <p
+                  className="mt-1 min-w-0 wrap-break-word text-sm font-bold leading-tight text-zinc-950 sm:mt-1.5 sm:text-base md:text-lg"
+                  title={formatMoney(stats.today)}
+                >
+                  {formatMoneyAbbreviated(stats.today)}
                 </p>
                 <p className="mt-1 text-[11px] text-zinc-500">
                   {stats.todayLabel}
                 </p>
               </div>
-              <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 ring-1 ring-zinc-100">
+              <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-3.5 ring-1 ring-zinc-100 sm:p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                   Yesterday
                 </p>
-                <p className="mt-2 text-xl font-bold tabular-nums text-zinc-950 sm:text-2xl">
-                  {formatMoney(stats.yesterday)}
+                <p
+                  className="mt-1 min-w-0 wrap-break-word text-sm font-bold leading-tight text-zinc-950 sm:mt-1.5 sm:text-base md:text-lg"
+                  title={formatMoney(stats.yesterday)}
+                >
+                  {formatMoneyAbbreviated(stats.yesterday)}
                 </p>
                 <p className="mt-1 text-[11px] text-zinc-500">
                   {stats.yesterdayLabel}
                 </p>
               </div>
-              <div className="rounded-2xl border border-sky-100/90 bg-sky-50/40 p-4 ring-1 ring-sky-100/60">
+              <div className="rounded-2xl border border-sky-100/90 bg-sky-50/40 p-3.5 ring-1 ring-sky-100/60 sm:p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-sky-900/75">
                   This week
                 </p>
-                <p className="mt-2 text-xl font-bold tabular-nums text-zinc-950 sm:text-2xl">
-                  {formatMoney(stats.weekToDate)}
+                <p
+                  className="mt-1 min-w-0 wrap-break-word text-sm font-bold leading-tight text-zinc-950 sm:mt-1.5 sm:text-base md:text-lg"
+                  title={formatMoney(stats.weekToDate)}
+                >
+                  {formatMoneyAbbreviated(stats.weekToDate)}
                 </p>
                 <p className="mt-1 text-[11px] text-sky-900/75">
                   {stats.weekLabel}
                 </p>
               </div>
-              <div className="rounded-2xl border border-emerald-100/90 bg-emerald-50/40 p-4 ring-1 ring-emerald-100/60">
+              <div className="rounded-2xl border border-emerald-100/90 bg-emerald-50/40 p-3.5 ring-1 ring-emerald-100/60 sm:p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-900/75">
                   This month
                 </p>
-                <p className="mt-2 text-xl font-bold tabular-nums text-zinc-950 sm:text-2xl">
-                  {formatMoney(stats.monthToDate)}
+                <p
+                  className="mt-1 min-w-0 wrap-break-word text-sm font-bold leading-tight text-zinc-950 sm:mt-1.5 sm:text-base md:text-lg"
+                  title={formatMoney(stats.monthToDate)}
+                >
+                  {formatMoneyAbbreviated(stats.monthToDate)}
                 </p>
                 <p className="mt-1 text-[11px] text-emerald-900/80">
                   {stats.monthLabel}
@@ -264,9 +201,7 @@ export default function Dashboard() {
                 <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
                   Volume by settlement state
                 </p>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  Where money sits in the lifecycle — hover segments for amounts.
-                </p>
+
               </div>
             </div>
             {(() => {
@@ -341,7 +276,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:col-span-4 lg:grid-cols-1">
+        <div className="grid gap-4 lg:grid-cols-1">
           <section className="group relative overflow-hidden rounded-[1.75rem] border border-sky-200/70 bg-linear-to-br from-sky-50/90 via-white to-white p-6 shadow-[0_16px_48px_-36px_rgba(14,165,233,0.28)] ring-1 ring-sky-950/5 transition hover:shadow-lg hover:ring-sky-200/80">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -506,12 +441,7 @@ export default function Dashboard() {
                       tickLine={false}
                       interval={0}
                     />
-                    <YAxis
-                      allowDecimals={false}
-                      tick={{ fontSize: 11, fill: '#71717a' }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
+                    <YAxis allowDecimals={false} hide />
                     <Tooltip
                       cursor={{ fill: 'rgba(254,243,232,0.45)' }}
                       contentStyle={{
@@ -600,8 +530,8 @@ export default function Dashboard() {
               role="img"
               aria-label="Last seven days payment volume"
             >
-              {weekSeries.map((v, i) => {
-                const h = Math.round((v / weekMax) * 100)
+              {stats.weekSeries.map((v, i) => {
+                const h = Math.round((v / stats.weekMax) * 100)
                 return (
                   <div key={i} className="flex min-w-0 flex-1 flex-col justify-end">
                     <div
@@ -759,14 +689,16 @@ function FidelityChannelMix({ mix }: FidelityChannelMixProps) {
 
   if (total === 0) {
     return (
-      <p className="mt-5 text-sm text-zinc-500">No Fidelity-routed rows yet</p>
+      <p className="mt-5 text-sm text-zinc-500">
+        No card or transfer payments yet
+      </p>
     )
   }
 
   return (
     <div className="mt-5 space-y-3">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-900/75">
-        Pay-rail mix · share of use
+        Payment mix · share of use
       </p>
       <ul className="divide-y divide-sky-100/80 rounded-2xl bg-white/70 ring-1 ring-sky-100/80">
         {mix.map(({ channel, count, pct }) => {

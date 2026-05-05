@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import NavigationLogger from './components/admin/NavigationLogger'
 import PwaInstallPrompt from './components/PwaInstallPrompt.tsx'
@@ -5,11 +6,12 @@ import SessionLoginLogger from './components/admin/SessionLoginLogger'
 import { AdminDataProvider } from './context/AdminDataContext'
 import AdminLayout from './pages/admin/AdminLayout.tsx'
 import AnalyticsPage from './pages/admin/AnalyticsPage.tsx'
-import Dashboard from './pages/admin/Dashboard.tsx'
 import LogsPage from './pages/admin/LogsPage.tsx'
 import ReconciliationPage from './pages/admin/ReconciliationPage.tsx'
 import SettlementPage from './pages/admin/SettlementPage.tsx'
 import TransactionsPage from './pages/admin/TransactionsPage.tsx'
+
+const Dashboard = lazy(() => import('./pages/admin/Dashboard.tsx'))
 
 export default function App() {
   return (
@@ -20,7 +22,20 @@ export default function App() {
         <NavigationLogger />
         <Routes>
           <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Dashboard />} />
+            <Route
+              index
+              element={
+                <Suspense
+                  fallback={
+                    <div className="flex min-h-[40vh] items-center justify-center px-6 text-sm text-zinc-500">
+                      Loading overview…
+                    </div>
+                  }
+                >
+                  <Dashboard />
+                </Suspense>
+              }
+            />
             <Route path="transactions" element={<TransactionsPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="logs" element={<LogsPage />} />
