@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AdminPagination from '../../components/admin/AdminPagination'
 import TableSearchInput from '../../components/admin/TableSearchInput'
@@ -11,6 +11,7 @@ import { vehicleLabel, vehiclePillClass } from '../../lib/vehicleStyles'
 import { formatDateShort, formatMoney } from '../../lib/formatters'
 import { statusPillClass } from '../../lib/statusStyles'
 import { usePagination } from '../../hooks/usePagination'
+import type { Transaction } from '../../types/transaction'
 import {
   type DateFilterSelection,
   filterRowsByDateSelection,
@@ -40,6 +41,7 @@ export default function TransactionsPage() {
   const [filterValue, setFilterValue] = useState<string>('all')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
+  const [activeTx, setActiveTx] = useState<Transaction | null>(null)
 
   const earliest = useMemo(() => {
     let min: Date | null = null
@@ -146,6 +148,24 @@ export default function TransactionsPage() {
     return mo?.label ?? 'Month'
   }, [filterValue, customStart, customEnd, monthOptions])
 
+  useEffect(() => {
+    if (!activeTx) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setActiveTx(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [activeTx])
+
+  useEffect(() => {
+    if (!activeTx) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [activeTx])
+
   return (
     <div className="space-y-8">
       <header className="relative overflow-hidden rounded-3xl border border-zinc-200/90 bg-linear-to-br from-white via-white to-orange-50/35 p-6 shadow-[0_12px_48px_-28px_rgba(15,23,42,0.1)] ring-1 ring-zinc-950/5 sm:p-8">
@@ -251,14 +271,13 @@ export default function TransactionsPage() {
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50/95 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 <th className="whitespace-nowrap px-5 py-3.5">Ticket ID</th>
-                <th className="whitespace-nowrap px-5 py-3.5">Customer</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Vehicle</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Payment type</th>
                 <th className="whitespace-nowrap px-5 py-3.5 text-right">
                   Amount
                 </th>
-                <th className="whitespace-nowrap px-5 py-3.5">Status</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Date</th>
+                <th className="whitespace-nowrap px-5 py-3.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -266,9 +285,6 @@ export default function TransactionsPage() {
                 <tr key={t.id} className="transition hover:bg-orange-50/50">
                   <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
                     {t.reference}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5 font-medium text-zinc-800">
-                    {t.customerName}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3.5">
                     <span
@@ -287,15 +303,17 @@ export default function TransactionsPage() {
                   <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
                     {formatMoney(t.amount)}
                   </td>
-                  <td className="whitespace-nowrap px-5 py-3.5">
-                    <span
-                      className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold capitalize ring-1 ring-inset ${statusPillClass[t.status]}`}
-                    >
-                      {t.status}
-                    </span>
-                  </td>
                   <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
                     {formatDateShort(t.createdAt)}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTx(t)}
+                      className="inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm transition hover:border-orange-300 hover:bg-orange-50"
+                    >
+                      Click to view
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -313,6 +331,89 @@ export default function TransactionsPage() {
           />
         </div>
       </section>
+
+      {activeTx ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-6">
+          <button
+            type="button"
+            aria-label="Close transaction details"
+            onClick={() => setActiveTx(null)}
+            className="absolute inset-0 bg-zinc-950/55 backdrop-blur-[2px]"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="transaction-details-title"
+            className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-zinc-200/90 bg-white shadow-[0_40px_120px_-30px_rgba(15,23,42,0.45)] ring-1 ring-zinc-950/5"
+          >
+            <div className="border-b border-zinc-100 bg-linear-to-br from-orange-50/95 via-white to-amber-50/60 px-6 py-5 sm:px-7">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-orange-700/90">
+                    Transaction details
+                  </p>
+                  <h2
+                    id="transaction-details-title"
+                    className="mt-1.5 truncate font-mono text-lg font-bold text-zinc-950"
+                    title={activeTx.reference}
+                  >
+                    {activeTx.reference}
+                  </h2>
+                  <p className="mt-1 text-xs text-zinc-600">ID {activeTx.id}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTx(null)}
+                  className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${statusPillClass[activeTx.status]}`}
+                >
+                  {activeTx.status}
+                </span>
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[activeTx.channel]}`}
+                >
+                  {channelLabel[activeTx.channel]}
+                </span>
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[activeTx.vehicleType]}`}
+                >
+                  {vehicleLabel[activeTx.vehicleType]}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-4 px-6 py-5 sm:px-7">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailRow label="Customer" value={activeTx.customerName} />
+                <DetailRow label="Amount" value={formatMoney(activeTx.amount)} />
+                <DetailRow label="Date" value={formatDateShort(activeTx.createdAt)} />
+                <DetailRow label="Payment type" value={channelLabel[activeTx.channel]} />
+              </div>
+              <DetailRow
+                label="Notes"
+                value={activeTx.notes?.trim() ? activeTx.notes : 'No notes'}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-zinc-900">{value}</p>
     </div>
   )
 }

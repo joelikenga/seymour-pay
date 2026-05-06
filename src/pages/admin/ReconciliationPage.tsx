@@ -7,7 +7,6 @@ import { useAdminData } from '../../context/AdminDataContext'
 import { channelLabel, channelPillClass } from '../../lib/channelStyles'
 import { vehicleLabel, vehiclePillClass } from '../../lib/vehicleStyles'
 import { formatDateShort, formatMoney } from '../../lib/formatters'
-import { statusPillClass } from '../../lib/statusStyles'
 import type { Transaction } from '../../types/transaction'
 import { usePagination } from '../../hooks/usePagination'
 
@@ -179,7 +178,7 @@ export default function ReconciliationPage() {
           <TableSearchInput
             value={query}
             onChange={setQuery}
-            placeholder="Search ticket ID, customer, notes…"
+            placeholder="Search ticket ID, notes…"
             ariaLabel="Search transactions"
           />
         </TableToolbar>
@@ -228,11 +227,9 @@ export default function ReconciliationPage() {
                   />
                 </th>
                 <th className="whitespace-nowrap px-5 py-3.5">Ticket ID</th>
-                <th className="whitespace-nowrap px-5 py-3.5">Customer</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Vehicle</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Payment type</th>
                 <th className="whitespace-nowrap px-5 py-3.5 text-right">Amount</th>
-                <th className="whitespace-nowrap px-5 py-3.5">Status</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Date</th>
                 <th className="whitespace-nowrap px-5 py-3.5 text-right"> </th>
               </tr>
@@ -259,9 +256,6 @@ export default function ReconciliationPage() {
                     <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
                       {t.reference}
                     </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 font-medium text-zinc-800">
-                      {t.customerName}
-                    </td>
                     <td className="whitespace-nowrap px-5 py-3.5">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[t.vehicleType]}`}
@@ -278,13 +272,6 @@ export default function ReconciliationPage() {
                     </td>
                     <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
                       {formatMoney(t.amount)}
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5">
-                      <span
-                        className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold capitalize ring-1 ring-inset ${statusPillClass[t.status]}`}
-                      >
-                        {t.status}
-                      </span>
                     </td>
                     <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
                       {formatDateShort(t.createdAt)}
@@ -304,7 +291,7 @@ export default function ReconciliationPage() {
               {paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={7}
                     className="px-5 py-10 text-center text-sm text-zinc-500"
                   >
                     No transactions match{query ? ` "${query}"` : ' your filters'}.

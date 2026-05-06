@@ -35,7 +35,6 @@ import {
   formatMoney,
   formatMoneyAbbreviated,
 } from '../../lib/formatters'
-import { statusPillClass } from '../../lib/statusStyles'
 import { usePagination } from '../../hooks/usePagination'
 import type { PaymentChannel, TransactionStatus } from '../../types/transaction'
 
@@ -600,15 +599,13 @@ export default function Dashboard() {
         </TableToolbar>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[840px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50/98 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                 <th className="whitespace-nowrap px-6 py-4 md:px-8">Ticket ID</th>
-                <th className="whitespace-nowrap px-6 py-4 md:px-8">Customer</th>
                 <th className="whitespace-nowrap px-6 py-4 md:px-8">Vehicle</th>
                 <th className="whitespace-nowrap px-6 py-4 md:px-8">Payment type</th>
                 <th className="whitespace-nowrap px-6 py-4 text-right md:px-8">Amount</th>
-                <th className="whitespace-nowrap px-6 py-4 md:px-8">Status</th>
                 <th className="whitespace-nowrap px-6 py-4 md:px-8">Date</th>
                 <th className="whitespace-nowrap px-6 py-4 text-right md:px-8">Action</th>
               </tr>
@@ -621,9 +618,6 @@ export default function Dashboard() {
                 >
                   <td className="whitespace-nowrap px-6 py-4 font-mono text-[13px] text-zinc-900 md:px-8">
                     {row.reference}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 font-medium text-zinc-900 md:px-8">
-                    {row.customerName}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 md:px-8">
                     <span
@@ -641,13 +635,6 @@ export default function Dashboard() {
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-right font-semibold tabular-nums text-zinc-950 md:px-8">
                     {formatMoney(row.amount)}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 md:px-8">
-                    <span
-                      className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold capitalize ring-1 ring-inset ${statusPillClass[row.status]}`}
-                    >
-                      {row.status}
-                    </span>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 tabular-nums text-zinc-600 md:px-8">
                     {formatDateShort(row.createdAt)}

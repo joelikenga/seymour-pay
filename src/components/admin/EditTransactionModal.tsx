@@ -11,18 +11,10 @@ import { vehicleLabel, VEHICLE_TYPES } from '../../lib/vehicleStyles'
 import type {
   PaymentChannel,
   Transaction,
-  TransactionStatus,
   VehicleType,
 } from '../../types/transaction'
 
-const STATUSES: TransactionStatus[] = [
-  'completed',
-  'pending',
-  'failed',
-  'reconciled',
-]
-
-const STATUS_LABEL: Record<TransactionStatus, string> = {
+const STATUS_LABEL: Record<Transaction['status'], string> = {
   completed: 'Completed',
   pending: 'Pending',
   failed: 'Failed',
@@ -34,12 +26,6 @@ interface EditTransactionModalProps {
   open: boolean
   onClose: () => void
   onSave: (id: string, patch: Partial<Transaction>) => void
-}
-
-function toLocalInput(iso: string) {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const FIELD_BASE =
@@ -54,24 +40,16 @@ export default function EditTransactionModal({
   onSave,
 }: EditTransactionModalProps) {
   const [reference, setReference] = useState('')
-  const [customerName, setCustomerName] = useState('')
   const [amount, setAmount] = useState('')
   const [channel, setChannel] = useState<PaymentChannel>('transfer')
   const [vehicleType, setVehicleType] = useState<VehicleType>('car')
-  const [status, setStatus] = useState<TransactionStatus>('completed')
-  const [notes, setNotes] = useState('')
-  const [createdAt, setCreatedAt] = useState('')
 
   useEffect(() => {
     if (!tx) return
     setReference(tx.reference)
-    setCustomerName(tx.customerName)
     setAmount(String(tx.amount))
     setChannel(tx.channel)
     setVehicleType(tx.vehicleType)
-    setStatus(tx.status)
-    setNotes(tx.notes)
-    setCreatedAt(toLocalInput(tx.createdAt))
   }, [tx])
 
   useEffect(() => {
@@ -103,11 +81,6 @@ export default function EditTransactionModal({
       PAYMENT_CHANNELS.map((c) => ({ value: c, label: channelLabel[c] })),
     [],
   )
-  const statusOptions = useMemo(
-    () => STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })),
-    [],
-  )
-
   const livePreviewAmount = useMemo(() => {
     const n = Number(amount.replace(/,/g, ''))
     return Number.isFinite(n) ? n : 0
@@ -119,14 +92,7 @@ export default function EditTransactionModal({
     e.preventDefault()
     if (!Number.isFinite(livePreviewAmount)) return
     onSave(tx.id, {
-      reference: reference.trim(),
-      customerName: customerName.trim(),
       amount: livePreviewAmount,
-      channel,
-      vehicleType,
-      status,
-      notes: notes.trim(),
-      createdAt: new Date(createdAt).toISOString(),
     })
     onClose()
   }
@@ -161,12 +127,12 @@ export default function EditTransactionModal({
               <h2
                 id="edit-tx-title"
                 className="mt-1.5 truncate font-mono text-lg font-bold text-zinc-950 sm:text-xl"
-                title={reference || tx.reference}
+                title={tx.reference}
               >
-                {reference || tx.reference}
+                {tx.reference}
               </h2>
               <p className="mt-1 truncate text-[13px] text-zinc-600">
-                {customerName || tx.customerName} · ID {tx.id}
+                ID {tx.id}
               </p>
             </div>
             <button
@@ -188,15 +154,15 @@ export default function EditTransactionModal({
 
           <div className="relative mt-4 flex flex-wrap items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${statusPillClass[status]}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${statusPillClass[tx.status]}`}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
-              {STATUS_LABEL[status]}
+              {STATUS_LABEL[tx.status]}
             </span>
             <span
-              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[channel]}`}
+              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[tx.channel]}`}
             >
-              {channelLabel[channel]}
+              {channelLabel[tx.channel]}
             </span>
             <span className="ml-auto text-right">
               <span className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500">
@@ -225,18 +191,9 @@ export default function EditTransactionModal({
                   <span className={LABEL_BASE}>Ticket ID</span>
                   <input
                     value={reference}
-                    onChange={(e) => setReference(e.target.value)}
+                    disabled
+                    readOnly
                     className={`${FIELD_BASE} font-mono`}
-                    required
-                  />
-                </label>
-                <label className="block">
-                  <span className={LABEL_BASE}>Customer</span>
-                  <input
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className={FIELD_BASE}
-                    required
                   />
                 </label>
               </div>
@@ -265,51 +222,18 @@ export default function EditTransactionModal({
                 label="Vehicle type"
                 value={vehicleType}
                 options={vehicleOptions}
-                onChange={setVehicleType}
+                onChange={() => {}}
+                disabled
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <DropdownSelect<PaymentChannel>
                   label="Payment type"
                   value={channel}
                   options={channelOptions}
-                  onChange={setChannel}
-                />
-                <DropdownSelect<TransactionStatus>
-                  label="Status"
-                  value={status}
-                  options={statusOptions}
-                  onChange={setStatus}
+                  onChange={() => {}}
+                  disabled
                 />
               </div>
-            </fieldset>
-
-            <div className="h-px bg-linear-to-r from-transparent via-zinc-200 to-transparent" />
-
-            {/* Timing & notes */}
-            <fieldset className="space-y-4">
-              <legend className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">
-                Timing &amp; notes
-              </legend>
-              <label className="block">
-                <span className={LABEL_BASE}>Date &amp; time</span>
-                <input
-                  type="datetime-local"
-                  value={createdAt}
-                  onChange={(e) => setCreatedAt(e.target.value)}
-                  className={`${FIELD_BASE} tabular-nums`}
-                  required
-                />
-              </label>
-              <label className="block">
-                <span className={LABEL_BASE}>Notes</span>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Anything reviewers should know…"
-                  className={`${FIELD_BASE} resize-y leading-relaxed`}
-                />
-              </label>
             </fieldset>
           </div>
 

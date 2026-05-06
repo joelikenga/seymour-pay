@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import TableSearchInput from '../../components/admin/TableSearchInput'
 import { useAdminData } from '../../context/AdminDataContext'
 import type { AuditAction, AuditLogEntry } from '../../types/auditLog'
 import {
@@ -10,30 +9,6 @@ import {
   logMatchesLagosYmd,
 } from '../../lib/logDatePreset'
 import { formatDateShort, formatTimeOnly } from '../../lib/formatters'
-
-const ACTION_TYPES: AuditAction[] = [
-  'navigation',
-  'login',
-  'export',
-  'reconciliation',
-  'settings',
-]
-
-const ACTIONS: { value: AuditAction | ''; label: string }[] = [
-  { value: '', label: 'All' },
-  ...ACTION_TYPES.map((a) => ({
-    value: a,
-    label: a.charAt(0).toUpperCase() + a.slice(1),
-  })),
-]
-
-const SEGMENT_BG: Record<AuditAction, string> = {
-  navigation: 'bg-sky-500',
-  login: 'bg-emerald-500',
-  export: 'bg-orange-500',
-  reconciliation: 'bg-violet-500',
-  settings: 'bg-zinc-500',
-}
 
 const DOT_HEX: Record<AuditAction, string> = {
   navigation: '#0ea5e9',
@@ -60,61 +35,17 @@ function badgeClass(action: AuditAction): string {
   }
 }
 
-function escapeCsvCell(s: string): string {
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-  return s
-}
-
-function logsToCsv(rows: AuditLogEntry[]): string {
-  const header = 'when,user,action,summary,detail'
-  const lines = rows.map((row) =>
-    [
-      escapeCsvCell(row.at),
-      escapeCsvCell(row.userLabel),
-      escapeCsvCell(row.action),
-      escapeCsvCell(row.summary),
-      escapeCsvCell(row.detail),
-    ].join(','),
-  )
-  return '\uFEFF' + header + '\n' + lines.join('\n')
-}
-
-function downloadCsv(filename: string, content: string) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
-}
-
 function sortNewestFirst(rows: AuditLogEntry[]): AuditLogEntry[] {
   return [...rows].sort(
     (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
   )
 }
 
-const MS_24H = 24 * 60 * 60 * 1000
-
 export default function LogsPage() {
   const { logs } = useAdminData()
-  const [query, setQuery] = useState('')
-  const [action, setAction] = useState<AuditAction | ''>('')
   const [openSectionId, setOpenSectionId] = useState<string | null>('today')
 
-  const baseFiltered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return logs.filter((row) => {
-      if (action && row.action !== action) return false
-      if (!q) return true
-      const blob = `${row.userLabel} ${row.summary} ${row.detail}`.toLowerCase()
-      return blob.includes(q)
-    })
-  }, [logs, query, action])
+  const baseFiltered = logs
 
   const now = new Date()
   const todayYmd = lagosTodayYmd(now)
@@ -144,45 +75,6 @@ export default function LogsPage() {
     ]
   }, [baseFiltered, todayYmd, yesterdayYmd])
 
-  const countsByAction = useMemo(() => {
-    const m = new Map<AuditAction, number>()
-    for (const a of ACTION_TYPES) m.set(a, 0)
-    for (const row of baseFiltered) {
-      m.set(row.action, (m.get(row.action) ?? 0) + 1)
-    }
-    return m
-  }, [baseFiltered])
-
-  const totalFiltered = baseFiltered.length
-  const denom = totalFiltered || 1
-
-  const last24hCount = useMemo(() => {
-    const now = Date.now()
-    return baseFiltered.filter(
-      (row) => now - new Date(row.at).getTime() <= MS_24H,
-    ).length
-  }, [baseFiltered])
-
-  const dominantAction = useMemo(() => {
-    let best: AuditAction | null = null
-    let n = -1
-    for (const a of ACTION_TYPES) {
-      const c = countsByAction.get(a) ?? 0
-      if (c > n) {
-        n = c
-        best = a
-      }
-    }
-    return best && n > 0 ? { action: best, count: n } : null
-  }, [countsByAction])
-
-  function exportFiltered() {
-    if (baseFiltered.length === 0) return
-    const stamp = new Date().toISOString().slice(0, 10)
-    const sorted = sortNewestFirst(baseFiltered)
-    downloadCsv(`activity-log-${stamp}.csv`, logsToCsv(sorted))
-  }
-
   function toggleSection(id: string) {
     setOpenSectionId((cur) => (cur === id ? null : id))
   }
@@ -203,134 +95,12 @@ export default function LogsPage() {
           </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-zinc-600">
             <strong>Today</strong> and <strong>Yesterday</strong> first, then one
-            section per calendar day (Lagos). Search and action filters apply
-            everywhere; export includes all matching rows.
+            section per calendar day (Lagos).
           </p>
         </div>
       </header>
 
       <section className="overflow-hidden rounded-3xl border border-zinc-200/90 bg-white shadow-[0_12px_48px_-28px_rgba(15,23,42,0.1)] ring-1 ring-zinc-950/5">
-        <div className="border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/90 px-5 py-5 sm:px-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-zinc-950">Live breakdown</h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                Search and action filters apply to every period below.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={exportFiltered}
-                disabled={baseFiltered.length === 0}
-                className="inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm transition hover:border-orange-200 hover:bg-orange-50/60 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Export CSV ({baseFiltered.length})
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <TableSearchInput
-              value={query}
-              onChange={setQuery}
-              placeholder="Search user, summary, detail…"
-              ariaLabel="Search log"
-            />
-            <div
-              className="flex flex-wrap gap-2"
-              role="group"
-              aria-label="Filter by action"
-            >
-              {ACTIONS.map((a) => {
-                const active = action === a.value
-                return (
-                  <button
-                    key={a.label}
-                    type="button"
-                    onClick={() => setAction(a.value)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      active
-                        ? 'bg-zinc-950 text-white shadow-md shadow-zinc-900/15'
-                        : 'bg-zinc-100 text-zinc-700 ring-1 ring-zinc-200/80 hover:bg-zinc-200/70'
-                    }`}
-                  >
-                    {a.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_220px] lg:items-center">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Mix for current filters
-              </p>
-              {totalFiltered === 0 ? (
-                <p className="mt-3 text-sm text-zinc-500">No events match — loosen filters.</p>
-              ) : (
-                <>
-                  <div className="mt-2 flex h-4 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/90">
-                    {ACTION_TYPES.map((a) => {
-                      const n = countsByAction.get(a) ?? 0
-                      const pct = (n / denom) * 100
-                      if (pct <= 0) return null
-                      return (
-                        <div
-                          key={a}
-                          className={`${SEGMENT_BG[a]} min-w-[4px] transition-all first:rounded-l-full last:rounded-r-full`}
-                          style={{ width: `${pct}%` }}
-                          title={`${a}: ${n}`}
-                        />
-                      )
-                    })}
-                  </div>
-                  <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
-                    {ACTION_TYPES.map((a) => {
-                      const n = countsByAction.get(a) ?? 0
-                      if (n === 0) return null
-                      return (
-                        <li key={a} className="flex items-center gap-2">
-                          <span
-                            className={`h-2 w-2 shrink-0 rounded-full ${SEGMENT_BG[a]}`}
-                          />
-                          <span className="font-medium capitalize text-zinc-700">
-                            {a}
-                          </span>
-                          <span className="tabular-nums text-zinc-500">{n}</span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </>
-              )}
-            </div>
-            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 ring-1 ring-zinc-950/5">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Matching filters
-              </p>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-950">
-                {totalFiltered}
-              </p>
-              <p className="text-xs text-zinc-500">
-                Any period ·{' '}
-                <span className="font-medium text-zinc-700">{last24hCount}</span> in
-                last 24h
-              </p>
-              {dominantAction ? (
-                <p className="mt-3 border-t border-zinc-200/80 pt-3 text-xs text-zinc-600">
-                  Most common:{' '}
-                  <span className="font-semibold capitalize text-zinc-900">
-                    {dominantAction.action}
-                  </span>{' '}
-                  ({dominantAction.count})
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
         <div className="px-3 py-4 sm:px-5 sm:py-5">
           <p className="mb-3 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 sm:px-0">
             By period (WAT)
