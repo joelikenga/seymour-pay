@@ -235,7 +235,7 @@ function TotalVolumeSlide({
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         <span className="inline-flex items-center rounded-full border border-zinc-200/90 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-700">
-          {9999}+ records
+          {totalCount.toLocaleString()} {totalCount === 1 ? 'record' : 'records'}
         </span>
         <span className="inline-flex items-center rounded-full border border-zinc-200/90 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-700">
           {channelsUsed} payment {channelsUsed === 1 ? 'type' : 'types'} used
