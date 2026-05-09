@@ -59,12 +59,28 @@ export default function Dashboard() {
   const { transactions, appendLog } = useAdminData()
   const [q, setQ] = useState('')
   const [avatarFailed, setAvatarFailed] = useState(false)
+  const [inviteInput, setInviteInput] = useState('')
+  const [invitedPeople, setInvitedPeople] = useState<string[]>([
+    'ops@seymouraviation.ng',
+  ])
+  const [pendingDeleteEmail, setPendingDeleteEmail] = useState<string | null>(null)
   const avatarUrl = useMemo(
     () =>
       `https://ui-avatars.com/api/?name=${encodeURIComponent(OPS_PROFILE.name)}&background=ea580c&color=fff&size=128&rounded=true`,
     [],
   )
   const onAvatarError = useCallback(() => setAvatarFailed(true), [])
+  const addInvite = useCallback(() => {
+    const value = inviteInput.trim().toLowerCase()
+    if (!value) return
+    if (invitedPeople.includes(value)) return
+    setInvitedPeople((prev) => [value, ...prev])
+    setInviteInput('')
+  }, [inviteInput, invitedPeople])
+
+  const removeInvite = useCallback((email: string) => {
+    setInvitedPeople((prev) => prev.filter((person) => person !== email))
+  }, [])
 
   const stats = useMemo(
     () => computeOverviewDashboardStats(transactions),
@@ -475,88 +491,123 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <aside className="flex flex-col gap-4 lg:col-span-3">
+        <aside className="lg:col-span-3">
           <div
-            className="relative overflow-hidden rounded-[1.75rem] border border-orange-200/60 bg-linear-to-b from-amber-50/90 via-white to-orange-50/40 p-6 shadow-[0_20px_50px_-38px_rgba(234,88,12,0.35)] ring-1 ring-orange-950/5"
+            className="relative flex h-[460px] flex-col overflow-hidden rounded-[1.75rem] border border-orange-200/70 bg-linear-to-b from-amber-50/95 via-white to-orange-50/50 p-6 shadow-[0_24px_60px_-40px_rgba(234,88,12,0.38)] ring-1 ring-orange-950/5"
             role="region"
-            aria-label="Apron activity for today in Lagos"
+            aria-label="Invite people to admin"
           >
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[repeating-linear-gradient(90deg,transparent,transparent_10px,rgba(234,88,12,0.06)_10px,rgba(234,88,12,0.06)_12px)] opacity-80"
-              aria-hidden
-            />
-            <div className="pointer-events-none absolute right-4 top-4 opacity-[0.12]" aria-hidden>
-              <svg width="72" height="56" viewBox="0 0 72 56" fill="none">
-                <path
-                  d="M8 44 L36 12 L58 22 L44 44 Z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  className="text-orange-700"
-                />
-                <circle cx="22" cy="38" r="5" fill="currentColor" className="text-orange-400" />
-                <circle cx="48" cy="38" r="5" fill="currentColor" className="text-orange-400" />
-              </svg>
-            </div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-900/70">
-              Apron · Lagos day
-            </p>
-            <p className="mt-2 text-4xl font-bold tabular-nums tracking-tight text-zinc-950">
-              {stats.todaySessions}
-            </p>
-            <p className="mt-1 text-sm font-semibold text-zinc-800">
-              gate events today
-            </p>
-            <p className="relative mt-4 max-w-56 text-xs leading-relaxed text-zinc-600">
-              Each line is a parking payment hitting the ledger — nothing leaves the apron
-              until it&apos;s recorded.
-            </p>
-          </div>
-
-          <div className="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-linear-to-br from-slate-50 via-white to-sky-50/50 p-6 shadow-sm ring-1 ring-slate-950/[0.04]">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                Seven-day runway
-              </p>
-              <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-800 ring-1 ring-sky-200/80">
-                volume
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-900/70">
+                  Admin access
+                </p>
+                <p className="mt-2 text-xl font-bold tracking-tight text-zinc-950">
+                  Invite people
+                </p>
+                <p className="mt-1 text-sm text-zinc-700">
+                  Add team members and remove them anytime.
+                </p>
+              </div>
+              <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-full border border-orange-200 bg-white px-2 text-sm font-bold text-orange-700 shadow-sm">
+                {invitedPeople.length}
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-600">
-              Rolling week — bar height is ₦ throughput (same ledger as charts).
-            </p>
-            <div
-              className="mt-5 flex h-28 items-end gap-1.5"
-              role="img"
-              aria-label="Last seven days payment volume"
-            >
-              {stats.weekSeries.map((v, i) => {
-                const h = Math.round((v / stats.weekMax) * 100)
-                return (
-                  <div key={i} className="flex min-w-0 flex-1 flex-col justify-end">
-                    <div
-                      className="w-full rounded-t-lg bg-linear-to-t from-orange-600 to-orange-400 shadow-sm ring-1 ring-orange-500/20 transition-all"
-                      style={{ height: `${Math.max(8, h)}%` }}
-                      title={formatMoney(v)}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-            <div className="mt-2 flex justify-between text-[10px] font-medium uppercase tracking-wider text-slate-400">
-              <span>−6d</span>
-              <span>today</span>
-            </div>
-          </div>
 
-          <Link
-            to="/admin/transactions"
-            className="group flex items-center justify-between rounded-[1.75rem] border border-zinc-200/80 bg-linear-to-br from-white to-zinc-50/90 px-6 py-5 text-left shadow-sm ring-1 ring-zinc-950/[0.03] transition hover:border-orange-200 hover:shadow-md"
-          >
-            <span className="font-semibold text-zinc-900">Full export-ready ledger</span>
-            <span className="rounded-full bg-zinc-100 px-2 py-1 text-orange-600 transition group-hover:bg-orange-100" aria-hidden>
-              →
-            </span>
-          </Link>
+            <form
+              className="mt-5 flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault()
+                addInvite()
+              }}
+            >
+              <input
+                type="email"
+                value={inviteInput}
+                onChange={(event) => setInviteInput(event.target.value)}
+                placeholder="name@example.com"
+                className="h-9 flex-1 rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none ring-orange-200 placeholder:text-zinc-400 shadow-inner focus:border-orange-300 focus:ring-2"
+              />
+              <button
+                type="submit"
+                disabled={!inviteInput.trim()}
+                className="h-9 rounded-lg bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+              >
+                Invite
+              </button>
+            </form>
+
+            <div className="mt-5 flex min-h-0 flex-1 flex-col border-t border-orange-100/70 pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                  People invited
+                </p>
+                <p className="text-xs font-medium text-zinc-500">
+                  {invitedPeople.length} total
+                </p>
+              </div>
+              <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {invitedPeople.length > 0 ? (
+                  invitedPeople.map((email) => (
+                    <li
+                      key={email}
+                      className="group flex items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2.5 shadow-sm transition hover:border-orange-200"
+                    >
+                      <span className="truncate text-sm font-medium text-zinc-800">{email}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeleteEmail(email)}
+                        className="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                      >
+                        Delete
+                      </button>
+                    </li>
+                  ))
+                ) : (
+                  <li className="rounded-xl border border-dashed border-zinc-300 bg-white/70 px-3 py-4 text-center text-sm text-zinc-500">
+                    No invites yet. Add an email above to get started.
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            {pendingDeleteEmail ? (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/30 p-4 backdrop-blur-[1px]">
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Confirm invite deletion"
+                  className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl"
+                >
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Delete invited person?
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-600 break-all">
+                    {pendingDeleteEmail}
+                  </p>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPendingDeleteEmail(null)}
+                      className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeInvite(pendingDeleteEmail)
+                        setPendingDeleteEmail(null)
+                      }}
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </aside>
       </div>
 

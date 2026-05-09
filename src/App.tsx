@@ -10,6 +10,8 @@ import LogsPage from './pages/admin/LogsPage.tsx'
 import ReconciliationPage from './pages/admin/ReconciliationPage.tsx'
 import SettlementPage from './pages/admin/SettlementPage.tsx'
 import TransactionsPage from './pages/admin/TransactionsPage.tsx'
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.tsx'
+import LoginPage from './pages/auth/LoginPage.tsx'
 
 const Dashboard = lazy(() => import('./pages/admin/Dashboard.tsx'))
 
@@ -21,6 +23,9 @@ export default function App() {
         <SessionLoginLogger />
         <NavigationLogger />
         <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route
               index
@@ -42,7 +47,7 @@ export default function App() {
             <Route path="settlement" element={<SettlementPage />} />
             <Route path="reconciliation" element={<ReconciliationPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/admin" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </AdminDataProvider>
