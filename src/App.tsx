@@ -8,6 +8,7 @@ import AdminLayout from './pages/admin/AdminLayout.tsx'
 import AnalyticsPage from './pages/admin/AnalyticsPage.tsx'
 import LogsPage from './pages/admin/LogsPage.tsx'
 import ReconciliationPage from './pages/admin/ReconciliationPage.tsx'
+import SettingsPage from './pages/admin/SettingsPage.tsx'
 import SettlementPage from './pages/admin/SettlementPage.tsx'
 import TransactionsPage from './pages/admin/TransactionsPage.tsx'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.tsx'
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="logs" element={<LogsPage />} />
             <Route path="settlement" element={<SettlementPage />} />
             <Route path="reconciliation" element={<ReconciliationPage />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

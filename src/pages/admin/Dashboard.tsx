@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import AdminPagination from '../../components/admin/AdminPagination'
+import OverviewMonthCalendar from '../../components/admin/OverviewMonthCalendar'
 import OverviewCarousel from '../../components/admin/OverviewCarousel'
 import OverviewClock from '../../components/admin/OverviewClock'
 import TableSearchInput from '../../components/admin/TableSearchInput'
@@ -59,29 +60,12 @@ export default function Dashboard() {
   const { transactions, appendLog } = useAdminData()
   const [q, setQ] = useState('')
   const [avatarFailed, setAvatarFailed] = useState(false)
-  const [inviteInput, setInviteInput] = useState('')
-  const [invitedPeople, setInvitedPeople] = useState<string[]>([
-    'ops@seymouraviation.ng',
-  ])
-  const [pendingDeleteEmail, setPendingDeleteEmail] = useState<string | null>(null)
   const avatarUrl = useMemo(
     () =>
       `https://ui-avatars.com/api/?name=${encodeURIComponent(OPS_PROFILE.name)}&background=ea580c&color=fff&size=128&rounded=true`,
     [],
   )
   const onAvatarError = useCallback(() => setAvatarFailed(true), [])
-  const addInvite = useCallback(() => {
-    const value = inviteInput.trim().toLowerCase()
-    if (!value) return
-    if (invitedPeople.includes(value)) return
-    setInvitedPeople((prev) => [value, ...prev])
-    setInviteInput('')
-  }, [inviteInput, invitedPeople])
-
-  const removeInvite = useCallback((email: string) => {
-    setInvitedPeople((prev) => prev.filter((person) => person !== email))
-  }, [])
-
   const stats = useMemo(
     () => computeOverviewDashboardStats(transactions),
     [transactions],
@@ -492,122 +476,13 @@ export default function Dashboard() {
         </section>
 
         <aside className="lg:col-span-3">
-          <div
-            className="relative flex h-[460px] flex-col overflow-hidden rounded-[1.75rem] border border-orange-200/70 bg-linear-to-b from-amber-50/95 via-white to-orange-50/50 p-6 shadow-[0_24px_60px_-40px_rgba(234,88,12,0.38)] ring-1 ring-orange-950/5"
-            role="region"
-            aria-label="Invite people to admin"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-900/70">
-                  Admin access
-                </p>
-                <p className="mt-2 text-xl font-bold tracking-tight text-zinc-950">
-                  Invite people
-                </p>
-                <p className="mt-1 text-sm text-zinc-700">
-                  Add team members and remove them anytime.
-                </p>
-              </div>
-              <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-full border border-orange-200 bg-white px-2 text-sm font-bold text-orange-700 shadow-sm">
-                {invitedPeople.length}
-              </span>
-            </div>
-
-            <form
-              className="mt-5 flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault()
-                addInvite()
-              }}
-            >
-              <input
-                type="email"
-                value={inviteInput}
-                onChange={(event) => setInviteInput(event.target.value)}
-                placeholder="name@example.com"
-                className="h-9 flex-1 rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none ring-orange-200 placeholder:text-zinc-400 shadow-inner focus:border-orange-300 focus:ring-2"
-              />
-              <button
-                type="submit"
-                disabled={!inviteInput.trim()}
-                className="h-9 rounded-lg bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
-              >
-                Invite
-              </button>
-            </form>
-
-            <div className="mt-5 flex min-h-0 flex-1 flex-col border-t border-orange-100/70 pt-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  People invited
-                </p>
-                <p className="text-xs font-medium text-zinc-500">
-                  {invitedPeople.length} total
-                </p>
-              </div>
-              <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {invitedPeople.length > 0 ? (
-                  invitedPeople.map((email) => (
-                    <li
-                      key={email}
-                      className="group flex items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2.5 shadow-sm transition hover:border-orange-200"
-                    >
-                      <span className="truncate text-sm font-medium text-zinc-800">{email}</span>
-                      <button
-                        type="button"
-                        onClick={() => setPendingDeleteEmail(email)}
-                        className="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
-                      >
-                        Delete
-                      </button>
-                    </li>
-                  ))
-                ) : (
-                  <li className="rounded-xl border border-dashed border-zinc-300 bg-white/70 px-3 py-4 text-center text-sm text-zinc-500">
-                    No invites yet. Add an email above to get started.
-                  </li>
-                )}
-              </ul>
-            </div>
-
-            {pendingDeleteEmail ? (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/30 p-4 backdrop-blur-[1px]">
-                <div
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Confirm invite deletion"
-                  className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl"
-                >
-                  <p className="text-sm font-semibold text-zinc-900">
-                    Delete invited person?
-                  </p>
-                  <p className="mt-1 text-xs text-zinc-600 break-all">
-                    {pendingDeleteEmail}
-                  </p>
-                  <div className="mt-4 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPendingDeleteEmail(null)}
-                      className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        removeInvite(pendingDeleteEmail)
-                        setPendingDeleteEmail(null)
-                      }}
-                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+          <div className="mb-4 flex items-center gap-2">
+            <span className="h-1 w-6 rounded-full bg-orange-500" aria-hidden />
+            <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+              Calendar
+            </h3>
           </div>
+          <OverviewMonthCalendar />
         </aside>
       </div>
 

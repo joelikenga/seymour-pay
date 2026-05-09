@@ -11,6 +11,7 @@ const nav = [
   { to: '/admin/analytics', label: 'Analytics' },
   { to: '/admin/logs', label: 'Logs' },
   { to: '/admin/reconciliation', label: 'Reconciliation' },
+  { to: '/admin/settings', label: 'Settings' },
 ] as const
 
 export default function AdminLayout() {

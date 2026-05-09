@@ -10,12 +10,31 @@ import { seedAuditLogs } from '../data/seedAuditLogs'
 import { seedTransactions } from '../data/seedTransactions'
 import type { AuditLogEntry, AuditAction } from '../types/auditLog'
 import type { Transaction } from '../types/transaction'
+import type { AdminPageKey, AdminUserRecord } from '../types/adminUser'
+import { defaultPageAccess } from '../types/adminUser'
 
 function newId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
   }
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+const PASSWORD_CHARS =
+  'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+function generatePassword(length = 14): string {
+  const buf = new Uint32Array(length)
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(buf)
+  } else {
+    for (let i = 0; i < length; i++) buf[i] = Math.floor(Math.random() * 2 ** 32)
+  }
+  let out = ''
+  for (let i = 0; i < length; i++) {
+    out += PASSWORD_CHARS[buf[i] % PASSWORD_CHARS.length]
+  }
+  return out
 }
 
 interface AppendAuditInput {
@@ -30,6 +49,20 @@ interface AdminDataContextValue {
   deleteTransactions: (ids: readonly string[]) => void
   logs: AuditLogEntry[]
   appendLog: (entry: AppendAuditInput) => void
+  adminUsers: AdminUserRecord[]
+  addAdminUser: (input: {
+    email: string
+    firstName: string
+    lastName: string
+  }) =>
+    | { ok: true; user: AdminUserRecord; password: string }
+    | { ok: false; error: 'duplicate_email' | 'invalid' }
+  removeAdminUser: (id: string) => void
+  setUserPageAccess: (
+    userId: string,
+    page: AdminPageKey,
+    allowed: boolean,
+  ) => void
 }
 
 const AdminDataContext = createContext<AdminDataContextValue | null>(null)
@@ -41,6 +74,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     () => [...seedTransactions],
   )
   const [logs, setLogs] = useState<AuditLogEntry[]>(() => [...seedAuditLogs])
+  const [adminUsers, setAdminUsers] = useState<AdminUserRecord[]>(() => [])
 
   const updateTransaction = useCallback((id: string, patch: Partial<Transaction>) => {
     setTransactions((rows) =>
@@ -76,6 +110,59 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     setLogs((prev) => [row, ...prev])
   }, [])
 
+  const addAdminUser = useCallback(
+    (input: { email: string; firstName: string; lastName: string }) => {
+      const email = input.email.trim().toLowerCase()
+      const firstName = input.firstName.trim()
+      const lastName = input.lastName.trim()
+      if (!email || !firstName || !lastName) {
+        return { ok: false as const, error: 'invalid' as const }
+      }
+
+      let outcome:
+        | { ok: true; user: AdminUserRecord; password: string }
+        | { ok: false; error: 'duplicate_email' }
+        | undefined
+
+      setAdminUsers((prev) => {
+        if (prev.some((u) => u.email.toLowerCase() === email)) {
+          outcome = { ok: false, error: 'duplicate_email' }
+          return prev
+        }
+        const password = generatePassword()
+        const user: AdminUserRecord = {
+          id: newId('user'),
+          email,
+          firstName,
+          lastName,
+          pageAccess: defaultPageAccess(),
+        }
+        outcome = { ok: true, user, password }
+        return [...prev, user]
+      })
+
+      return outcome ?? { ok: false as const, error: 'duplicate_email' as const }
+    },
+    [],
+  )
+
+  const removeAdminUser = useCallback((id: string) => {
+    setAdminUsers((prev) => prev.filter((u) => u.id !== id))
+  }, [])
+
+  const setUserPageAccess = useCallback(
+    (userId: string, page: AdminPageKey, allowed: boolean) => {
+      setAdminUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? { ...u, pageAccess: { ...u.pageAccess, [page]: allowed } }
+            : u,
+        ),
+      )
+    },
+    [],
+  )
+
   const value = useMemo(
     () => ({
       transactions,
@@ -83,8 +170,22 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       deleteTransactions,
       logs,
       appendLog,
+      adminUsers,
+      addAdminUser,
+      removeAdminUser,
+      setUserPageAccess,
     }),
-    [transactions, updateTransaction, deleteTransactions, logs, appendLog],
+    [
+      transactions,
+      updateTransaction,
+      deleteTransactions,
+      logs,
+      appendLog,
+      adminUsers,
+      addAdminUser,
+      removeAdminUser,
+      setUserPageAccess,
+    ],
   )
 
   return (
