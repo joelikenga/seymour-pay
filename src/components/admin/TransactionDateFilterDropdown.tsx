@@ -108,6 +108,28 @@ export default function TransactionDateFilterDropdown({
     }
   }, [open, closeMenu])
 
+  /** Fullscreen modal on narrow viewports — lock scroll behind the sheet. */
+  useEffect(() => {
+    if (!open) return
+    const mq = window.matchMedia('(max-width: 639px)')
+    const sync = () => {
+      if (mq.matches) {
+        document.documentElement.style.overflow = 'hidden'
+        document.body.style.overflow = 'hidden'
+      } else {
+        document.documentElement.style.overflow = ''
+        document.body.style.overflow = ''
+      }
+    }
+    sync()
+    mq.addEventListener('change', sync)
+    return () => {
+      mq.removeEventListener('change', sync)
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
   function select(value: string) {
     onFilterChange(value)
     if (value !== 'custom') closeMenu()
@@ -154,14 +176,36 @@ export default function TransactionDateFilterDropdown({
       </button>
 
       {open ? (
-        <div
-          id={titleId}
-          role="dialog"
-          aria-label={ariaLabel}
-          className="absolute right-0 z-40 mt-2 w-[min(22rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_24px_60px_-20px_rgba(15,23,42,0.28)] ring-1 ring-zinc-950/5"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/80 px-4 py-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <>
+          <div
+            className="fixed inset-0 z-45 bg-zinc-950/45 backdrop-blur-[1px] sm:hidden"
+            aria-hidden
+            onClick={closeMenu}
+          />
+          <div
+            id={titleId}
+            role="dialog"
+            aria-modal="true"
+            aria-label={ariaLabel}
+            className="fixed inset-0 z-50 flex max-h-dvh flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:z-40 sm:mt-2 sm:max-h-none sm:w-[min(22rem,calc(100vw-2rem))] sm:max-w-none sm:rounded-2xl sm:border sm:border-zinc-200/90 sm:bg-white sm:pt-0 sm:shadow-[0_24px_60px_-20px_rgba(15,23,42,0.28)] sm:ring-1 sm:ring-zinc-950/5"
+          >
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/80 px-4 py-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
+              <button
+                type="button"
+                onClick={closeMenu}
+                className="-ml-1 rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 sm:hidden"
+                aria-label="Close date filter"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M18 6L6 18M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
                 Date range
               </p>
@@ -205,7 +249,7 @@ export default function TransactionDateFilterDropdown({
                   <div
                     role="listbox"
                     aria-label="Choose year"
-                    className="absolute right-0 z-10 mt-1.5 max-h-48 w-24 overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg ring-1 ring-zinc-950/5"
+                    className="absolute right-0 z-60 mt-1.5 max-h-48 w-24 overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg ring-1 ring-zinc-950/5"
                   >
                     {yearChoices.map((y) => {
                       const active = y === panelYear
@@ -248,7 +292,8 @@ export default function TransactionDateFilterDropdown({
             </div>
           </div>
 
-          <div className="max-h-[min(28rem,70vh)] overflow-y-auto overscroll-contain p-2">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:block sm:flex-none">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:max-h-[min(28rem,70vh)] sm:flex-none">
             <div className="space-y-0.5">
               {PRESETS.map((p) => {
                 const active = filterValue === p.value
@@ -380,9 +425,10 @@ export default function TransactionDateFilterDropdown({
               ) : null}
             </button>
           </div>
+          </div>
 
           {filterValue === 'custom' ? (
-            <div className="border-t border-zinc-100 bg-zinc-50/80 px-4 py-3">
+            <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
               <div className="grid grid-cols-2 gap-2">
                 <label className="flex flex-col gap-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
@@ -418,7 +464,8 @@ export default function TransactionDateFilterDropdown({
               </button>
             </div>
           ) : null}
-        </div>
+          </div>
+        </>
       ) : null}
     </div>
   )
