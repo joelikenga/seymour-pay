@@ -1,3 +1,57 @@
+/** Earliest year offered in admin date filters (year dropdown + month tiles). */
+export const TRANSACTION_FILTER_MIN_YEAR = 2026
+
+export function defaultTransactionFilterYear(now: Date = new Date()): number {
+  return Math.max(TRANSACTION_FILTER_MIN_YEAR, now.getFullYear())
+}
+
+/** Years from {@link TRANSACTION_FILTER_MIN_YEAR} through the current calendar year. */
+export function transactionFilterYearChoices(now: Date = new Date()): number[] {
+  const end = defaultTransactionFilterYear(now)
+  const out: number[] = []
+  for (let y = TRANSACTION_FILTER_MIN_YEAR; y <= end; y++) {
+    out.push(y)
+  }
+  return out
+}
+
+/**
+ * Month tiles for one calendar year: January through December, or January through
+ * the current month when `year` is the current year (same rule as overview pickers).
+ */
+export function monthOptionsForCalendarYear(
+  year: number,
+  now: Date = new Date(),
+): MonthOption[] {
+  const y = Math.max(TRANSACTION_FILTER_MIN_YEAR, year)
+  const nowY = now.getFullYear()
+  const nowM = now.getMonth()
+  if (y > nowY) return []
+  const endMonth = y === nowY ? nowM : 11
+  const out: MonthOption[] = []
+  for (let m = 0; m <= endMonth; m++) {
+    const value = `month:${y}-${String(m + 1).padStart(2, '0')}`
+    const label = new Date(y, m, 15).toLocaleString(undefined, {
+      month: 'long',
+      year: 'numeric',
+    })
+    out.push({ year: y, monthIndex: m, value, label })
+  }
+  return out
+}
+
+/** Label for a `month:YYYY-MM` filter value (trigger / summaries). */
+export function labelForMonthFilterValue(value: string): string | null {
+  if (!value.startsWith('month:')) return null
+  const rest = value.slice('month:'.length)
+  const [ys, ms] = rest.split('-').map((x) => Number.parseInt(x, 10))
+  if (!Number.isFinite(ys) || !Number.isFinite(ms)) return null
+  if (ys < TRANSACTION_FILTER_MIN_YEAR) return null
+  const d = new Date(ys, ms - 1, 15)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString(undefined, { month: 'long', year: 'numeric' })
+}
+
 export type DateFilterSelection =
   | { kind: 'all' }
   | { kind: 'today' }
@@ -16,6 +70,31 @@ export function endOfLocalDay(d: Date): Date {
   const x = new Date(d)
   x.setHours(23, 59, 59, 999)
   return x
+}
+
+/** Local calendar `YYYY-MM-DD` (matches filter UI / server date params). */
+export function toLocalYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Inclusive `from` / `to` strings for `GET /admin/transactions` when not “all time”. */
+export function dateSelectionToApiRange(
+  selection: DateFilterSelection,
+  now: Date = new Date(),
+): { from?: string; to?: string } {
+  const bounds = getFilterBounds(selection, now)
+  if (!bounds) return {}
+  return { from: toLocalYmd(bounds.start), to: toLocalYmd(bounds.end) }
+}
+
+/** Stable segment for TanStack `queryKey` (e.g. `all` or `2026-05-01|2026-05-10`). */
+export function dateSelectionToQueryKey(
+  selection: DateFilterSelection,
+  now: Date = new Date(),
+): string {
+  const { from, to } = dateSelectionToApiRange(selection, now)
+  if (!from || !to) return 'all'
+  return `${from}|${to}`
 }
 
 export function getFilterBounds(

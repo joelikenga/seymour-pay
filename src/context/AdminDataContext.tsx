@@ -12,6 +12,11 @@ import type { AuditLogEntry, AuditAction } from '../types/auditLog'
 import type { Transaction } from '../types/transaction'
 import type { AdminPageKey, AdminUserRecord } from '../types/adminUser'
 import { defaultPageAccess } from '../types/adminUser'
+import { adminLogsInfiniteQueryKey } from '../query/adminLogs'
+import { dashboardOverviewQueryKey } from '../query/dashboardOverview'
+import { getAuditActorLabel } from '../lib/auditActorLabel'
+import { queryClient } from '../query/queryClient'
+import { LogsApi } from '../utils'
 
 function newId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -72,8 +77,6 @@ interface AdminDataContextValue {
 
 const AdminDataContext = createContext<AdminDataContextValue | null>(null)
 
-const DEMO_USER = 'Seymour Ops'
-
 export function AdminDataProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>(
     () => [...seedTransactions],
@@ -109,10 +112,22 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     const row: AuditLogEntry = {
       id: newId('log'),
       at: new Date().toISOString(),
-      userLabel: DEMO_USER,
+      userLabel: getAuditActorLabel(),
       ...entry,
     }
     setLogs((prev) => [row, ...prev])
+    void LogsApi.adminAddLog({
+      action: entry.action,
+      summary: entry.summary,
+      detail: entry.detail,
+    })
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: adminLogsInfiniteQueryKey })
+        void queryClient.invalidateQueries({ queryKey: dashboardOverviewQueryKey })
+      })
+      .catch(() => {
+        /* demo UI still has local row; server may be offline */
+      })
   }, [])
 
   const addAdminUser = useCallback(

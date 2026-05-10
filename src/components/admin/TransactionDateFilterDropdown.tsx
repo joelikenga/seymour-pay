@@ -1,22 +1,15 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { MonthOption } from '../../lib/transactionDateFilter'
+import {
+  defaultTransactionFilterYear,
+  monthOptionsForCalendarYear,
+  TRANSACTION_FILTER_MIN_YEAR,
+  transactionFilterYearChoices,
+} from '../../lib/transactionDateFilter'
 
 function monthShort(monthIndex: number): string {
   return new Date(2000, monthIndex, 1).toLocaleString(undefined, {
     month: 'short',
   })
-}
-
-function groupMonthsByYear(options: MonthOption[]): [number, MonthOption[]][] {
-  const map = new Map<number, MonthOption[]>()
-  for (const o of options) {
-    if (!map.has(o.year)) map.set(o.year, [])
-    map.get(o.year)!.push(o)
-  }
-  for (const arr of map.values()) {
-    arr.sort((a, b) => a.monthIndex - b.monthIndex)
-  }
-  return [...map.entries()].sort((a, b) => b[0] - a[0])
 }
 
 const PRESETS: { value: string; label: string }[] = [
@@ -29,7 +22,6 @@ const PRESETS: { value: string; label: string }[] = [
 interface TransactionDateFilterDropdownProps {
   filterValue: string
   onFilterChange: (value: string) => void
-  monthOptions: MonthOption[]
   triggerLabel: string
   customStart: string
   customEnd: string
@@ -42,7 +34,6 @@ interface TransactionDateFilterDropdownProps {
 export default function TransactionDateFilterDropdown({
   filterValue,
   onFilterChange,
-  monthOptions,
   triggerLabel,
   customStart,
   customEnd,
@@ -55,23 +46,43 @@ export default function TransactionDateFilterDropdown({
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState(false)
   const [monthSectionOpen, setMonthSectionOpen] = useState(true)
+  const [yearMenuOpen, setYearMenuOpen] = useState(false)
+  const [panelYear, setPanelYear] = useState(() => defaultTransactionFilterYear())
 
   const isMonthFilter = filterValue.startsWith('month:')
-  const byYear = useMemo(
-    () => groupMonthsByYear(monthOptions),
-    [monthOptions],
+  const yearChoices = useMemo(() => transactionFilterYearChoices(), [])
+  const monthsForYear = useMemo(
+    () => monthOptionsForCalendarYear(panelYear),
+    [panelYear],
   )
 
   useEffect(() => {
     if (open && isMonthFilter) setMonthSectionOpen(true)
   }, [open, isMonthFilter])
 
+  useEffect(() => {
+    if (!open) setYearMenuOpen(false)
+  }, [open])
+
+  // When opening: focus month grid on the year of the active month filter, else current year.
+  useEffect(() => {
+    if (!open) return
+    if (filterValue.startsWith('month:')) {
+      const rest = filterValue.slice('month:'.length)
+      const [ys] = rest.split('-').map((x) => Number.parseInt(x, 10))
+      if (Number.isFinite(ys) && ys >= TRANSACTION_FILTER_MIN_YEAR) {
+        setPanelYear(ys)
+        return
+      }
+    }
+    setPanelYear(defaultTransactionFilterYear())
+  }, [open, filterValue])
+
   const closeMenu = useCallback(() => {
     setOpen(false)
     requestAnimationFrame(() => triggerRef.current?.focus())
   }, [])
 
-  // Outside click + escape close
   useEffect(() => {
     if (!open) return
     function onPointer(e: MouseEvent | TouchEvent) {
@@ -149,19 +160,92 @@ export default function TransactionDateFilterDropdown({
           aria-label={ariaLabel}
           className="absolute right-0 z-40 mt-2 w-[min(22rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_24px_60px_-20px_rgba(15,23,42,0.28)] ring-1 ring-zinc-950/5"
         >
-          <div className="flex items-center justify-between border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/80 px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-              Date range
-            </p>
-            {filterValue !== 'all' ? (
-              <button
-                type="button"
-                onClick={() => select('all')}
-                className="text-[11px] font-semibold text-orange-700 hover:text-orange-800"
-              >
-                Reset
-              </button>
-            ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/80 px-4 py-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                Date range
+              </p>
+            </div>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              {filterValue !== 'all' ? (
+                <button
+                  type="button"
+                  onClick={() => select('all')}
+                  className="text-[11px] font-semibold text-orange-700 hover:text-orange-800"
+                >
+                  Reset
+                </button>
+              ) : null}
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={yearMenuOpen}
+                  aria-label="Year for month picker"
+                  onClick={() => setYearMenuOpen((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white py-1 pl-2 pr-1.5 text-xs font-semibold tabular-nums text-zinc-800 shadow-sm outline-none transition hover:border-orange-200 focus-visible:ring-2 focus-visible:ring-orange-500/20"
+                >
+                  <span>{panelYear}</span>
+                  <span
+                    className={`text-zinc-400 transition ${yearMenuOpen ? 'rotate-180' : ''}`}
+                    aria-hidden
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M6 9l6 6 6-6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </button>
+                {yearMenuOpen ? (
+                  <div
+                    role="listbox"
+                    aria-label="Choose year"
+                    className="absolute right-0 z-10 mt-1.5 max-h-48 w-24 overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg ring-1 ring-zinc-950/5"
+                  >
+                    {yearChoices.map((y) => {
+                      const active = y === panelYear
+                      return (
+                        <button
+                          key={y}
+                          type="button"
+                          role="option"
+                          aria-selected={active}
+                          onClick={() => {
+                            setPanelYear(y)
+                            setYearMenuOpen(false)
+                          }}
+                          className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-xs font-semibold tabular-nums transition ${
+                            active
+                              ? 'bg-orange-50 text-orange-900'
+                              : 'text-zinc-700 hover:bg-zinc-50'
+                          }`}
+                        >
+                          {y}
+                          {active ? (
+                            <span className="text-orange-600" aria-hidden>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                                <path
+                                  d="M5 12.5l4.5 4.5L19 6.5"
+                                  stroke="currentColor"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </span>
+                          ) : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           <div className="max-h-[min(28rem,70vh)] overflow-y-auto overscroll-contain p-2">
@@ -205,7 +289,7 @@ export default function TransactionDateFilterDropdown({
               })}
             </div>
 
-            {byYear.length > 0 ? (
+            {monthsForYear.length > 0 ? (
               <>
                 <div className="my-2 h-px bg-zinc-100" />
                 <button
@@ -215,7 +299,7 @@ export default function TransactionDateFilterDropdown({
                   aria-expanded={monthSectionOpen}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
-                    By month
+                    By month ({panelYear})
                   </span>
                   <span
                     className={`text-zinc-400 transition ${monthSectionOpen ? 'rotate-180' : ''}`}
@@ -239,36 +323,29 @@ export default function TransactionDateFilterDropdown({
                 </button>
 
                 {monthSectionOpen ? (
-                  <div className="mt-1.5 space-y-3 px-1 pb-1">
-                    {byYear.map(([year, months]) => (
-                      <div key={year}>
-                        <p className="mb-1.5 pl-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                          {year}
-                        </p>
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {months.map((m) => {
-                            const active = filterValue === m.value
-                            return (
-                              <button
-                                key={m.value}
-                                type="button"
-                                role="option"
-                                title={m.label}
-                                aria-selected={active}
-                                onClick={() => select(m.value)}
-                                className={`rounded-lg border py-1.5 text-center text-[11px] font-bold transition active:scale-[0.98] ${
-                                  active
-                                    ? 'border-orange-300 bg-linear-to-b from-orange-50 to-amber-50/80 text-orange-900 shadow-sm ring-2 ring-orange-500/20'
-                                    : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-orange-200/80 hover:bg-white hover:text-zinc-900'
-                                }`}
-                              >
-                                {monthShort(m.monthIndex)}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="mt-1.5 px-1 pb-1">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {monthsForYear.map((m) => {
+                        const active = filterValue === m.value
+                        return (
+                          <button
+                            key={m.value}
+                            type="button"
+                            role="option"
+                            title={m.label}
+                            aria-selected={active}
+                            onClick={() => select(m.value)}
+                            className={`rounded-lg border py-1.5 text-center text-[11px] font-bold transition active:scale-[0.98] ${
+                              active
+                                ? 'border-orange-300 bg-linear-to-b from-orange-50 to-amber-50/80 text-orange-900 shadow-sm ring-2 ring-orange-500/20'
+                                : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-orange-200/80 hover:bg-white hover:text-zinc-900'
+                            }`}
+                          >
+                            {monthShort(m.monthIndex)}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 ) : null}
               </>
@@ -313,6 +390,7 @@ export default function TransactionDateFilterDropdown({
                   </span>
                   <input
                     type="date"
+                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01`}
                     value={customStart}
                     onChange={(e) => onCustomStartChange(e.target.value)}
                     className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-500/15"
@@ -324,6 +402,7 @@ export default function TransactionDateFilterDropdown({
                   </span>
                   <input
                     type="date"
+                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01`}
                     value={customEnd}
                     onChange={(e) => onCustomEndChange(e.target.value)}
                     className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-500/15"

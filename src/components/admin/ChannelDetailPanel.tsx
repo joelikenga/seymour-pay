@@ -10,7 +10,6 @@ import {
   PAYMENT_CHANNELS,
 } from '../../lib/channelStyles'
 import { formatMoney } from '../../lib/formatters'
-import type { MonthOption } from '../../lib/transactionDateFilter'
 import type { PaymentChannel, Transaction } from '../../types/transaction'
 import ChannelVolumeChart from './ChannelVolumeChart'
 import TransactionDateFilterDropdown from './TransactionDateFilterDropdown'
@@ -23,7 +22,6 @@ interface ChannelDetailPanelProps {
   grandVolume: number
   filterValue: string
   onFilterChange: (value: string) => void
-  monthOptions: MonthOption[]
   filterSummary: string
   customStart: string
   customEnd: string
@@ -37,7 +35,6 @@ export default function ChannelDetailPanel({
   grandVolume,
   filterValue,
   onFilterChange,
-  monthOptions,
   filterSummary,
   customStart,
   customEnd,
@@ -92,7 +89,6 @@ export default function ChannelDetailPanel({
         <TransactionDateFilterDropdown
           filterValue={filterValue}
           onFilterChange={onFilterChange}
-          monthOptions={monthOptions}
           triggerLabel={filterSummary}
           customStart={customStart}
           customEnd={customEnd}

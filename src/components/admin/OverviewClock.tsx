@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DISPLAY_TIMEZONE } from '../../lib/formatters'
 
-export default function OverviewClock() {
+interface OverviewClockProps {
+  className?: string
+}
+
+export default function OverviewClock({ className }: OverviewClockProps) {
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -31,7 +35,7 @@ export default function OverviewClock() {
 
   return (
     <div
-      className="rounded-2xl border border-zinc-200/90 bg-white/90 px-5 py-3 text-right shadow-sm ring-1 ring-zinc-950/5 backdrop-blur-sm sm:min-w-[220px]"
+      className={`rounded-2xl border border-zinc-200/90 bg-white/90 px-5 py-3 text-center shadow-sm ring-1 ring-zinc-950/5 backdrop-blur-sm ${className ?? ''}`}
       role="timer"
       aria-label={`Nigeria time ${timeStr}, ${dateLabel}`}
     >

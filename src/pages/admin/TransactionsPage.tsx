@@ -1,26 +1,30 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AdminPagination from '../../components/admin/AdminPagination'
+import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
 import TableSearchInput from '../../components/admin/TableSearchInput'
 import TableToolbar from '../../components/admin/TableToolbar'
 import TransactionDateFilterDropdown from '../../components/admin/TransactionDateFilterDropdown'
 import { useAdminData } from '../../context/AdminDataContext'
+import { getAuditActorLabel } from '../../lib/auditActorLabel'
 import { totalVolume } from '../../lib/dashboardStats'
 import { channelLabel, channelPillClass } from '../../lib/channelStyles'
 import { vehicleLabel, vehiclePillClass } from '../../lib/vehicleStyles'
 import { formatDateShort, formatMoney } from '../../lib/formatters'
 import { statusPillClass } from '../../lib/statusStyles'
-import { usePagination } from '../../hooks/usePagination'
 import type { Transaction } from '../../types/transaction'
 import {
-  type DateFilterSelection,
-  filterRowsByDateSelection,
-  monthsThroughCurrent,
+  dateSelectionToApiRange,
+  labelForMonthFilterValue,
   parseFilterValue,
   transactionsToCsv,
+  type DateFilterSelection,
 } from '../../lib/transactionDateFilter'
-
-const PAGE_SIZE = 12
+import {
+  fetchTransactionsForExport,
+  TRANSACTIONS_PAGE_SIZE,
+  useTransactionsListQuery,
+} from '../../query/transactionsList'
 
 function downloadCsv(filename: string, content: string) {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
@@ -36,27 +40,18 @@ function downloadCsv(filename: string, content: string) {
 }
 
 export default function TransactionsPage() {
-  const { transactions } = useAdminData()
+  const { appendLog } = useAdminData()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   const [q, setQ] = useState('')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [activeTx, setActiveTx] = useState<Transaction | null>(null)
+  const [exporting, setExporting] = useState(false)
   const [filterValue, setFilterValue] = useState<string>('all')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
-  const [activeTx, setActiveTx] = useState<Transaction | null>(null)
-
-  const earliest = useMemo(() => {
-    let min: Date | null = null
-    for (const t of transactions) {
-      const d = new Date(t.createdAt)
-      if (!Number.isFinite(d.getTime())) continue
-      if (!min || d < min) min = d
-    }
-    return min
-  }, [transactions])
-
-  const monthOptions = useMemo(
-    () => monthsThroughCurrent(earliest, new Date()),
-    [earliest],
-  )
 
   const dateSelection: DateFilterSelection = useMemo(() => {
     const parsed = parseFilterValue(filterValue, customStart, customEnd)
@@ -65,75 +60,6 @@ export default function TransactionsPage() {
     }
     return parsed
   }, [filterValue, customStart, customEnd])
-
-  const customIncomplete =
-    filterValue === 'custom' &&
-    (!customStart.trim() || !customEnd.trim())
-
-  const dateFiltered = useMemo(
-    () => filterRowsByDateSelection(transactions, dateSelection),
-    [transactions, dateSelection],
-  )
-
-  const sorted = useMemo(
-    () =>
-      [...dateFiltered].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      ),
-    [dateFiltered],
-  )
-
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase()
-    if (!s) return sorted
-    return sorted.filter((t) => {
-      const blob =
-        `${t.reference} ${t.customerName} ${t.notes} ${t.amount} ${vehicleLabel[t.vehicleType]}`.toLowerCase()
-      return blob.includes(s)
-    })
-  }, [sorted, q])
-
-  const grand = useMemo(() => totalVolume(filtered), [filtered])
-
-  const { page, setPage, totalPages, paginated, total } = usePagination(
-    filtered,
-    PAGE_SIZE,
-    `${q}|${filterValue}|${customStart}|${customEnd}`,
-  )
-
-  const rowsForExport = useMemo(() => {
-    const byDate = filterRowsByDateSelection(transactions, dateSelection)
-    const s = q.trim().toLowerCase()
-    if (!s) return byDate
-    return byDate.filter((t) => {
-      const blob =
-        `${t.reference} ${t.customerName} ${t.notes} ${t.amount} ${vehicleLabel[t.vehicleType]}`.toLowerCase()
-      return blob.includes(s)
-    })
-  }, [transactions, dateSelection, q])
-
-  const canExportCustom =
-    filterValue !== 'custom' ||
-    (customStart.trim().length > 0 && customEnd.trim().length > 0)
-
-  function handleExport() {
-    if (!canExportCustom) return
-    const csv = transactionsToCsv(
-      rowsForExport.map((t) => ({
-        reference: t.reference,
-        customerName: t.customerName,
-        vehicleType: vehicleLabel[t.vehicleType],
-        channel: channelLabel[t.channel],
-        amount: t.amount,
-        status: t.status,
-        createdAt: t.createdAt,
-        notes: t.notes,
-      })),
-    )
-    const stamp = new Date().toISOString().slice(0, 10)
-    downloadCsv(`transactions-export-${stamp}.csv`, csv)
-  }
 
   const filterSummary = useMemo(() => {
     if (filterValue === 'all') return 'All time'
@@ -144,9 +70,93 @@ export default function TransactionsPage() {
       if (!customStart || !customEnd) return 'Custom range (set dates)'
       return `Custom: ${customStart} → ${customEnd}`
     }
-    const mo = monthOptions.find((m) => m.value === filterValue)
-    return mo?.label ?? 'Month'
-  }, [filterValue, customStart, customEnd, monthOptions])
+    if (filterValue.startsWith('month:')) {
+      return labelForMonthFilterValue(filterValue) ?? 'Month'
+    }
+    return 'Month'
+  }, [filterValue, customStart, customEnd])
+
+  const customIncomplete =
+    filterValue === 'custom' &&
+    (!customStart.trim() || !customEnd.trim())
+
+  const listQuery = useTransactionsListQuery(pageIndex, q, dateSelection)
+  const payload = listQuery.data
+  const rows = payload?.data ?? []
+  const totalItems = payload?.total ?? 0
+  const apiTotalPages = payload?.total_pages ?? 0
+
+  const uiPage = pageIndex + 1
+  const totalPagesForUi =
+    totalItems > 0 ? Math.max(1, apiTotalPages) : 0
+
+  const grand = useMemo(() => totalVolume(rows), [rows])
+
+  useEffect(() => {
+    setPageIndex(0)
+  }, [q, dateSelection])
+
+  useEffect(() => {
+    const st = location.state as { focusSearch?: boolean } | null
+    if (st?.focusSearch) {
+      requestAnimationFrame(() => searchInputRef.current?.focus())
+      navigate(
+        { pathname: location.pathname, search: location.search },
+        { replace: true, state: {} },
+      )
+      return
+    }
+    const params = new URLSearchParams(location.search)
+    if (params.get('focusSearch') === '1') {
+      requestAnimationFrame(() => searchInputRef.current?.focus())
+      params.delete('focusSearch')
+      const next = params.toString()
+      navigate(
+        { pathname: location.pathname, search: next ? `?${next}` : '' },
+        { replace: true },
+      )
+    }
+  }, [location.state, location.pathname, location.search, navigate])
+
+  const handleExport = useCallback(async () => {
+    if (exporting || totalItems === 0) return
+    setExporting(true)
+    try {
+      const exported = await fetchTransactionsForExport(q, dateSelection)
+      const csv = transactionsToCsv(
+        exported.map((t) => ({
+          reference: t.reference,
+          customerName: t.customerName,
+          vehicleType: vehicleLabel[t.vehicleType],
+          channel: channelLabel[t.channel],
+          amount: t.amount,
+          status: t.status,
+          createdAt: t.createdAt,
+          notes: t.notes,
+        })),
+      )
+      const stamp = new Date().toISOString().slice(0, 10)
+      downloadCsv(`transactions-export-${stamp}.csv`, csv)
+      const who = getAuditActorLabel()
+      const exportTotal = totalVolume(exported)
+      const range = dateSelectionToApiRange(dateSelection)
+      const datePart =
+        range.from && range.to
+          ? `dates ${range.from}–${range.to}`
+          : 'all dates'
+      const filterDesc = [
+        datePart,
+        q.trim() ? `search "${q.trim()}"` : 'no search',
+      ].join('; ')
+      appendLog({
+        action: 'export',
+        summary: `${who} exported transactions data`,
+        detail: `${who} exported data with filter: ${filterDesc} and total transaction amount for exported data is ${formatMoney(exportTotal)} (${exported.length} row${exported.length === 1 ? '' : 's'}).`,
+      })
+    } finally {
+      setExporting(false)
+    }
+  }, [appendLog, dateSelection, exporting, q, totalItems])
 
   useEffect(() => {
     if (!activeTx) return
@@ -182,14 +192,14 @@ export default function TransactionsPage() {
               Transactions
             </h1>
             <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">
-              Full history across every payment type. Filter by period, search,
-              then export matching rows as CSV.
+              Full history across every payment type. Filter by date like Analytics,
+              search the server ledger, then export matching rows as CSV.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                {dateSelection.kind === 'all' ? 'Dataset volume' : 'Filtered volume'}
+                {dateSelection.kind === 'all' ? 'This page volume' : 'This page (filtered)'}
               </p>
               <p className="mt-0.5 text-lg font-bold tabular-nums text-zinc-950">
                 {formatMoney(grand)}
@@ -211,20 +221,13 @@ export default function TransactionsPage() {
           right={
             <>
               <span className="tabular-nums">
-                <span className="font-bold text-zinc-900">
-                  {transactions.length}
-                </span>{' '}
-                in dataset ·{' '}
-                <span className="font-bold text-zinc-900">
-                  {dateFiltered.length}
-                </span>{' '}
-                in period
+                <span className="font-bold text-zinc-900">{totalItems}</span>{' '}
+                match{totalItems === 1 ? '' : 'es'}
               </span>
               <span aria-hidden className="text-zinc-300">·</span>
               <TransactionDateFilterDropdown
                 filterValue={filterValue}
                 onFilterChange={setFilterValue}
-                monthOptions={monthOptions}
                 triggerLabel={filterSummary}
                 customStart={customStart}
                 customEnd={customEnd}
@@ -233,18 +236,25 @@ export default function TransactionsPage() {
               />
               <button
                 type="button"
-                onClick={handleExport}
-                disabled={!canExportCustom || rowsForExport.length === 0}
+                onClick={() => void handleExport()}
+                disabled={
+                  exporting ||
+                  listQuery.isPending ||
+                  totalItems === 0 ||
+                  customIncomplete
+                }
                 title={
-                  !canExportCustom
-                    ? 'Enter start and end dates for a custom export'
-                    : rowsForExport.length === 0
+                  customIncomplete
+                    ? 'Set start and end dates for a custom range'
+                    : totalItems === 0
                       ? 'No rows match the current filters'
-                      : `Export ${rowsForExport.length} row(s) as CSV`
+                      : exporting
+                        ? 'Export in progress…'
+                        : `Export up to ${Math.min(totalItems, 5000)} row(s) as CSV`
                 }
                 className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-950 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Export CSV
+                {exporting ? 'Exporting…' : 'Export CSV'}
               </button>
             </>
           }
@@ -259,6 +269,7 @@ export default function TransactionsPage() {
           }
         >
           <TableSearchInput
+            inputRef={searchInputRef}
             value={q}
             onChange={setQ}
             placeholder="Search ticket ID, customer, notes…"
@@ -266,8 +277,23 @@ export default function TransactionsPage() {
           />
         </TableToolbar>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] border-collapse text-left text-sm">
+        {listQuery.isError ? (
+          <p className="px-5 py-6 text-sm text-rose-700">
+            Could not load transactions.{' '}
+            {listQuery.error instanceof Error
+              ? listQuery.error.message
+              : 'Please try again.'}
+          </p>
+        ) : null}
+
+        <div
+          className="overflow-x-auto"
+          aria-busy={listQuery.isPending}
+        >
+          <table
+            className="w-full min-w-[880px] border-collapse text-left text-sm"
+            aria-label={listQuery.isPending ? 'Loading transactions' : 'Transactions'}
+          >
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50/95 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 <th className="whitespace-nowrap px-5 py-3.5">Ticket ID</th>
@@ -281,53 +307,70 @@ export default function TransactionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {paginated.map((t) => (
-                <tr key={t.id} className="transition hover:bg-orange-50/50">
-                  <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
-                    {t.reference}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[t.vehicleType]}`}
-                    >
-                      {vehicleLabel[t.vehicleType]}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[t.channel]}`}
-                    >
-                      {channelLabel[t.channel]}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
-                    {formatMoney(t.amount)}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
-                    {formatDateShort(t.createdAt)}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTx(t)}
-                      className="inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm transition hover:border-orange-300 hover:bg-orange-50"
-                    >
-                      Click to view
-                    </button>
+              {listQuery.isPending ? (
+                <AdminTableSkeletonBody
+                  rows={TRANSACTIONS_PAGE_SIZE}
+                  columns={6}
+                  rightAlignIndices={[3, 5]}
+                />
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-5 py-10 text-center text-sm text-zinc-500"
+                  >
+                    No transactions match this search or date range.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                rows.map((t) => (
+                  <tr key={t.id} className="transition hover:bg-orange-50/50">
+                    <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
+                      {t.reference}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[t.vehicleType]}`}
+                      >
+                        {vehicleLabel[t.vehicleType]}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[t.channel]}`}
+                      >
+                        {channelLabel[t.channel]}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
+                      {formatMoney(t.amount)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
+                      {formatDateShort(t.createdAt)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTx(t)}
+                        className="inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm transition hover:border-orange-300 hover:bg-orange-50"
+                      >
+                        Click to view
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="border-t border-zinc-100 px-5 pb-5 pt-2">
           <AdminPagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={total}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
+            page={uiPage}
+            totalPages={totalPagesForUi}
+            totalItems={totalItems}
+            pageSize={TRANSACTIONS_PAGE_SIZE}
+            onPageChange={(p) => setPageIndex(p - 1)}
           />
         </div>
       </section>

@@ -1,6 +1,7 @@
 import type { AuditLogEntry } from '../types/auditLog'
 import { PAYMENT_CHANNELS, usesFidelityPayRail } from './channelStyles'
 import { formatDayStamp, formatYmdRange } from './formatters'
+import { VEHICLE_TYPES } from './vehicleStyles'
 import type {
   PaymentChannel,
   Transaction,
@@ -451,6 +452,8 @@ export interface OverviewDashboardStats {
   wow: number | null
   totalCount: number
   channelsUsed: number
+  /** Volume mix by vehicle class from the dashboard overview API. */
+  vehicleBreakdown: { vehicleType: VehicleType; count: number; volume: number }[]
   customerTraffic: { label: string; key: string; count: number }[]
   trafficYear: number
   trafficTotal: number
@@ -470,6 +473,58 @@ export interface OverviewDashboardStats {
   settledSharePct: number
   weekSeries: number[]
   weekMax: number
+}
+
+/** All-zero overview stats (same labels as computed stats) when analytics API has not loaded yet. */
+export function emptyOverviewDashboardStats(): OverviewDashboardStats {
+  const weekRange = weekToDateRange()
+  const monthRange = monthToDateRange()
+  const trafficYear = new Date().getFullYear()
+  const byStatus: Record<TransactionStatus, { count: number; volume: number }> = {
+    completed: { count: 0, volume: 0 },
+    pending: { count: 0, volume: 0 },
+    failed: { count: 0, volume: 0 },
+    reconciled: { count: 0, volume: 0 },
+  }
+  const fidelityMix = FIDELITY_RAILS.map((c) => ({ channel: c, count: 0, pct: 0 }))
+  const vehicleBreakdown = VEHICLE_TYPES.map((vehicleType) => ({
+    vehicleType,
+    count: 0,
+    volume: 0,
+  }))
+  const customerTraffic = TRAFFIC_MONTH_LABELS.map((label, idx) => ({
+    label,
+    key: `${trafficYear}-${String(idx + 1).padStart(2, '0')}`,
+    count: 0,
+  }))
+  const weekSeries = new Array(7).fill(0) as number[]
+  return {
+    grand: 0,
+    fidelityMix,
+    wow: null,
+    totalCount: 0,
+    channelsUsed: 0,
+    vehicleBreakdown,
+    customerTraffic,
+    trafficYear,
+    trafficTotal: 0,
+    today: 0,
+    todaySessions: 0,
+    yesterday: 0,
+    weekToDate: 0,
+    monthToDate: 0,
+    todayLabel: formatDayStamp(todayYmd()),
+    yesterdayLabel: formatDayStamp(yesterdayLagosYmd()),
+    weekLabel: formatYmdRange(weekRange.start, weekRange.end),
+    monthLabel: formatYmdRange(monthRange.start, monthRange.end),
+    settledVol: 0,
+    pipelineVol: 0,
+    byStatus,
+    avgTicket: 0,
+    settledSharePct: 0,
+    weekSeries,
+    weekMax: Math.max(1, ...weekSeries),
+  }
 }
 
 export function computeOverviewDashboardStats(
@@ -586,6 +641,20 @@ export function computeOverviewDashboardStats(
   }))
   const trafficTotal = monthCounts.reduce((a, n) => a + n, 0)
 
+  const byVehicle = new Map<VehicleType, { count: number; volume: number }>()
+  for (const vt of VEHICLE_TYPES) byVehicle.set(vt, { count: 0, volume: 0 })
+  for (const t of rows) {
+    const b = byVehicle.get(t.vehicleType)
+    if (b) {
+      b.count += 1
+      b.volume += t.amount
+    }
+  }
+  const vehicleBreakdown = VEHICLE_TYPES.map((vehicleType) => ({
+    vehicleType,
+    ...byVehicle.get(vehicleType)!,
+  }))
+
   const totalCount = rows.length
   const avgTicket = totalCount > 0 ? Math.round(grand / totalCount) : 0
   const settledSharePct = grand > 0 ? Math.round((settledVol / grand) * 100) : 0
@@ -597,6 +666,7 @@ export function computeOverviewDashboardStats(
     wow,
     totalCount,
     channelsUsed: channelsSeen.size,
+    vehicleBreakdown,
     customerTraffic,
     trafficYear,
     trafficTotal,

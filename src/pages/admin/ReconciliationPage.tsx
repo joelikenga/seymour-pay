@@ -1,86 +1,103 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import EditTransactionModal from '../../components/admin/EditTransactionModal'
 import AdminPagination from '../../components/admin/AdminPagination'
+import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
 import TableSearchInput from '../../components/admin/TableSearchInput'
 import TableToolbar from '../../components/admin/TableToolbar'
 import { useAdminData } from '../../context/AdminDataContext'
 import { channelLabel, channelPillClass } from '../../lib/channelStyles'
+import { vehicleTypeToApiPayload } from '../../lib/normalizeTransaction'
 import { vehicleLabel, vehiclePillClass } from '../../lib/vehicleStyles'
+import { describeTransactionPatchForLog } from '../../lib/describeTransactionPatchForLog'
 import { formatDateShort, formatMoney } from '../../lib/formatters'
 import type { Transaction } from '../../types/transaction'
-import { usePagination } from '../../hooks/usePagination'
-
-const PAGE_SIZE = 10
+import {
+  RECONCILIATION_PAGE_SIZE,
+  useTransactionsListQuery,
+} from '../../query/transactionsList'
+import { dashboardOverviewQueryKey } from '../../query/dashboardOverview'
+import { settlementTransactionsQueryKey } from '../../query/settlement'
+import { queryClient } from '../../query/queryClient'
+import { TransactionsApi } from '../../utils'
 
 export default function ReconciliationPage() {
-  const {
-    transactions,
-    updateTransaction,
-    deleteTransactions,
-    appendLog,
-  } = useAdminData()
+  const { appendLog } = useAdminData()
   const [modalTx, setModalTx] = useState<Transaction | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
 
   const [query, setQuery] = useState('')
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [pageIndex, setPageIndex] = useState(0)
+  /** Map row id → ticket reference for API bulk delete (`ids` = references). */
+  const [selectedById, setSelectedById] = useState<Map<string, string>>(
+    () => new Map(),
+  )
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
-  const sorted = useMemo(
-    () =>
-      [...transactions].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      ),
-    [transactions],
+  const listQuery = useTransactionsListQuery(
+    pageIndex,
+    query,
+    { kind: 'all' },
+    RECONCILIATION_PAGE_SIZE,
+  )
+  const payload = listQuery.data
+  const paginated = payload?.data ?? []
+  const total = payload?.total ?? 0
+  const apiTotalPages = payload?.total_pages ?? 0
+
+  const uiPage = pageIndex + 1
+  const totalPagesForUi = total > 0 ? Math.max(1, apiTotalPages) : 0
+
+  const from = total > 0 ? pageIndex * RECONCILIATION_PAGE_SIZE + 1 : 0
+  const to = Math.min(
+    (pageIndex + 1) * RECONCILIATION_PAGE_SIZE,
+    total,
   )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return sorted
-    return sorted.filter((t) => {
-      const blob =
-        `${t.reference} ${t.customerName} ${t.notes} ${t.amount} ${vehicleLabel[t.vehicleType]} ${channelLabel[t.channel]} ${t.status}`.toLowerCase()
-      return blob.includes(q)
-    })
-  }, [sorted, query])
-
-  const { page, setPage, totalPages, paginated, total, from, to } =
-    usePagination(filtered, PAGE_SIZE, query)
+  useEffect(() => {
+    setPageIndex(0)
+  }, [query])
 
   const visibleIds = useMemo(() => paginated.map((t) => t.id), [paginated])
   const visibleSelectedCount = useMemo(
-    () => visibleIds.filter((id) => selectedIds.has(id)).length,
-    [visibleIds, selectedIds],
+    () => visibleIds.filter((id) => selectedById.has(id)).length,
+    [visibleIds, selectedById],
   )
   const allVisibleSelected =
     visibleIds.length > 0 && visibleSelectedCount === visibleIds.length
   const someVisibleSelected =
     visibleSelectedCount > 0 && !allVisibleSelected
 
-  const toggleId = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const ticketRef = useCallback((t: Transaction) => {
+    const r = t.reference.trim()
+    return r || t.id
   }, [])
 
+  const toggleRow = useCallback((t: Transaction) => {
+    const id = t.id
+    const ref = ticketRef(t)
+    setSelectedById((prev) => {
+      const next = new Map(prev)
+      if (next.has(id)) next.delete(id)
+      else next.set(id, ref)
+      return next
+    })
+  }, [ticketRef])
+
   const togglePage = useCallback(() => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
+    setSelectedById((prev) => {
+      const next = new Map(prev)
       if (allVisibleSelected) {
         for (const id of visibleIds) next.delete(id)
       } else {
-        for (const id of visibleIds) next.add(id)
+        for (const t of paginated) next.set(t.id, ticketRef(t))
       }
       return next
     })
-  }, [allVisibleSelected, visibleIds])
+  }, [allVisibleSelected, paginated, ticketRef, visibleIds])
 
   const clearSelection = useCallback(() => {
-    setSelectedIds(new Set())
+    setSelectedById(new Map())
   }, [])
 
   const openEdit = (t: Transaction) => {
@@ -88,36 +105,77 @@ export default function ReconciliationPage() {
     setModalOpen(true)
   }
 
-  const handleSave = (id: string, patch: Partial<Transaction>) => {
-    const prev = transactions.find((t) => t.id === id)
-    updateTransaction(id, patch)
-    appendLog({
-      action: 'reconciliation',
-      summary: `Updated ${prev?.reference ?? id}`,
-      detail: `Saved fields for transaction ${id}: ${Object.keys(patch).join(', ')}`,
-    })
+  const handleSave = async (id: string, patch: Partial<Transaction>) => {
+    const prev = paginated.find((t) => t.id === id)
+    if (!prev) return
+    try {
+      const updated = await TransactionsApi.adminUpdateTransactionById(id, {
+        amount: patch.amount ?? prev.amount,
+        channel: prev.channel,
+        createdAt: prev.createdAt,
+        vehicleType: vehicleTypeToApiPayload(
+          patch.vehicleType ?? prev.vehicleType,
+        ),
+      } as Parameters<typeof TransactionsApi.adminUpdateTransactionById>[1])
+      const ticket = prev.reference?.trim() || id
+      appendLog({
+        action: 'reconciliation',
+        summary: `Updated ${ticket}`,
+        detail: `Ticket ${ticket}. ${describeTransactionPatchForLog(prev, patch, updated)}`,
+      })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'transactions'] })
+      void queryClient.invalidateQueries({
+        queryKey: dashboardOverviewQueryKey,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: settlementTransactionsQueryKey,
+      })
+      setModalOpen(false)
+      setModalTx(null)
+    } catch {
+      appendLog({
+        action: 'settings',
+        summary: `Save failed for ${prev.reference ?? id}`,
+        detail: 'Could not update transaction on the server.',
+      })
+    }
   }
 
-  const handleConfirmDelete = useCallback(() => {
-    if (selectedIds.size === 0) return
-    const ids = Array.from(selectedIds)
-    const removed = transactions.filter((t) => selectedIds.has(t.id))
-    deleteTransactions(ids)
-    const refs = removed
-      .slice(0, 5)
-      .map((t) => t.reference)
-      .join(', ')
-    const more = removed.length > 5 ? ` (+${removed.length - 5} more)` : ''
-    appendLog({
-      action: 'reconciliation',
-      summary: `Deleted ${removed.length} transaction${removed.length === 1 ? '' : 's'}`,
-      detail: `Removed ${removed.length} ledger row${removed.length === 1 ? '' : 's'}: ${refs}${more}`,
-    })
-    setSelectedIds(new Set())
-    setConfirmOpen(false)
-  }, [appendLog, deleteTransactions, selectedIds, transactions])
+  const handleConfirmDelete = useCallback(async () => {
+    if (selectedById.size === 0 || deleting) return
+    const ticketIds = [...new Set(Array.from(selectedById.values()))]
+    setDeleting(true)
+    try {
+      await TransactionsApi.adminDeleteBulkTransactions(ticketIds)
+      const preview = ticketIds.slice(0, 5).join(', ')
+      const more =
+        ticketIds.length > 5 ? ` (+${ticketIds.length - 5} more)` : ''
+      appendLog({
+        action: 'reconciliation',
+        summary: `Deleted ${ticketIds.length} transaction${ticketIds.length === 1 ? '' : 's'}`,
+        detail: `Bulk deleted on server — ticket refs: ${preview}${more}`,
+      })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'transactions'] })
+      void queryClient.invalidateQueries({
+        queryKey: dashboardOverviewQueryKey,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: settlementTransactionsQueryKey,
+      })
+      setSelectedById(new Map())
+      setConfirmOpen(false)
+    } catch {
+      appendLog({
+        action: 'settings',
+        summary: 'Bulk delete failed',
+        detail: 'Could not delete transactions on the server.',
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }, [appendLog, deleting, selectedById])
 
-  const selectionCount = selectedIds.size
+  const selectionCount = selectedById.size
 
   return (
     <div className="space-y-8">
@@ -135,9 +193,9 @@ export default function ReconciliationPage() {
           </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-zinc-600">
             Align <strong className="font-semibold text-zinc-800">every</strong> payment
-            type — including cash — against your records. Search, tick the rows you want to
-            remove, then bulk-delete. Selections persist across searches, so you can build a
-            list across multiple queries before committing.
+            type — including cash — against your records. Search the server ledger, tick
+            the rows you want to remove, then bulk-delete. Selections persist across
+            searches, so you can build a list across multiple queries before committing.
           </p>
         </div>
       </header>
@@ -147,13 +205,24 @@ export default function ReconciliationPage() {
           right={
             <>
               <span className="tabular-nums">
-                <span className="font-bold text-zinc-900">{total}</span>{' '}
-                row{total === 1 ? '' : 's'}
-                {query ? ' match' : ''}
-                {total > 0 && (
+                {listQuery.isPending ? (
+                  <span
+                    className="inline-block h-4 w-36 animate-pulse rounded-md bg-zinc-200/80"
+                    aria-hidden
+                  />
+                ) : listQuery.isError ? (
+                  <span className="text-rose-700">Could not load</span>
+                ) : (
                   <>
-                    {' '}
-                    · showing <span className="tabular-nums">{from}–{to}</span>
+                    <span className="font-bold text-zinc-900">{total}</span>{' '}
+                    row{total === 1 ? '' : 's'}
+                    {query.trim() ? ' match' : ''}
+                    {total > 0 && (
+                      <>
+                        {' '}
+                        · showing <span className="tabular-nums">{from}–{to}</span>
+                      </>
+                    )}
                   </>
                 )}
               </span>
@@ -196,8 +265,9 @@ export default function ReconciliationPage() {
             </p>
             <button
               type="button"
+              disabled={deleting}
               onClick={() => setConfirmOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 active:scale-[0.99]"
+              className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
@@ -213,8 +283,18 @@ export default function ReconciliationPage() {
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+        <div
+          className="overflow-x-auto"
+          aria-busy={listQuery.isPending}
+        >
+          <table
+            className="w-full min-w-[920px] border-collapse text-left text-sm"
+            aria-label={
+              listQuery.isPending
+                ? 'Loading reconciliation rows'
+                : 'Reconciliation'
+            }
+          >
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50/95 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 <th className="w-10 whitespace-nowrap px-4 py-3.5">
@@ -222,7 +302,7 @@ export default function ReconciliationPage() {
                     checked={allVisibleSelected}
                     indeterminate={someVisibleSelected}
                     onChange={togglePage}
-                    disabled={visibleIds.length === 0}
+                    disabled={visibleIds.length === 0 || listQuery.isPending}
                     label="Select all visible rows"
                   />
                 </th>
@@ -235,80 +315,98 @@ export default function ReconciliationPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {paginated.map((t) => {
-                const isSelected = selectedIds.has(t.id)
-                return (
-                  <tr
-                    key={t.id}
-                    className={`transition ${
-                      isSelected
-                        ? 'bg-orange-50/70 hover:bg-orange-50'
-                        : 'hover:bg-orange-50/45'
-                    }`}
+              {listQuery.isPending ? (
+                <AdminTableSkeletonBody
+                  rows={RECONCILIATION_PAGE_SIZE}
+                  columns={6}
+                  checkboxColumn
+                  rightAlignIndices={[3, 5]}
+                />
+              ) : listQuery.isError ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-5 py-10 text-center text-sm text-rose-700"
                   >
-                    <td className="w-10 whitespace-nowrap px-4 py-3.5 align-middle">
-                      <RowCheckbox
-                        checked={isSelected}
-                        onChange={() => toggleId(t.id)}
-                        label={`Select transaction ${t.reference}`}
-                      />
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
-                      {t.reference}
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[t.vehicleType]}`}
-                      >
-                        {vehicleLabel[t.vehicleType]}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[t.channel]}`}
-                      >
-                        {channelLabel[t.channel]}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
-                      {formatMoney(t.amount)}
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
-                      {formatDateShort(t.createdAt)}
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(t)}
-                        className="rounded-xl bg-[#ea580c] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
-                      >
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-              {paginated.length === 0 ? (
+                    Could not load transactions. Try again later.
+                  </td>
+                </tr>
+              ) : paginated.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
                     className="px-5 py-10 text-center text-sm text-zinc-500"
                   >
-                    No transactions match{query ? ` "${query}"` : ' your filters'}.
+                    No transactions match
+                    {query.trim() ? ` "${query.trim()}"` : ' your search'}.
                   </td>
                 </tr>
-              ) : null}
+              ) : (
+                paginated.map((t) => {
+                  const isSelected = selectedById.has(t.id)
+                  return (
+                    <tr
+                      key={t.id}
+                      className={`transition ${
+                        isSelected
+                          ? 'bg-orange-50/70 hover:bg-orange-50'
+                          : 'hover:bg-orange-50/45'
+                      }`}
+                    >
+                      <td className="w-10 whitespace-nowrap px-4 py-3.5 align-middle">
+                        <RowCheckbox
+                          checked={isSelected}
+                          onChange={() => toggleRow(t)}
+                          label={`Select transaction ${t.reference}`}
+                        />
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
+                        {t.reference}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[t.vehicleType]}`}
+                        >
+                          {vehicleLabel[t.vehicleType]}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[t.channel]}`}
+                        >
+                          {channelLabel[t.channel]}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
+                        {formatMoney(t.amount)}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
+                        {formatDateShort(t.createdAt)}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(t)}
+                          className="rounded-xl bg-[#ea580c] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="border-t border-zinc-100 px-5 pb-5 pt-2">
           <AdminPagination
-            page={page}
-            totalPages={totalPages}
+            page={uiPage}
+            totalPages={totalPagesForUi}
             totalItems={total}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
+            pageSize={RECONCILIATION_PAGE_SIZE}
+            onPageChange={(p) => setPageIndex(p - 1)}
           />
         </div>
       </section>
@@ -326,8 +424,9 @@ export default function ReconciliationPage() {
       {confirmOpen ? (
         <ConfirmDeleteDialog
           count={selectionCount}
-          onCancel={() => setConfirmOpen(false)}
-          onConfirm={handleConfirmDelete}
+          deleting={deleting}
+          onCancel={() => !deleting && setConfirmOpen(false)}
+          onConfirm={() => void handleConfirmDelete()}
         />
       ) : null}
     </div>
@@ -427,12 +526,14 @@ function DashIcon() {
 
 interface ConfirmDeleteDialogProps {
   count: number
+  deleting: boolean
   onCancel: () => void
   onConfirm: () => void
 }
 
 function ConfirmDeleteDialog({
   count,
+  deleting,
   onCancel,
   onConfirm,
 }: ConfirmDeleteDialogProps) {
@@ -446,8 +547,9 @@ function ConfirmDeleteDialog({
       <button
         type="button"
         aria-label="Close confirmation"
+        disabled={deleting}
         onClick={onCancel}
-        className="absolute inset-0 bg-zinc-950/50 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-zinc-950/50 backdrop-blur-[2px] disabled:cursor-not-allowed"
       />
       <div className="relative w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl ring-1 ring-zinc-950/5">
         <div className="flex items-start gap-3">
@@ -470,8 +572,8 @@ function ConfirmDeleteDialog({
               Delete {count} transaction{count === 1 ? '' : 's'}?
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
-              This removes the selected ledger row{count === 1 ? '' : 's'} from
-              this session and writes an entry to the activity log. You can't undo
+              This permanently deletes the selected row{count === 1 ? '' : 's'} on
+              the server and writes an entry to the activity log. You cannot undo
               this.
             </p>
           </div>
@@ -479,15 +581,17 @@ function ConfirmDeleteDialog({
         <div className="mt-6 flex flex-wrap justify-end gap-3">
           <button
             type="button"
+            disabled={deleting}
             onClick={onCancel}
-            className="rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
+            className="rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
+            disabled={deleting}
             onClick={onConfirm}
-            className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-rose-700"
+            className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-rose-700 disabled:opacity-50"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -498,7 +602,7 @@ function ConfirmDeleteDialog({
                 strokeLinejoin="round"
               />
             </svg>
-            Delete {count}
+            {deleting ? 'Deleting…' : `Delete ${count}`}
           </button>
         </div>
       </div>

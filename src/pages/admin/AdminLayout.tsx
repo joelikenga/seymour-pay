@@ -1,8 +1,10 @@
 import { useCallback } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import SeymourLogo from '../../components/SeymourLogo'
 import { SEYMOUR_ADMIN_TAB_SESSION_KEY } from '../../components/admin/SessionLoginLogger.tsx'
 import { useAdminData } from '../../context/AdminDataContext'
+import { performAdminLogout } from '../../utils/adminAuth'
+import { hasAdminToken } from '../../utils/cookies'
 
 const nav = [
   { to: '/admin', label: 'Dashboard', end: true },
@@ -18,15 +20,20 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const { appendLog } = useAdminData()
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    await performAdminLogout()
     sessionStorage.removeItem(SEYMOUR_ADMIN_TAB_SESSION_KEY)
     appendLog({
       action: 'navigation',
       summary: 'Signed out',
-      detail: 'Admin session ended; next visit will log a fresh sign-in (demo).',
+      detail: 'Admin signed out from the console',
     })
-    navigate('/')
+    navigate('/login', { replace: true })
   }, [appendLog, navigate])
+
+  if (!hasAdminToken()) {
+    return <Navigate to="/login" replace />
+  }
 
   return (
     <div className="min-h-svh bg-[#f4f7f6] font-sans text-zinc-900 antialiased">

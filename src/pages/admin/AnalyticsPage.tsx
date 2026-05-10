@@ -8,7 +8,7 @@ import type { PaymentChannel } from '../../types/transaction'
 import {
   type DateFilterSelection,
   filterRowsByDateSelection,
-  monthsThroughCurrent,
+  labelForMonthFilterValue,
   parseFilterValue,
 } from '../../lib/transactionDateFilter'
 
@@ -18,21 +18,6 @@ export default function AnalyticsPage() {
   const [filterValue, setFilterValue] = useState<string>('all')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
-
-  const earliest = useMemo(() => {
-    let min: Date | null = null
-    for (const t of transactions) {
-      const d = new Date(t.createdAt)
-      if (!Number.isFinite(d.getTime())) continue
-      if (!min || d < min) min = d
-    }
-    return min
-  }, [transactions])
-
-  const monthOptions = useMemo(
-    () => monthsThroughCurrent(earliest, new Date()),
-    [earliest],
-  )
 
   const dateSelection: DateFilterSelection = useMemo(() => {
     const parsed = parseFilterValue(filterValue, customStart, customEnd)
@@ -77,9 +62,11 @@ export default function AnalyticsPage() {
       if (!customStart || !customEnd) return 'Custom range (set dates)'
       return `Custom: ${customStart} → ${customEnd}`
     }
-    const mo = monthOptions.find((m) => m.value === filterValue)
-    return mo?.label ?? 'Month'
-  }, [filterValue, customStart, customEnd, monthOptions])
+    if (filterValue.startsWith('month:')) {
+      return labelForMonthFilterValue(filterValue) ?? 'Month'
+    }
+    return 'Month'
+  }, [filterValue, customStart, customEnd])
 
   const customIncomplete =
     filterValue === 'custom' &&
@@ -150,7 +137,6 @@ export default function AnalyticsPage() {
         grandVolume={grand}
         filterValue={filterValue}
         onFilterChange={setFilterValue}
-        monthOptions={monthOptions}
         filterSummary={filterSummary}
         customStart={customStart}
         customEnd={customEnd}
