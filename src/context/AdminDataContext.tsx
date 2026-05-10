@@ -63,6 +63,11 @@ interface AdminDataContextValue {
     page: AdminPageKey,
     allowed: boolean,
   ) => void
+  /** Replace full page access map for one user (e.g. Settings save). */
+  replaceUserPageAccess: (
+    userId: string,
+    pageAccess: Record<AdminPageKey, boolean>,
+  ) => void
 }
 
 const AdminDataContext = createContext<AdminDataContextValue | null>(null)
@@ -163,6 +168,16 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const replaceUserPageAccess = useCallback(
+    (userId: string, pageAccess: Record<AdminPageKey, boolean>) => {
+      const merged = { ...defaultPageAccess(), ...pageAccess }
+      setAdminUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, pageAccess: merged } : u)),
+      )
+    },
+    [],
+  )
+
   const value = useMemo(
     () => ({
       transactions,
@@ -174,6 +189,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       addAdminUser,
       removeAdminUser,
       setUserPageAccess,
+      replaceUserPageAccess,
     }),
     [
       transactions,
@@ -185,6 +201,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       addAdminUser,
       removeAdminUser,
       setUserPageAccess,
+      replaceUserPageAccess,
     ],
   )
 

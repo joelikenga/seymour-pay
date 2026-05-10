@@ -1,12 +1,12 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type FormEvent,
   type ReactNode,
 } from 'react'
 import { useAdminData } from '../../context/AdminDataContext'
-import { verifySuperadminPassword } from '../../lib/superadminGate'
 import {
   ADMIN_PAGE_KEYS,
   ADMIN_PAGE_LABELS,
@@ -92,9 +92,93 @@ export default function SettingsPage() {
     adminUsers,
     addAdminUser,
     removeAdminUser,
-    setUserPageAccess,
+    replaceUserPageAccess,
     appendLog,
   } = useAdminData()
+
+  /** Pending page-access edits until Save — keyed by user id. */
+  const [pageAccessDraft, setPageAccessDraft] = useState<
+    Record<string, Record<AdminPageKey, boolean>>
+  >({})
+  /** When set, confirmation modal is open to save access for this user only. */
+  const [accessSaveUserId, setAccessSaveUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const validIds = new Set(adminUsers.map((u) => u.id))
+    setPageAccessDraft((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const id of Object.keys(next)) {
+        if (!validIds.has(id)) {
+          delete next[id]
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [adminUsers])
+
+  useEffect(() => {
+    if (!accessSaveUserId) return
+    if (!adminUsers.some((u) => u.id === accessSaveUserId)) {
+      setAccessSaveUserId(null)
+    }
+  }, [accessSaveUserId, adminUsers])
+
+  const hasUnsavedAccessChanges = Object.keys(pageAccessDraft).length > 0
+
+  const effectivePageAccess = useCallback(
+    (user: AdminUserRecord): Record<AdminPageKey, boolean> => {
+      const draft = pageAccessDraft[user.id]
+      if (draft) return draft
+      return { ...defaultPageAccess(), ...user.pageAccess }
+    },
+    [pageAccessDraft],
+  )
+
+  const handleDraftToggle = useCallback((user: AdminUserRecord, page: AdminPageKey, allowed: boolean) => {
+    setPageAccessDraft((prev) => {
+      const base = prev[user.id] ?? { ...defaultPageAccess(), ...user.pageAccess }
+      const next = { ...base, [page]: allowed }
+      const saved = { ...defaultPageAccess(), ...user.pageAccess }
+      const unchanged = ADMIN_PAGE_KEYS.every((k) => next[k] === saved[k])
+      if (unchanged) {
+        const { [user.id]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [user.id]: next }
+    })
+  }, [])
+
+  const discardAccessDraft = useCallback(() => {
+    setPageAccessDraft({})
+    setAccessSaveUserId(null)
+  }, [])
+
+  const applyAccessForUser = useCallback(
+    (userId: string) => {
+      const access = pageAccessDraft[userId]
+      if (!access) {
+        setAccessSaveUserId(null)
+        return
+      }
+      replaceUserPageAccess(userId, access)
+      const u = adminUsers.find((x) => x.id === userId)
+      if (u) {
+        appendLog({
+          action: 'settings',
+          summary: 'Page access updated',
+          detail: `Saved access for ${u.firstName} ${u.lastName} (${u.email}).`,
+        })
+      }
+      setPageAccessDraft((prev) => {
+        const { [userId]: _, ...rest } = prev
+        return rest
+      })
+      setAccessSaveUserId(null)
+    },
+    [pageAccessDraft, adminUsers, replaceUserPageAccess, appendLog],
+  )
 
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -103,15 +187,12 @@ export default function SettingsPage() {
   const [formError, setFormError] = useState<string | null>(null)
 
   const [createOpen, setCreateOpen] = useState(false)
-  const [createStep, setCreateStep] = useState<1 | 2 | 3>(1)
+  const [createStep, setCreateStep] = useState<1 | 2>(1)
   const [copyError, setCopyError] = useState<string | null>(null)
 
   const [removeTargetId, setRemoveTargetId] = useState<string | null>(null)
-  const [removeStep, setRemoveStep] = useState<1 | 2>(1)
   const [removeAck, setRemoveAck] = useState(false)
-
-  const [superAdminPassword, setSuperAdminPassword] = useState('')
-  const [gateError, setGateError] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
 
   const [lastCreated, setLastCreated] = useState<{
     email: string
@@ -120,11 +201,6 @@ export default function SettingsPage() {
   } | null>(null)
   const [copyDone, setCopyDone] = useState(false)
 
-  const resetGateFields = useCallback(() => {
-    setSuperAdminPassword('')
-    setGateError(null)
-  }, [])
-
   const openCreateModal = useCallback(() => {
     setFormError(null)
     setCopyError(null)
@@ -132,9 +208,8 @@ export default function SettingsPage() {
     setCreateStep(1)
     setLastCreated(null)
     setCopyDone(false)
-    resetGateFields()
     setCreateOpen(true)
-  }, [resetGateFields])
+  }, [])
 
   const closeCreateFlow = useCallback(() => {
     setCreateOpen(false)
@@ -143,27 +218,21 @@ export default function SettingsPage() {
     setLastCreated(null)
     setCopyDone(false)
     setCopyError(null)
-    resetGateFields()
-  }, [resetGateFields])
+  }, [])
 
-  const openRemoveFlow = useCallback(
-    (id: string) => {
-      setRemoveTargetId(id)
-      setRemoveStep(1)
-      setRemoveAck(false)
-      resetGateFields()
-    },
-    [resetGateFields],
-  )
+  const openRemoveFlow = useCallback((id: string) => {
+    setRemoveTargetId(id)
+    setRemoveAck(false)
+    setRemoveError(null)
+  }, [])
 
   const closeRemoveFlow = useCallback(() => {
     setRemoveTargetId(null)
-    setRemoveStep(1)
     setRemoveAck(false)
-    resetGateFields()
-  }, [resetGateFields])
+    setRemoveError(null)
+  }, [])
 
-  const handleCreateStep1Continue = useCallback(
+  const handleCreateSubmit = useCallback(
     (event: FormEvent) => {
       event.preventDefault()
       setFormError(null)
@@ -175,27 +244,12 @@ export default function SettingsPage() {
         setFormError('Confirm the checkbox to continue.')
         return
       }
-      setFormError(null)
-      setCreateStep(2)
-      resetGateFields()
-    },
-    [email, firstName, lastName, createAck, resetGateFields],
-  )
-
-  const handleCreateStep2Submit = useCallback(
-    (event: FormEvent) => {
-      event.preventDefault()
-      setGateError(null)
-      if (!verifySuperadminPassword(superAdminPassword)) {
-        setGateError('Incorrect superadmin password.')
-        return
-      }
       const result = addAdminUser({ email, firstName, lastName })
       if (!result.ok) {
         if (result.error === 'duplicate_email') {
-          setGateError('That email was already added.')
+          setFormError('That email was already added.')
         } else {
-          setGateError('Could not create user — check all fields.')
+          setFormError('Could not create user — check all fields.')
         }
         return
       }
@@ -210,59 +264,36 @@ export default function SettingsPage() {
       setEmail('')
       setFirstName('')
       setLastName('')
-      setCreateStep(3)
-      resetGateFields()
+      setCreateStep(2)
       appendLog({
         action: 'settings',
         summary: 'Admin user created',
         detail: `Added ${displayName} (${result.user.email}) from Settings.`,
       })
     },
-    [superAdminPassword, addAdminUser, email, firstName, lastName, appendLog, resetGateFields],
+    [email, firstName, lastName, createAck, addAdminUser, appendLog],
   )
 
-  const handleRemoveStep1Continue = useCallback(() => {
-    setGateError(null)
+  const handleConfirmRemove = useCallback(() => {
+    setRemoveError(null)
     if (!removeAck) {
-      setGateError('Confirm the checkbox to continue.')
+      setRemoveError('Confirm the checkbox to continue.')
       return
     }
-    setGateError(null)
-    setRemoveStep(2)
-    resetGateFields()
-  }, [removeAck, resetGateFields])
-
-  const handleRemoveStep2Submit = useCallback(
-    (event: FormEvent) => {
-      event.preventDefault()
-      if (!removeTargetId) return
-      const user = adminUsers.find((u) => u.id === removeTargetId)
-      if (!user) {
-        closeRemoveFlow()
-        return
-      }
-      setGateError(null)
-      if (!verifySuperadminPassword(superAdminPassword)) {
-        setGateError('Incorrect superadmin password.')
-        return
-      }
-      removeAdminUser(user.id)
-      appendLog({
-        action: 'settings',
-        summary: 'Admin user removed',
-        detail: `Removed ${user.email} from Settings.`,
-      })
+    if (!removeTargetId) return
+    const user = adminUsers.find((u) => u.id === removeTargetId)
+    if (!user) {
       closeRemoveFlow()
-    },
-    [
-      removeTargetId,
-      adminUsers,
-      superAdminPassword,
-      removeAdminUser,
-      appendLog,
-      closeRemoveFlow,
-    ],
-  )
+      return
+    }
+    removeAdminUser(user.id)
+    appendLog({
+      action: 'settings',
+      summary: 'Admin user removed',
+      detail: `Removed ${user.email} from Settings.`,
+    })
+    closeRemoveFlow()
+  }, [removeAck, removeTargetId, adminUsers, removeAdminUser, appendLog, closeRemoveFlow])
 
   const copyCredentials = useCallback(async () => {
     if (!lastCreated) return
@@ -278,6 +309,12 @@ export default function SettingsPage() {
   }, [lastCreated])
 
   const userPendingRemove = adminUsers.find((u) => u.id === removeTargetId)
+
+  const accessSaveTargetUser = useMemo(
+    () =>
+      accessSaveUserId ? adminUsers.find((u) => u.id === accessSaveUserId) : undefined,
+    [accessSaveUserId, adminUsers],
+  )
 
   const userCountLabel = useMemo(() => {
     const n = adminUsers.length
@@ -328,7 +365,17 @@ export default function SettingsPage() {
               <div className="min-w-0">
                 <h2 className="text-lg font-bold text-zinc-950">Users & access</h2>
                 <p className="mt-1 text-sm text-zinc-600">
-                  {/* Per-page toggles apply for this session until connected to your API. */}
+                  Toggle page access, then click <span className="font-medium text-zinc-800">Save</span> on that row to
+                  confirm.{' '}
+                  {hasUnsavedAccessChanges ? (
+                    <button
+                      type="button"
+                      onClick={discardAccessDraft}
+                      className="font-medium text-orange-700 underline decoration-orange-200 underline-offset-2 hover:text-orange-900"
+                    >
+                      Discard all
+                    </button>
+                  ) : null}
                 </p>
               </div>
             </div>
@@ -343,7 +390,7 @@ export default function SettingsPage() {
             <div className="mx-auto max-w-md rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-8 py-12">
               <p className="text-base font-semibold text-zinc-800">No users yet</p>
               <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                Add someone with <span className="font-semibold text-zinc-800">Create user</span> — you&apos;ll confirm with your superadmin password.
+                Add someone with <span className="font-semibold text-zinc-800">Create user</span> and share their one-time credentials.
               </p>
             </div>
           </div>
@@ -379,9 +426,10 @@ export default function SettingsPage() {
                   <UserRow
                     key={user.id}
                     user={user}
-                    onToggle={(page, allowed) =>
-                      setUserPageAccess(user.id, page, allowed)
-                    }
+                    pageAccess={effectivePageAccess(user)}
+                    pendingEdits={Boolean(pageAccessDraft[user.id])}
+                    onToggle={(page, allowed) => handleDraftToggle(user, page, allowed)}
+                    onSave={() => setAccessSaveUserId(user.id)}
                     onRemove={() => openRemoveFlow(user.id)}
                   />
                 ))}
@@ -404,7 +452,7 @@ export default function SettingsPage() {
               Create user
             </h2>
             <p className="mt-1 text-sm text-zinc-600">New users get a one-time password after you confirm.</p>
-            <form onSubmit={handleCreateStep1Continue} className="mt-5 space-y-4">
+            <form onSubmit={handleCreateSubmit} className="mt-5 space-y-4">
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium text-zinc-700">Email</span>
                 <input
@@ -455,44 +503,6 @@ export default function SettingsPage() {
                   Cancel
                 </button>
                 <button type="submit" className={btnAccent}>
-                  Continue
-                </button>
-              </div>
-            </form>
-          </div>
-        </ModalBackdrop>
-      ) : null}
-
-      {/* Create user — step 2 superadmin */}
-      {createOpen && createStep === 2 ? (
-        <ModalBackdrop zClass="z-[60]">
-          <div role="dialog" aria-modal="true" className={modalShell}>
-            <h2 className="text-lg font-bold text-zinc-950">Superadmin password</h2>
-            <p className="mt-1 text-sm text-zinc-600">Required to create this account.</p>
-            <form onSubmit={handleCreateStep2Submit} className="mt-5 space-y-4">
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-zinc-700">Password</span>
-                <input
-                  type="password"
-                  value={superAdminPassword}
-                  onChange={(e) => setSuperAdminPassword(e.target.value)}
-                  autoComplete="current-password"
-                  className={inputClass}
-                />
-              </label>
-              {gateError ? <p className="text-sm text-red-600">{gateError}</p> : null}
-              <div className="flex justify-end gap-2 border-t border-zinc-100 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreateStep(1)
-                    resetGateFields()
-                  }}
-                  className={btnSecondary}
-                >
-                  Back
-                </button>
-                <button type="submit" className={btnAccent}>
                   Create account
                 </button>
               </div>
@@ -501,8 +511,8 @@ export default function SettingsPage() {
         </ModalBackdrop>
       ) : null}
 
-      {/* Create user — step 3 credentials */}
-      {createOpen && createStep === 3 && lastCreated ? (
+      {/* Create user — credentials */}
+      {createOpen && createStep === 2 && lastCreated ? (
         <ModalBackdrop>
           <div role="dialog" aria-modal="true" className={modalShell}>
             <h2 className="text-lg font-bold text-zinc-950">Account created</h2>
@@ -534,8 +544,40 @@ export default function SettingsPage() {
         </ModalBackdrop>
       ) : null}
 
-      {/* Remove user — step 1 */}
-      {userPendingRemove && removeStep === 1 ? (
+      {/* Confirm save page access (per row) */}
+      {accessSaveUserId && accessSaveTargetUser ? (
+        <ModalBackdrop zClass="z-[60]">
+          <div role="dialog" aria-modal="true" aria-labelledby="save-access-title" className={modalShell}>
+            <h2 id="save-access-title" className="text-lg font-bold text-zinc-950">
+              Save access for this user?
+            </h2>
+            <p className="mt-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
+              <span className="font-semibold text-zinc-900">
+                {accessSaveTargetUser.firstName} {accessSaveTargetUser.lastName}
+              </span>
+              <span className="mt-0.5 block truncate text-zinc-500">{accessSaveTargetUser.email}</span>
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+              This applies the page permissions shown in the row. You can edit them again anytime.
+            </p>
+            <div className="mt-5 flex justify-end gap-2 border-t border-zinc-100 pt-4">
+              <button type="button" onClick={() => setAccessSaveUserId(null)} className={btnSecondary}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => applyAccessForUser(accessSaveUserId)}
+                className={btnAccent}
+              >
+                Confirm save
+              </button>
+            </div>
+          </div>
+        </ModalBackdrop>
+      ) : null}
+
+      {/* Remove user */}
+      {userPendingRemove ? (
         <ModalBackdrop>
           <div role="dialog" aria-modal="true" aria-labelledby="remove-user-title" className={modalShell}>
             <h2 id="remove-user-title" className="text-lg font-bold text-zinc-950">
@@ -559,59 +601,16 @@ export default function SettingsPage() {
                   I understand this user will lose admin access.
                 </span>
               </label>
-              {gateError && removeStep === 1 ? (
-                <p className="text-sm text-red-600">{gateError}</p>
-              ) : null}
+              {removeError ? <p className="text-sm text-red-600">{removeError}</p> : null}
               <div className="flex justify-end gap-2 border-t border-zinc-100 pt-4">
                 <button type="button" onClick={closeRemoveFlow} className={btnSecondary}>
                   Cancel
                 </button>
-                <button type="button" onClick={handleRemoveStep1Continue} className={btnDanger}>
-                  Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        </ModalBackdrop>
-      ) : null}
-
-      {/* Remove user — step 2 superadmin */}
-      {userPendingRemove && removeStep === 2 ? (
-        <ModalBackdrop zClass="z-[60]">
-          <div role="dialog" aria-modal="true" className={modalShell}>
-            <h2 className="text-lg font-bold text-zinc-950">Confirm removal</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Enter superadmin password to remove{' '}
-              <span className="font-medium text-zinc-800">{userPendingRemove.email}</span>.
-            </p>
-            <form onSubmit={handleRemoveStep2Submit} className="mt-5 space-y-4">
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-zinc-700">Superadmin password</span>
-                <input
-                  type="password"
-                  value={superAdminPassword}
-                  onChange={(e) => setSuperAdminPassword(e.target.value)}
-                  autoComplete="current-password"
-                  className={inputClass}
-                />
-              </label>
-              {gateError ? <p className="text-sm text-red-600">{gateError}</p> : null}
-              <div className="flex justify-end gap-2 border-t border-zinc-100 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRemoveStep(1)
-                    resetGateFields()
-                  }}
-                  className={btnSecondary}
-                >
-                  Back
-                </button>
-                <button type="submit" className={btnDanger}>
+                <button type="button" onClick={handleConfirmRemove} className={btnDanger}>
                   Remove user
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </ModalBackdrop>
       ) : null}
@@ -621,18 +620,26 @@ export default function SettingsPage() {
 
 function UserRow({
   user,
+  pageAccess,
+  pendingEdits,
   onToggle,
+  onSave,
   onRemove,
 }: {
   user: AdminUserRecord
+  pageAccess: Record<AdminPageKey, boolean>
+  pendingEdits: boolean
   onToggle: (page: AdminPageKey, allowed: boolean) => void
+  onSave: () => void
   onRemove: () => void
 }) {
   const name = `${user.firstName} ${user.lastName}`.trim()
   const initials = initialsFromUser(user)
 
   return (
-    <tr className="transition-colors hover:bg-orange-50/40">
+    <tr
+      className={`transition-colors hover:bg-orange-50/40 ${pendingEdits ? 'bg-amber-50/50' : ''}`}
+    >
       <td className="whitespace-nowrap px-5 py-4">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-orange-100 to-orange-50 text-xs font-bold text-orange-950 ring-1 ring-orange-200/70">
@@ -648,7 +655,7 @@ function UserRow({
         <td key={key} className="px-2 py-4 text-center align-middle">
           <div className="flex justify-center">
             <PageAccessToggle
-              allowed={user.pageAccess[key] ?? defaultPageAccess()[key]}
+              allowed={pageAccess[key] ?? defaultPageAccess()[key]}
               label={ADMIN_PAGE_LABELS[key]}
               onChange={(next) => onToggle(key, next)}
             />
@@ -656,13 +663,23 @@ function UserRow({
         </td>
       ))}
       <td className="whitespace-nowrap px-5 py-4 text-right">
-        <button
-          type="button"
-          onClick={onRemove}
-          className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm ring-1 ring-zinc-950/5 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-900"
-        >
-          Remove
-        </button>
+        {pendingEdits ? (
+          <button
+            type="button"
+            onClick={onSave}
+            className="rounded-lg bg-linear-to-r from-orange-500 to-orange-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-orange-500/20 transition hover:from-orange-600 hover:to-orange-700"
+          >
+            Save
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm ring-1 ring-zinc-950/5 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-900"
+          >
+            Remove
+          </button>
+        )}
       </td>
     </tr>
   )
