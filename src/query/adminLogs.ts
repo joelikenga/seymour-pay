@@ -8,7 +8,20 @@ import type { AdminLogsPaginatedResponse } from '../types/adminLogs'
 
 export const LOG_PAGE_SIZE = 50
 
-export const adminLogsInfiniteQueryKey = ['admin', 'logs', 'infinite'] as const
+/** Prefix for `invalidateQueries` — matches `adminLogsInfiniteQueryKey`. */
+export const adminLogsQueryRootKey = ['admin', 'logs'] as const
+
+export const adminLogsInfiniteQueryKey = [
+  ...adminLogsQueryRootKey,
+  'infinite',
+] as const
+
+function totalPagesFromResponse(last: AdminLogsPaginatedResponse): number {
+  const pageSize = last.page_size || LOG_PAGE_SIZE
+  if (last.total_pages != null && last.total_pages > 0) return last.total_pages
+  if (last.total > 0 && pageSize > 0) return Math.ceil(last.total / pageSize)
+  return 0
+}
 
 export function useAdminLogsInfiniteQuery(): UseInfiniteQueryResult<
   InfiniteData<AdminLogsPaginatedResponse>,
@@ -24,19 +37,14 @@ export function useAdminLogsInfiniteQuery(): UseInfiniteQueryResult<
     queryKey: adminLogsInfiniteQueryKey,
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
+      const page = pageParam as number
       return LogsApi.adminGetLogs({
-        page: pageParam as number,
+        page,
         page_size: LOG_PAGE_SIZE,
       })
     },
     getNextPageParam: (lastPage) => {
-      const pageSize = lastPage.page_size || LOG_PAGE_SIZE
-      const inferredPages =
-        lastPage.total_pages ??
-        (lastPage.total > 0 && pageSize > 0
-          ? Math.ceil(lastPage.total / pageSize)
-          : 0)
-      const totalPages = inferredPages
+      const totalPages = totalPagesFromResponse(lastPage)
       if (totalPages <= 0) return undefined
       const next = lastPage.page + 1
       return next < totalPages ? next : undefined

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import AdminPagination from '../../components/admin/AdminPagination'
 import type { AuditAction } from '../../types/auditLog'
 import type { AdminLogRecord } from '../../types/adminLogs'
 import {
@@ -10,6 +11,9 @@ import {
 } from '../../lib/logDatePreset'
 import { formatDateShort, formatTimeOnly } from '../../lib/formatters'
 import { useAdminLogsInfiniteQuery } from '../../query/adminLogs'
+
+/** Pagination steps through Lagos calendar days (newest first), not raw API rows. */
+const DAYS_PER_PAGE = 10
 
 const DOT_HEX: Record<string, string> = {
   navigation: '#0ea5e9',
@@ -42,6 +46,17 @@ function sortNewestFirst(rows: AdminLogRecord[]): AdminLogRecord[] {
   )
 }
 
+function dedupeById(rows: AdminLogRecord[]): AdminLogRecord[] {
+  const seen = new Set<string>()
+  const out: AdminLogRecord[] = []
+  for (const row of rows) {
+    if (seen.has(row.id)) continue
+    seen.add(row.id)
+    out.push(row)
+  }
+  return out
+}
+
 function LogsListSkeleton() {
   return (
     <div className="space-y-3 px-2 py-4 sm:px-4" aria-hidden>
@@ -67,88 +82,122 @@ function LogsListSkeleton() {
 
 export default function LogsPage() {
   const logsQuery = useAdminLogsInfiniteQuery()
+  const [dayPageIndex, setDayPageIndex] = useState(0)
   const [openSectionId, setOpenSectionId] = useState<string | null>('today')
+
+  const logsQueryRef = useRef(logsQuery)
+  logsQueryRef.current = logsQuery
+
   const allRows = useMemo(() => {
     const pages = logsQuery.data?.pages ?? []
-    return pages.flatMap((p) => p.data ?? [])
+    return dedupeById(pages.flatMap((p) => p.data ?? []))
   }, [logsQuery.data])
+
+  const distinctYmds = useMemo(
+    () => distinctLagosDatesDescending(allRows),
+    [allRows],
+  )
+  const totalDistinctDays = distinctYmds.length
 
   const now = new Date()
   const todayYmd = lagosTodayYmd(now)
   const yesterdayYmd = lagosYesterdayYmd(now)
 
+  const windowYmds = useMemo(() => {
+    const start = dayPageIndex * DAYS_PER_PAGE
+    return distinctYmds.slice(start, start + DAYS_PER_PAGE)
+  }, [distinctYmds, dayPageIndex])
+
   const daySections = useMemo(() => {
-    const todayRows = sortNewestFirst(
-      allRows.filter((row) => logMatchesLagosYmd(row.at, todayYmd)),
-    )
-    const yesterdayRows = sortNewestFirst(
-      allRows.filter((row) => logMatchesLagosYmd(row.at, yesterdayYmd)),
-    )
-    const restYmds = distinctLagosDatesDescending(allRows).filter(
-      (ymd) => ymd !== todayYmd && ymd !== yesterdayYmd,
-    )
-    const rest = restYmds.map((ymd) => ({
-      id: ymd,
-      label: formatLagosYmdHeading(ymd),
+    return windowYmds.map((ymd) => ({
+      id:
+        ymd === todayYmd ? 'today' : ymd === yesterdayYmd ? 'yesterday' : ymd,
+      label:
+        ymd === todayYmd
+          ? 'Today'
+          : ymd === yesterdayYmd
+            ? 'Yesterday'
+            : formatLagosYmdHeading(ymd),
       rows: sortNewestFirst(
         allRows.filter((row) => logMatchesLagosYmd(row.at, ymd)),
       ),
     }))
-    return [
-      { id: 'today' as const, label: 'Today', rows: todayRows },
-      ...(yesterdayRows.length > 0
-        ? [{ id: 'yesterday' as const, label: 'Yesterday', rows: yesterdayRows }]
-        : []),
-      ...rest,
-    ]
-  }, [allRows, todayYmd, yesterdayYmd])
+  }, [allRows, windowYmds, todayYmd, yesterdayYmd])
+
+  const uiDayPage = dayPageIndex + 1
+
+  /** While more API pages may exist, pad so page N can represent “days” ranks up to N×pageSize. */
+  const pagerTotalItems = logsQuery.hasNextPage
+    ? Math.max(totalDistinctDays, uiDayPage * DAYS_PER_PAGE)
+    : totalDistinctDays
+
+  const filledDayPages = Math.max(
+    1,
+    Math.ceil(Math.max(totalDistinctDays, 1) / DAYS_PER_PAGE),
+  )
+  const totalDayPages = logsQuery.hasNextPage
+    ? Math.max(filledDayPages, dayPageIndex + 2)
+    : filledDayPages
 
   useEffect(() => {
-    setOpenSectionId((cur) =>
-      cur === 'yesterday' &&
-      !allRows.some((row) => logMatchesLagosYmd(row.at, yesterdayYmd))
-        ? 'today'
-        : cur,
-    )
-  }, [allRows, yesterdayYmd])
-
-  const sentinelRef = useRef<HTMLDivElement>(null)
+    if (!logsQuery.hasNextPage) {
+      const maxIdx = Math.max(
+        0,
+        Math.ceil(totalDistinctDays / DAYS_PER_PAGE) - 1,
+      )
+      if (totalDistinctDays > 0 && dayPageIndex > maxIdx) {
+        setDayPageIndex(maxIdx)
+      }
+    }
+  }, [logsQuery.hasNextPage, totalDistinctDays, dayPageIndex])
 
   useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const hit = entries[0]?.isIntersecting
-        if (
-          hit &&
-          logsQuery.hasNextPage &&
-          !logsQuery.isFetchingNextPage &&
-          !logsQuery.isPending
-        ) {
-          void logsQuery.fetchNextPage()
+    setOpenSectionId((cur) => {
+      if (daySections.length === 0) return cur
+      if (cur && daySections.some((s) => s.id === cur)) return cur
+      return daySections[0]?.id ?? null
+    })
+  }, [daySections])
+
+  useEffect(() => {
+    let cancelled = false
+    const neededDistinct = (dayPageIndex + 1) * DAYS_PER_PAGE
+
+    const run = async () => {
+      while (!cancelled) {
+        const q = logsQueryRef.current
+        if (!q.hasNextPage || q.isPending) break
+        const merged = dedupeById(
+          (q.data?.pages ?? []).flatMap((p) => p.data ?? []),
+        )
+        if (distinctLagosDatesDescending(merged).length >= neededDistinct) break
+        if (q.isFetchingNextPage) {
+          await new Promise((r) => setTimeout(r, 50))
+          continue
         }
-      },
-      { root: null, rootMargin: '160px', threshold: 0 },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [
-    logsQuery.fetchNextPage,
-    logsQuery.hasNextPage,
-    logsQuery.isFetchingNextPage,
-    logsQuery.isPending,
-  ])
+        await q.fetchNextPage()
+      }
+    }
 
-  function toggleSection(id: string) {
-    setOpenSectionId((cur) => (cur === id ? null : id))
-  }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [dayPageIndex, logsQuery.data?.pages, logsQuery.hasNextPage])
 
-  const totalLoaded = logsQuery.data?.pages[0]?.total ?? allRows.length
+  const loadingOlderDays =
+    logsQuery.hasNextPage &&
+    totalDistinctDays < (dayPageIndex + 1) * DAYS_PER_PAGE &&
+    logsQuery.isFetchingNextPage
+
   const showEmpty =
     !logsQuery.isPending &&
     !logsQuery.isError &&
     allRows.length === 0
+
+  function toggleSection(id: string) {
+    setOpenSectionId((cur) => (cur === id ? null : id))
+  }
 
   return (
     <div className="space-y-8">
@@ -164,19 +213,6 @@ export default function LogsPage() {
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-950">
             Activity log
           </h1>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-zinc-600">
-            <strong>Today</strong> first; <strong>Yesterday</strong> appears only when there are events.
-            Older days follow one section per calendar day (Lagos). More entries load as you scroll.
-          </p>
-          {!logsQuery.isPending && !logsQuery.isError ? (
-            <p className="mt-2 text-xs tabular-nums text-zinc-500">
-              Showing {allRows.length}
-              {typeof totalLoaded === 'number' && totalLoaded > allRows.length
-                ? ` of ${totalLoaded}`
-                : ''}{' '}
-              events
-            </p>
-          ) : null}
         </div>
       </header>
 
@@ -190,10 +226,6 @@ export default function LogsPage() {
 
       <section className="overflow-hidden rounded-3xl border border-zinc-200/90 bg-white shadow-[0_12px_48px_-28px_rgba(15,23,42,0.1)] ring-1 ring-zinc-950/5">
         <div className="px-3 py-4 sm:px-5 sm:py-5">
-          <p className="mb-3 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 sm:px-0">
-            By period (WAT)
-          </p>
-
           {logsQuery.isPending ? (
             <LogsListSkeleton />
           ) : showEmpty ? (
@@ -202,130 +234,143 @@ export default function LogsPage() {
             </p>
           ) : (
             <div className="space-y-2">
-              {daySections.map(({ id, label, rows }) => {
-                const count = rows.length
-                const open = openSectionId === id
-                const panelId = `log-period-${id}`
-                return (
-                  <div
-                    key={id}
-                    className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-zinc-50/40 ring-1 ring-zinc-950/5"
-                  >
-                    <button
-                      type="button"
-                      id={`${panelId}-btn`}
-                      aria-expanded={open}
-                      aria-controls={panelId}
-                      onClick={() => toggleSection(id)}
-                      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-white/80 sm:px-5"
-                    >
-                      <span
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 shadow-sm transition ${
-                          open ? 'rotate-180 border-orange-200 text-orange-700' : ''
-                        }`}
-                        aria-hidden
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
-                      </span>
-                      <span className="min-w-0 flex-1 font-semibold text-zinc-900">
-                        {label}
-                      </span>
-                      <span className="shrink-0 rounded-full bg-zinc-200/80 px-2.5 py-0.5 text-xs font-bold tabular-nums text-zinc-700">
-                        {count}
-                      </span>
-                    </button>
+              {loadingOlderDays && daySections.length === 0 ? (
+                <p className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-zinc-500">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-500" />
+                  Loading older calendar days…
+                </p>
+              ) : (
+                daySections.map(({ id, label, rows }) => {
+                  const count = rows.length
+                  const open = openSectionId === id
+                  const panelId = `log-period-${id}`
+                  return (
                     <div
-                      id={panelId}
-                      role="region"
-                      aria-labelledby={`${panelId}-btn`}
-                      className={open ? 'border-t border-zinc-100 bg-white' : 'hidden'}
+                      key={id}
+                      className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-zinc-50/40 ring-1 ring-zinc-950/5"
                     >
-                      {open &&
-                        (count === 0 ? (
-                          <p className="px-4 py-8 text-center text-sm text-zinc-500 sm:px-6">
-                            No events in this period.
-                          </p>
-                        ) : (
-                          <ul className="max-h-[min(70vh,520px)] divide-y divide-zinc-100 overflow-y-auto px-2 py-2 sm:px-4">
-                            {rows.map((row: AdminLogRecord) => (
-                              <li key={row.id}>
-                                <div className="flex gap-3 py-3.5 sm:gap-4">
-                                  <div className="flex w-[min(100%,7.5rem)] shrink-0 flex-col items-end gap-0.5 text-right sm:w-32">
-                                    <time
-                                      dateTime={row.at}
-                                      className="text-sm font-bold tabular-nums text-zinc-950"
-                                    >
-                                      {formatTimeOnly(row.at)}
-                                    </time>
-                                    <time
-                                      dateTime={row.at}
-                                      className="text-[11px] tabular-nums text-zinc-500"
-                                    >
-                                      {formatDateShort(row.at)}
-                                    </time>
-                                  </div>
-                                  <div className="relative min-w-0 flex-1 border-l-2 border-zinc-200 pl-4">
-                                    <span
-                                      className="absolute left-[-5px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white"
-                                      style={{
-                                        backgroundColor:
-                                          DOT_HEX[row.action] ?? '#a1a1aa',
-                                      }}
-                                      aria-hidden
-                                    />
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span
-                                        className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${badgeClass(row.action)}`}
+                      <button
+                        type="button"
+                        id={`${panelId}-btn`}
+                        aria-expanded={open}
+                        aria-controls={panelId}
+                        onClick={() => toggleSection(id)}
+                        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-white/80 sm:px-5"
+                      >
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 shadow-sm transition ${
+                            open
+                              ? 'rotate-180 border-orange-200 text-orange-700'
+                              : ''
+                          }`}
+                          aria-hidden
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M6 9l6 6 6-6" />
+                          </svg>
+                        </span>
+                        <span className="min-w-0 flex-1 font-semibold text-zinc-900">
+                          {label}
+                        </span>
+                        <span className="shrink-0 rounded-full bg-zinc-200/80 px-2.5 py-0.5 text-xs font-bold tabular-nums text-zinc-700">
+                          {count}
+                        </span>
+                      </button>
+                      <div
+                        id={panelId}
+                        role="region"
+                        aria-labelledby={`${panelId}-btn`}
+                        className={
+                          open ? 'border-t border-zinc-100 bg-white' : 'hidden'
+                        }
+                      >
+                        {open &&
+                          (count === 0 ? (
+                            <p className="px-4 py-8 text-center text-sm text-zinc-500 sm:px-6">
+                              No events in this period.
+                            </p>
+                          ) : (
+                            <ul className="max-h-[min(70vh,520px)] divide-y divide-zinc-100 overflow-y-auto px-2 py-2 sm:px-4">
+                              {rows.map((row: AdminLogRecord) => (
+                                <li key={row.id}>
+                                  <div className="flex gap-3 py-3.5 sm:gap-4">
+                                    <div className="flex w-[min(100%,7.5rem)] shrink-0 flex-col items-end gap-0.5 text-right sm:w-32">
+                                      <time
+                                        dateTime={row.at}
+                                        className="text-sm font-bold tabular-nums text-zinc-950"
                                       >
-                                        {row.action}
-                                      </span>
-                                      <span className="text-xs font-medium text-zinc-500">
-                                        {row.userLabel}
-                                      </span>
+                                        {formatTimeOnly(row.at)}
+                                      </time>
+                                      <time
+                                        dateTime={row.at}
+                                        className="text-[11px] tabular-nums text-zinc-500"
+                                      >
+                                        {formatDateShort(row.at)}
+                                      </time>
                                     </div>
-                                    <p className="mt-1.5 text-sm font-semibold text-zinc-900">
-                                      {row.summary}
-                                    </p>
-                                    <p className="mt-0.5 text-sm leading-snug text-zinc-600">
-                                      {row.detail}
-                                    </p>
+                                    <div className="relative min-w-0 flex-1 border-l-2 border-zinc-200 pl-4">
+                                      <span
+                                        className="absolute left-[-5px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white"
+                                        style={{
+                                          backgroundColor:
+                                            DOT_HEX[row.action] ?? '#a1a1aa',
+                                        }}
+                                        aria-hidden
+                                      />
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span
+                                          className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${badgeClass(row.action)}`}
+                                        >
+                                          {row.action}
+                                        </span>
+                                        <span className="text-xs font-medium text-zinc-500">
+                                          {row.userLabel}
+                                        </span>
+                                      </div>
+                                      <p className="mt-1.5 text-sm font-semibold text-zinc-900">
+                                        {row.summary}
+                                      </p>
+                                      <p className="mt-0.5 text-sm leading-snug text-zinc-600">
+                                        {row.detail}
+                                      </p>
+                                    </div>
                                   </div>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        ))}
+                                </li>
+                              ))}
+                            </ul>
+                          ))}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
 
-              <div
-                ref={sentinelRef}
-                className="flex min-h-12 items-center justify-center py-3"
-                aria-hidden={!logsQuery.hasNextPage && !logsQuery.isFetchingNextPage}
-              >
-                {logsQuery.isFetchingNextPage ? (
-                  <span className="inline-flex items-center gap-2 text-xs font-medium text-zinc-500">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-500" />
-                    Loading more…
-                  </span>
-                ) : logsQuery.hasNextPage ? (
-                  <span className="text-[11px] text-zinc-400">Scroll for more</span>
-                ) : allRows.length > 0 ? (
-                  <span className="text-[11px] text-zinc-400">End of log</span>
-                ) : null}
-              </div>
+              {logsQuery.isFetchingNextPage && daySections.length > 0 ? (
+                <p className="flex items-center justify-center gap-2 py-2 text-xs text-zinc-500">
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-500" />
+                  Loading older days…
+                </p>
+              ) : null}
+
+              {totalDistinctDays > 0 ? (
+                <div className="px-2 pb-2 pt-4 sm:px-4">
+                  <AdminPagination
+                    page={uiDayPage}
+                    totalPages={totalDayPages}
+                    totalItems={pagerTotalItems}
+                    pageSize={DAYS_PER_PAGE}
+                    onPageChange={(p) => setDayPageIndex(p - 1)}
+                  />
+                </div>
+              ) : null}
             </div>
           )}
         </div>

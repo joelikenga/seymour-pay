@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
@@ -14,7 +15,7 @@ import { formatDateShort, formatMoney } from '../../lib/formatters'
 import { statusPillClass } from '../../lib/statusStyles'
 import type { Transaction } from '../../types/transaction'
 import {
-  dateSelectionToApiRange,
+  describeDateSelectionForExportLog,
   labelForMonthFilterValue,
   parseFilterValue,
   transactionsToCsv,
@@ -139,19 +140,23 @@ export default function TransactionsPage() {
       downloadCsv(`transactions-export-${stamp}.csv`, csv)
       const who = getAuditActorLabel()
       const exportTotal = totalVolume(exported)
-      const range = dateSelectionToApiRange(dateSelection)
-      const datePart =
-        range.from && range.to
-          ? `dates ${range.from}–${range.to}`
-          : 'all dates'
+      const dateRangeLine = describeDateSelectionForExportLog(dateSelection)
       const filterDesc = [
-        datePart,
+        dateRangeLine,
         q.trim() ? `search "${q.trim()}"` : 'no search',
       ].join('; ')
       appendLog({
         action: 'export',
         summary: `${who} exported transactions data`,
-        detail: `${who} exported data with filter: ${filterDesc} and total transaction amount for exported data is ${formatMoney(exportTotal)} (${exported.length} row${exported.length === 1 ? '' : 's'}).`,
+        detail: `${who} exported CSV — ${filterDesc}; total amount ${formatMoney(exportTotal)} (${exported.length} row${exported.length === 1 ? '' : 's'}).`,
+      })
+      toast.success('Export ready', {
+        description: `${exported.length} row${exported.length === 1 ? '' : 's'} downloaded as CSV.`,
+      })
+    } catch (e) {
+      toast.error('Export failed', {
+        description:
+          e instanceof Error ? e.message : 'Could not build or download the CSV.',
       })
     } finally {
       setExporting(false)
@@ -192,8 +197,7 @@ export default function TransactionsPage() {
               Transactions
             </h1>
             <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">
-              Full history across every payment type. Filter by date like Analytics,
-              search the server ledger, then export matching rows as CSV.
+              Full history across every payment type.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">

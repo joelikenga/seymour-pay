@@ -12,7 +12,7 @@ import type { AuditLogEntry, AuditAction } from '../types/auditLog'
 import type { Transaction } from '../types/transaction'
 import type { AdminPageKey, AdminUserRecord } from '../types/adminUser'
 import { defaultPageAccess } from '../types/adminUser'
-import { adminLogsInfiniteQueryKey } from '../query/adminLogs'
+import { adminLogsQueryRootKey } from '../query/adminLogs'
 import { dashboardOverviewQueryKey } from '../query/dashboardOverview'
 import { getAuditActorLabel } from '../lib/auditActorLabel'
 import { queryClient } from '../query/queryClient'
@@ -122,7 +122,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       detail: entry.detail,
     })
       .then(() => {
-        void queryClient.invalidateQueries({ queryKey: adminLogsInfiniteQueryKey })
+        void queryClient.invalidateQueries({ queryKey: adminLogsQueryRootKey })
         void queryClient.invalidateQueries({ queryKey: dashboardOverviewQueryKey })
       })
       .catch(() => {

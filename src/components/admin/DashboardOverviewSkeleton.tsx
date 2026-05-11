@@ -120,11 +120,7 @@ export default function DashboardOverviewSkeleton() {
 export function CustomerTrafficChartSkeleton() {
   return (
     <div className="overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.2)] ring-1 ring-zinc-950/3 sm:p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="h-4 w-full max-w-[min(100%,18rem)] animate-pulse rounded-md bg-zinc-200/75 sm:h-[18px] sm:max-w-md" />
-        <div className="h-3.5 w-24 animate-pulse rounded-md bg-zinc-200/75 sm:w-28" />
-      </div>
-      <div className="mt-4 rounded-2xl bg-linear-to-b from-zinc-50/90 to-white p-3 ring-1 ring-zinc-100 sm:p-4">
+      <div className="rounded-2xl bg-linear-to-b from-zinc-50/90 to-white p-3 ring-1 ring-zinc-100 sm:p-4">
         <div className="flex h-[220px] w-full items-end justify-between gap-1 px-1 sm:h-[260px] md:h-[280px] md:gap-1.5">
           {Array.from({ length: 12 }, (_, i) => (
             <div

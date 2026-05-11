@@ -87,7 +87,7 @@ export default function AnalyticsPage() {
             Analytics
           </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-zinc-600">
-            Payment rails and trends — same filters and chrome as the rest of admin.
+            Payment rails and trends.
           </p>
         </div>
       </header>

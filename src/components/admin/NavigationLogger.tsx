@@ -5,7 +5,6 @@ import { getAuditActorLabel } from '../../lib/auditActorLabel'
 
 const titles: Record<string, string> = {
   '/login': 'Login',
-  '/forgot-password': 'Forgot password',
   '/admin': 'Dashboard',
   '/admin/transactions': 'Transactions',
   '/admin/analytics': 'Analytics',

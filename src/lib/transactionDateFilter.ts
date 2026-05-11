@@ -1,3 +1,5 @@
+import { formatDayStamp } from './formatters'
+
 /** Earliest year offered in admin date filters (year dropdown + month tiles). */
 export const TRANSACTION_FILTER_MIN_YEAR = 2026
 
@@ -85,6 +87,21 @@ export function dateSelectionToApiRange(
   const bounds = getFilterBounds(selection, now)
   if (!bounds) return {}
   return { from: toLocalYmd(bounds.start), to: toLocalYmd(bounds.end) }
+}
+
+/**
+ * Readable inclusive bounds for audit logs on CSV export — **from** … **to** …
+ * (uses the same calendar range as the API `from` / `to` params).
+ */
+export function describeDateSelectionForExportLog(
+  selection: DateFilterSelection,
+  now: Date = new Date(),
+): string {
+  const { from, to } = dateSelectionToApiRange(selection, now)
+  if (!from || !to) {
+    return 'date range: all dates'
+  }
+  return `date range: from ${formatDayStamp(from)} to ${formatDayStamp(to)}`
 }
 
 /** Stable segment for TanStack `queryKey` (e.g. `all` or `2026-05-01|2026-05-10`). */

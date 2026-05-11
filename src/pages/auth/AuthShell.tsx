@@ -7,9 +7,10 @@ interface AuthShellProps {
   subtitle: string
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void
   children: ReactNode
-  footerText: string
-  footerLinkText: string
-  footerLinkTo: string
+  /** Optional footer line with a single link (e.g. back to login). */
+  footerText?: string
+  footerLinkText?: string
+  footerLinkTo?: string
 }
 
 export default function AuthShell({
@@ -32,12 +33,14 @@ export default function AuthShell({
           {children}
         </form>
 
-        <p className="mt-5 text-sm text-zinc-600">
-          {footerText}{' '}
-          <Link to={footerLinkTo} className="font-medium text-zinc-900 underline underline-offset-2">
-            {footerLinkText}
-          </Link>
-        </p>
+        {footerText && footerLinkText && footerLinkTo ? (
+          <p className="mt-5 text-sm text-zinc-600">
+            {footerText}{' '}
+            <Link to={footerLinkTo} className="font-medium text-zinc-900 underline underline-offset-2">
+              {footerLinkText}
+            </Link>
+          </p>
+        ) : null}
       </section>
     </main>
   )

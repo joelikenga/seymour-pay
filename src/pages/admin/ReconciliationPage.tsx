@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import EditTransactionModal from '../../components/admin/EditTransactionModal'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
@@ -132,11 +133,17 @@ export default function ReconciliationPage() {
       })
       setModalOpen(false)
       setModalTx(null)
+      toast.success('Transaction updated', {
+        description: `Ticket ${ticket} saved.`,
+      })
     } catch {
       appendLog({
         action: 'settings',
         summary: `Save failed for ${prev.reference ?? id}`,
         detail: 'Could not update transaction on the server.',
+      })
+      toast.error('Could not save transaction', {
+        description: 'Check your connection and try again.',
       })
     }
   }
@@ -164,11 +171,22 @@ export default function ReconciliationPage() {
       })
       setSelectedById(new Map())
       setConfirmOpen(false)
+      toast.success(
+        ticketIds.length === 1
+          ? 'Transaction deleted'
+          : `${ticketIds.length} transactions deleted`,
+        {
+          description: 'The ledger and dashboards will refresh momentarily.',
+        },
+      )
     } catch {
       appendLog({
         action: 'settings',
         summary: 'Bulk delete failed',
         detail: 'Could not delete transactions on the server.',
+      })
+      toast.error('Could not delete transactions', {
+        description: 'Check your connection and try again.',
       })
     } finally {
       setDeleting(false)
@@ -186,17 +204,11 @@ export default function ReconciliationPage() {
         />
         <div className="relative">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-700/90">
-            Full ledger
+            Reconciliation
           </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-950">
-            Reconciliation
+            Align every payment type
           </h1>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-zinc-600">
-            Align <strong className="font-semibold text-zinc-800">every</strong> payment
-            type — including cash — against your records. Search the server ledger, tick
-            the rows you want to remove, then bulk-delete. Selections persist across
-            searches, so you can build a list across multiple queries before committing.
-          </p>
         </div>
       </header>
 
@@ -292,7 +304,7 @@ export default function ReconciliationPage() {
             aria-label={
               listQuery.isPending
                 ? 'Loading reconciliation rows'
-                : 'Reconciliation'
+                : 'Align every payment type'
             }
           >
             <thead>

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AppToaster } from './components/AppToaster'
 import NavigationLogger from './components/admin/NavigationLogger'
 import PwaInstallPrompt from './components/PwaInstallPrompt.tsx'
 import SessionLoginLogger from './components/admin/SessionLoginLogger'
@@ -11,7 +12,6 @@ import ReconciliationPage from './pages/admin/ReconciliationPage.tsx'
 import SettingsPage from './pages/admin/SettingsPage.tsx'
 import SettlementPage from './pages/admin/SettlementPage.tsx'
 import TransactionsPage from './pages/admin/TransactionsPage.tsx'
-import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.tsx'
 import LoginPage from './pages/auth/LoginPage.tsx'
 
 const Dashboard = lazy(() => import('./pages/admin/Dashboard.tsx'))
@@ -20,13 +20,13 @@ export default function App() {
   return (
     <AdminDataProvider>
       <BrowserRouter>
+        <AppToaster />
         <PwaInstallPrompt />
         <SessionLoginLogger />
         <NavigationLogger />
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route
               index

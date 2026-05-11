@@ -1,4 +1,10 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import {
+  useMemo,
+  useState,
+  useCallback,
+  useEffect,
+  type ReactNode,
+} from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Bar,
@@ -15,9 +21,8 @@ import DashboardOverviewSkeleton, {
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
 import OverviewMonthCalendar from '../../components/admin/OverviewMonthCalendar'
 import OverviewCarousel from '../../components/admin/OverviewCarousel'
+import ChangePasswordModal from '../../components/admin/ChangePasswordModal'
 import OverviewClock from '../../components/admin/OverviewClock'
-import TableSearchInput from '../../components/admin/TableSearchInput'
-import TableToolbar from '../../components/admin/TableToolbar'
 import { SEYMOUR_ADMIN_TAB_SESSION_KEY } from '../../components/admin/SessionLoginLogger.tsx'
 import { VehicleTypeIconBadge } from '../../components/admin/VehicleTypeGlyph'
 import fidelityLogo from '../../assets/Fidelity_Bank_Plc_Main_Logo.svg'
@@ -59,6 +64,36 @@ const OPS_PROFILE = {
   initials: 'SO',
 } as const
 
+function CustomerTrafficTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+  payload?: ReadonlyArray<{ value?: unknown }>
+  label?: ReactNode
+}) {
+  if (!active || !payload?.length) return null
+  const raw = payload[0]?.value
+  const n = typeof raw === 'number' ? raw : Number(raw ?? 0)
+  return (
+    <div
+      className="rounded-[14px] px-4 py-3 text-sm shadow-[0_16px_48px_rgba(0,0,0,0.25)]"
+      style={{
+        background: '#18181b',
+        border: 'none',
+      }}
+    >
+      <p className="text-[11px] font-medium" style={{ color: '#a1a1aa' }}>
+        {label}
+      </p>
+      <p className="mt-1 font-semibold tabular-nums text-white">
+        {n} {n === 1 ? 'customer' : 'customers'}
+      </p>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { appendLog } = useAdminData()
@@ -69,6 +104,7 @@ export default function Dashboard() {
   const profileEmail = me?.email ?? OPS_PROFILE.email
   const profileInitials = me?.initials ?? OPS_PROFILE.initials
   const [avatarFailed, setAvatarFailed] = useState(false)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const generatedAvatarUrl = useMemo(
     () =>
       `https://ui-avatars.com/api/?name=${encodeURIComponent(profileName)}&background=ea580c&color=fff&size=128&rounded=true`,
@@ -297,8 +333,14 @@ export default function Dashboard() {
             </section>
 
             <section className="group relative overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-linear-to-br from-white via-zinc-50/50 to-orange-50/25 p-6 shadow-[0_16px_48px_-36px_rgba(15,23,42,0.22)] ring-1 ring-zinc-950/5 transition hover:border-orange-100/80 hover:shadow-lg hover:ring-orange-100/50">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Profile
+              <p className="text-xs font-semibold uppercase tracking-wider text-orange-800/75">
+                Account security
+              </p>
+              <h3 className="mt-1 text-lg font-bold tracking-tight text-zinc-950">
+                Change password
+              </h3>
+              <p className="mt-1 text-sm leading-snug text-zinc-600">
+                Update your admin credentials with a strong password.
               </p>
               <div className="mt-4 flex items-center gap-4">
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-linear-to-br from-[#ea580c] to-orange-600 shadow-md ring-2 ring-white/40">
@@ -322,17 +364,34 @@ export default function Dashboard() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-lg font-bold text-zinc-950">{profileName}</p>
                   <p className="mt-0.5 truncate text-sm text-zinc-500">{profileEmail}</p>
-                  <p className="mt-1 text-[11px] font-medium text-zinc-400">
-                    {me?.phone
-                      ? `${me.phone} · profile syncs automatically`
-                      : 'Revenue operations · profile syncs automatically'}
-                  </p>
                 </div>
               </div>
               <button
                 type="button"
+                onClick={() => setPasswordModalOpen(true)}
+                className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-[#ea580c] to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-900/20 transition hover:brightness-[1.03] active:scale-[0.99]"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden
+                >
+                  <path
+                    d="M15.75 5.25a3 3 0 013 3m3 0a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12V13.5z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Change password
+              </button>
+              <button
+                type="button"
                 onClick={() => void handleLogout()}
-                className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.99]"
+                className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.99]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path
@@ -406,16 +465,7 @@ export default function Dashboard() {
             <CustomerTrafficChartSkeleton />
           ) : (
             <div className="overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.2)] ring-1 ring-zinc-950/[0.03]">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="text-sm text-zinc-500">
-                  Tickets posted per month, January → December {stats.trafficYear}.
-                </p>
-                <p className="text-xs font-semibold tabular-nums text-zinc-700">
-                  <span className="text-zinc-900">{stats.trafficTotal}</span>{' '}
-                  <span className="font-medium text-zinc-500">tickets</span>
-                </p>
-              </div>
-              <div className="mt-4 rounded-2xl bg-linear-to-b from-zinc-50/90 to-white p-4 ring-1 ring-zinc-100">
+              <div className="rounded-2xl bg-linear-to-b from-zinc-50/90 to-white p-4 ring-1 ring-zinc-100">
                 <div className="h-[240px] w-full sm:h-[260px] md:h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -438,24 +488,7 @@ export default function Dashboard() {
                       <YAxis allowDecimals={false} hide />
                       <Tooltip
                         cursor={{ fill: 'rgba(254,243,232,0.45)' }}
-                        contentStyle={{
-                          background: '#18181b',
-                          border: 'none',
-                          borderRadius: 14,
-                          padding: '12px 16px',
-                          boxShadow: '0 16px 48px rgba(0,0,0,0.25)',
-                        }}
-                        labelStyle={{ color: '#a1a1aa', fontSize: 11 }}
-                        formatter={(value) => {
-                          const n =
-                            typeof value === 'number'
-                              ? value
-                              : Number(value ?? 0)
-                          return [
-                            `${n} ${n === 1 ? 'ticket' : 'tickets'}`,
-                            'Customers',
-                          ]
-                        }}
+                        content={<CustomerTrafficTooltip />}
                       />
                       <Bar
                         dataKey="count"
@@ -485,55 +518,24 @@ export default function Dashboard() {
         </aside>
       </div>
 
-      {/* Recent */}
+      {/* Latest five transactions */}
       <section className="overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-white shadow-[0_24px_80px_-40px_rgba(15,23,42,0.28)] ring-1 ring-zinc-950/4">
-        <div className="flex flex-wrap items-end gap-5 border-b border-zinc-100 bg-linear-to-r from-white via-orange-50/20 to-zinc-50/90 px-6 py-6 md:px-8">
-          <div>
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-zinc-100 bg-linear-to-r from-white via-orange-50/20 to-zinc-50/90 px-6 py-6 md:px-8">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="h-1 w-6 rounded-full bg-orange-500" aria-hidden />
-              <h2 className="text-lg font-bold text-zinc-950 md:text-xl">
+              <span className="h-1 w-6 shrink-0 rounded-full bg-orange-500" aria-hidden />
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
                 Recent transactions
-              </h2>
+              </p>
             </div>
-            <p className="mt-2 text-sm text-zinc-500">
-              Latest five from the server — click search to open the full ledger.
-            </p>
           </div>
           <Link
             to="/admin/transactions"
-            className="text-sm font-semibold text-orange-700 underline-offset-4 hover:text-orange-800 hover:underline"
+            className="shrink-0 text-sm font-semibold text-orange-700 underline-offset-4 hover:text-orange-800 hover:underline"
           >
-            Open full ledger →
+            View Transactions
           </Link>
         </div>
-        <TableToolbar
-          right={
-            recentQuery.isPending ? (
-              <span
-                className="inline-block h-4 w-28 animate-pulse rounded-md bg-zinc-200/80"
-                aria-hidden
-              />
-            ) : recentQuery.isError ? (
-              <span className="text-sm text-rose-700">Could not load recent</span>
-            ) : (
-              <span className="tabular-nums">
-                <span className="font-bold text-zinc-900">{recentRows.length}</span>{' '}
-                latest
-              </span>
-            )
-          }
-        >
-          <TableSearchInput
-            value=""
-            onChange={() => {}}
-            readOnly
-            placeholder="Search full ledger…"
-            ariaLabel="Open transactions search"
-            onFocus={() =>
-              navigate('/admin/transactions', { state: { focusSearch: true } })
-            }
-          />
-        </TableToolbar>
 
         <div
           className="overflow-x-auto"
@@ -570,7 +572,7 @@ export default function Dashboard() {
                     colSpan={5}
                     className="px-6 py-10 text-center text-sm text-rose-700 md:px-8"
                   >
-                    Could not load recent transactions.
+                    Could not load latest transactions.
                   </td>
                 </tr>
               ) : (
@@ -609,6 +611,11 @@ export default function Dashboard() {
           </table>
         </div>
       </section>
+
+      <ChangePasswordModal
+        open={passwordModalOpen}
+        onOpenChange={setPasswordModalOpen}
+      />
     </div>
   )
 }

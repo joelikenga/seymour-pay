@@ -105,8 +105,7 @@ export default function SettlementPage() {
               Settlement
             </h1>
             <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-zinc-600">
-              Every row here cleared through <strong>Fidelity Bank Plc</strong> as pay
-              provider — POS, transfer, e-payment, and USSD.{' '}
+              Rows cleared through <strong>Fidelity Bank Plc</strong> as pay provider.
             </p>
           </div>
           <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2 shadow-inner ring-1 ring-sky-200/80">

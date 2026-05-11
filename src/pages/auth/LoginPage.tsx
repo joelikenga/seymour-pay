@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import AuthShell from './AuthShell'
 import { AuthApi } from '../../utils'
 import {
@@ -43,6 +44,9 @@ export default function LoginPage() {
         summary: 'Signed in',
         detail: `Admin signed in (${emailTrim})`,
       })
+      toast.success('Signed in', {
+        description: 'Welcome back to the operations console.',
+      })
       navigate('/admin', { replace: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not sign in.')
@@ -56,9 +60,6 @@ export default function LoginPage() {
       title="Log in"
       subtitle="Access your dashboard with your account details."
       onSubmit={(e) => void onSubmit(e)}
-      footerText="Need help with your password?"
-      footerLinkText="Reset it"
-      footerLinkTo="/forgot-password"
     >
       {error ? (
         <p
@@ -96,12 +97,6 @@ export default function LoginPage() {
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none ring-zinc-300 placeholder:text-zinc-400 focus:ring-2"
         />
       </label>
-
-      <div className="flex items-center justify-between pt-1">
-        <Link to="/forgot-password" className="text-sm text-zinc-700 underline underline-offset-2">
-          Forgot password?
-        </Link>
-      </div>
 
       <button
         type="submit"

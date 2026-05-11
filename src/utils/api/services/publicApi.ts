@@ -155,15 +155,6 @@ export const LoginApi = {
 
 // Password Reset API
 export const PasswordResetApi = {
-  forgotPassword: async (email: string): Promise<any> => {
-    try {
-      const response = await axios$.post("/users/forgot-password", { email });
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  },
-
   setNewPassword: async (token: string, password: string): Promise<any> => {
     try {
       const response = await axios$.post("/auth/reset-password", { 

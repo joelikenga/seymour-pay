@@ -6,10 +6,9 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react'
+import { toast } from 'sonner'
+import ChangePasswordModal from '../../components/admin/ChangePasswordModal'
 import { useAdminData } from '../../context/AdminDataContext'
-import { AuthApi } from '../../utils'
-import { adminProfileQueryKey } from '../../query/adminProfile'
-import { queryClient } from '../../query/queryClient'
 import {
   ADMIN_PAGE_KEYS,
   ADMIN_PAGE_LABELS,
@@ -204,12 +203,7 @@ export default function SettingsPage() {
   } | null>(null)
   const [copyDone, setCopyDone] = useState(false)
 
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null)
-  const [passwordChangeOk, setPasswordChangeOk] = useState(false)
-  const [passwordChangeBusy, setPasswordChangeBusy] = useState(false)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
 
   const openCreateModal = useCallback(() => {
     setFormError(null)
@@ -280,6 +274,9 @@ export default function SettingsPage() {
         summary: 'Admin user created',
         detail: `Added ${displayName} (${result.user.email}) from Settings.`,
       })
+      toast.success('User added', {
+        description: `${displayName} can sign in with the temporary password on the next step.`,
+      })
     },
     [email, firstName, lastName, createAck, addAdminUser, appendLog],
   )
@@ -312,9 +309,15 @@ export default function SettingsPage() {
       await navigator.clipboard.writeText(body)
       setCopyDone(true)
       setCopyError(null)
+      toast.success('Copied to clipboard', {
+        description: 'Email and temporary password are ready to paste securely.',
+      })
       window.setTimeout(() => setCopyDone(false), 2500)
     } catch {
       setCopyError('Could not copy.')
+      toast.error('Could not copy', {
+        description: 'Allow clipboard access or copy the fields manually.',
+      })
     }
   }, [lastCreated])
 
@@ -330,39 +333,6 @@ export default function SettingsPage() {
     const n = adminUsers.length
     return `${n} ${n === 1 ? 'person' : 'people'}`
   }, [adminUsers.length])
-
-  const handleChangePassword = useCallback(
-    async (e: FormEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      setPasswordChangeError(null)
-      setPasswordChangeOk(false)
-      if (newPassword !== confirmPassword) {
-        setPasswordChangeError('New password and confirmation do not match.')
-        return
-      }
-      setPasswordChangeBusy(true)
-      try {
-        await AuthApi.adminChangePassword(currentPassword, newPassword)
-        setPasswordChangeOk(true)
-        setCurrentPassword('')
-        setNewPassword('')
-        setConfirmPassword('')
-        void queryClient.invalidateQueries({ queryKey: adminProfileQueryKey })
-        appendLog({
-          action: 'settings',
-          summary: 'Password updated',
-          detail: 'Admin password was changed successfully.',
-        })
-      } catch (err) {
-        setPasswordChangeError(
-          err instanceof Error ? err.message : 'Could not change password.',
-        )
-      } finally {
-        setPasswordChangeBusy(false)
-      }
-    },
-    [appendLog, confirmPassword, currentPassword, newPassword],
-  )
 
   return (
     <div className="space-y-8 pb-10">
@@ -391,7 +361,7 @@ export default function SettingsPage() {
       </header>
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_16px_48px_-36px_rgba(15,23,42,0.18)] ring-1 ring-zinc-950/[0.03]">
-        <div className="border-b border-zinc-100 bg-linear-to-r from-zinc-50/90 via-white to-sky-50/20 px-5 py-5 sm:px-7">
+        <div className="flex flex-col gap-4 border-b border-zinc-100 bg-linear-to-r from-zinc-50/90 via-white to-sky-50/20 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
           <div className="flex min-w-0 items-start gap-3">
             <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-sky-500 to-sky-600 text-white shadow-md shadow-sky-500/25">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -406,67 +376,18 @@ export default function SettingsPage() {
             <div className="min-w-0">
               <h2 className="text-lg font-bold text-zinc-950">Your password</h2>
               <p className="mt-1 text-sm text-zinc-600">
-                Change the password for your current admin session. You will need your current password to continue.
+                Opens a secure dialog — use your current password to set a new one.
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setPasswordModalOpen(true)}
+            className={`${btnAccent} shrink-0`}
+          >
+            Change password
+          </button>
         </div>
-        <form onSubmit={(e) => void handleChangePassword(e)} className="space-y-4 px-5 py-6 sm:px-7">
-          {passwordChangeOk ? (
-            <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-              Password updated successfully.
-            </p>
-          ) : null}
-          {passwordChangeError ? (
-            <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-              {passwordChangeError}
-            </p>
-          ) : null}
-          <div className="grid gap-4 sm:max-w-md">
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-zinc-700">Current password</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-zinc-700">New password</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-zinc-700">Confirm new password</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={inputClass}
-              />
-            </label>
-          </div>
-          <div className="flex flex-wrap justify-end gap-2 border-t border-zinc-100 pt-4">
-            <button
-              type="submit"
-              disabled={passwordChangeBusy}
-              className={`${btnAccent} disabled:pointer-events-none disabled:opacity-60`}
-            >
-              {passwordChangeBusy ? 'Saving…' : 'Change password'}
-            </button>
-          </div>
-        </form>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_16px_48px_-36px_rgba(15,23,42,0.18)] ring-1 ring-zinc-950/[0.03]">
@@ -736,6 +657,11 @@ export default function SettingsPage() {
           </div>
         </ModalBackdrop>
       ) : null}
+
+      <ChangePasswordModal
+        open={passwordModalOpen}
+        onOpenChange={setPasswordModalOpen}
+      />
     </div>
   )
 }
