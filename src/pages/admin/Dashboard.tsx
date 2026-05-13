@@ -50,7 +50,7 @@ import {
 import { useRecentTransactionsQuery } from '../../query/transactionsList'
 import type { PaymentChannel, TransactionStatus } from '../../types/transaction'
 
-const ORANGE = '#ea580c'
+const ORANGE = '#eab308'
 
 const STATUS_SEGMENTS: { key: TransactionStatus; label: string; bar: string }[] = [
   { key: 'completed', label: 'Completed', bar: 'bg-emerald-500' },
@@ -107,7 +107,7 @@ export default function Dashboard() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const generatedAvatarUrl = useMemo(
     () =>
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(profileName)}&background=ea580c&color=fff&size=128&rounded=true`,
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(profileName)}&background=ca8a04&color=fff&size=128&rounded=true`,
     [profileName],
   )
   const avatarUrl = me?.photoUrl ?? generatedAvatarUrl
@@ -343,7 +343,7 @@ export default function Dashboard() {
                 Update your admin credentials with a strong password.
               </p>
               <div className="mt-4 flex items-center gap-4">
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-linear-to-br from-[#ea580c] to-orange-600 shadow-md ring-2 ring-white/40">
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-linear-to-br from-orange-500 to-orange-600 shadow-md ring-2 ring-white/40">
                   <div
                     className="absolute inset-0 flex items-center justify-center text-lg font-bold tracking-tight text-white"
                     aria-hidden
@@ -369,7 +369,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setPasswordModalOpen(true)}
-                className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-[#ea580c] to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-900/20 transition hover:brightness-[1.03] active:scale-[0.99]"
+                className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-900/20 transition hover:brightness-[1.03] active:scale-[0.99]"
               >
                 <svg
                   width="18"
@@ -416,7 +416,7 @@ export default function Dashboard() {
             <div className="mb-4 flex items-center gap-2">
               <span className="h-1 w-6 rounded-full bg-orange-400/80" aria-hidden />
               <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
-                Car types
+                Vehicle types
               </h3>
             </div>
             <div className="space-y-3">
@@ -531,7 +531,7 @@ export default function Dashboard() {
           </div>
           <Link
             to="/admin/transactions"
-            className="shrink-0 text-sm font-semibold text-orange-700 underline-offset-4 hover:text-orange-800 hover:underline"
+            className="-mx-1 shrink-0 rounded-md px-1 py-0.5 text-sm font-semibold text-link underline-offset-4 hover:bg-primary-soft/14 hover:text-link-hover hover:underline"
           >
             View Transactions
           </Link>

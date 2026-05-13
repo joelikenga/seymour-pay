@@ -145,7 +145,7 @@ export default function TransactionDateFilterDropdown({
         aria-controls={open ? titleId : undefined}
         aria-label={ariaLabel}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-2.5 text-xs font-semibold text-zinc-800 shadow-sm transition hover:border-orange-200/90 hover:bg-zinc-50/80 focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-500/20"
+        className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-2.5 text-xs font-semibold text-zinc-800 shadow-sm transition hover:border-primary/30 hover:bg-zinc-50/80 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/20"
       >
         <span className="text-zinc-400" aria-hidden>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -215,7 +215,7 @@ export default function TransactionDateFilterDropdown({
                 <button
                   type="button"
                   onClick={() => select('all')}
-                  className="text-[11px] font-semibold text-orange-700 hover:text-orange-800"
+                  className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-link hover:bg-primary-soft/14 hover:text-link-hover"
                 >
                   Reset
                 </button>
@@ -227,7 +227,7 @@ export default function TransactionDateFilterDropdown({
                   aria-expanded={yearMenuOpen}
                   aria-label="Year for month picker"
                   onClick={() => setYearMenuOpen((v) => !v)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white py-1 pl-2 pr-1.5 text-xs font-semibold tabular-nums text-zinc-800 shadow-sm outline-none transition hover:border-orange-200 focus-visible:ring-2 focus-visible:ring-orange-500/20"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white py-1 pl-2 pr-1.5 text-xs font-semibold tabular-nums text-zinc-800 shadow-sm outline-none transition hover:border-primary/30 focus-visible:ring-2 focus-visible:ring-primary/20"
                 >
                   <span>{panelYear}</span>
                   <span
@@ -265,13 +265,13 @@ export default function TransactionDateFilterDropdown({
                           }}
                           className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-xs font-semibold tabular-nums transition ${
                             active
-                              ? 'bg-orange-50 text-orange-900'
+                              ? 'bg-primary-soft/22 text-orange-950'
                               : 'text-zinc-700 hover:bg-zinc-50'
                           }`}
                         >
                           {y}
                           {active ? (
-                            <span className="text-orange-600" aria-hidden>
+                            <span className="text-link" aria-hidden>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                                 <path
                                   d="M5 12.5l4.5 4.5L19 6.5"
@@ -306,13 +306,13 @@ export default function TransactionDateFilterDropdown({
                     onClick={() => select(p.value)}
                     className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
                       active
-                        ? 'bg-orange-50 text-orange-900 ring-1 ring-orange-200/80'
+                        ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
                         : 'text-zinc-800 hover:bg-zinc-50'
                     }`}
                   >
                     {p.label}
                     {active ? (
-                      <span className="text-orange-600" aria-hidden>
+                      <span className="text-link" aria-hidden>
                         <svg
                           width="14"
                           height="14"
@@ -382,8 +382,8 @@ export default function TransactionDateFilterDropdown({
                             onClick={() => select(m.value)}
                             className={`rounded-lg border py-1.5 text-center text-[11px] font-bold transition active:scale-[0.98] ${
                               active
-                                ? 'border-orange-300 bg-linear-to-b from-orange-50 to-amber-50/80 text-orange-900 shadow-sm ring-2 ring-orange-500/20'
-                                : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-orange-200/80 hover:bg-white hover:text-zinc-900'
+                                ? 'border-primary/50 bg-linear-to-b from-primary-soft/28 to-primary-soft/10 text-orange-900 shadow-sm ring-2 ring-primary-soft/30'
+                                : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-primary/30 hover:bg-white hover:text-zinc-900'
                             }`}
                           >
                             {monthShort(m.monthIndex)}
@@ -405,13 +405,13 @@ export default function TransactionDateFilterDropdown({
               onClick={() => onFilterChange('custom')}
               className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
                 filterValue === 'custom'
-                  ? 'bg-orange-50 text-orange-900 ring-1 ring-orange-200/80'
+                  ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
                   : 'text-zinc-800 hover:bg-zinc-50'
               }`}
             >
               Custom range…
               {filterValue === 'custom' ? (
-                <span className="text-orange-600" aria-hidden>
+                <span className="text-link" aria-hidden>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <path
                       d="M5 12.5l4.5 4.5L19 6.5"
@@ -439,7 +439,7 @@ export default function TransactionDateFilterDropdown({
                     min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01`}
                     value={customStart}
                     onChange={(e) => onCustomStartChange(e.target.value)}
-                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-500/15"
+                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   />
                 </label>
                 <label className="flex flex-col gap-1">
@@ -451,7 +451,7 @@ export default function TransactionDateFilterDropdown({
                     min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01`}
                     value={customEnd}
                     onChange={(e) => onCustomEndChange(e.target.value)}
-                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-500/15"
+                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   />
                 </label>
               </div>

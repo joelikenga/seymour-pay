@@ -6,6 +6,8 @@ interface AdminPaginationProps {
   totalItems: number
   pageSize: number
   onPageChange: (p: number) => void
+  /** Appended after the total count, e.g. `"calendar days"` → `… of 12 calendar days`. */
+  countLabel?: string
 }
 
 export default function AdminPagination({
@@ -14,6 +16,7 @@ export default function AdminPagination({
   totalItems,
   pageSize,
   onPageChange,
+  countLabel,
 }: AdminPaginationProps) {
   if (totalItems === 0) return null
 
@@ -32,6 +35,7 @@ export default function AdminPagination({
         <span className="font-semibold tabular-nums text-zinc-800">
           {totalItems}
         </span>
+        {countLabel ? <> {countLabel}</> : null}
       </p>
 
       <nav
@@ -43,7 +47,7 @@ export default function AdminPagination({
           aria-label="Previous page"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-35"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-link shadow-sm transition hover:border-link/25 hover:bg-primary-soft/14 hover:text-link-hover disabled:pointer-events-none disabled:opacity-35 disabled:hover:border-zinc-200 disabled:hover:bg-white disabled:hover:text-link"
         >
           <Chevron dir="left" />
         </button>
@@ -64,10 +68,10 @@ export default function AdminPagination({
                 aria-label={`Page ${item}`}
                 aria-current={item === page ? 'page' : undefined}
                 onClick={() => onPageChange(item)}
-                className={`min-w-[2.25rem] rounded-full px-3 py-1.5 text-sm font-semibold tabular-nums transition ${
+                className={`min-w-9 rounded-full px-3 py-1.5 text-sm font-semibold tabular-nums transition ${
                   item === page
-                    ? 'bg-zinc-950 text-white shadow-md'
-                    : 'text-zinc-600 hover:bg-zinc-100'
+                    ? 'bg-primary-soft/38 text-link-hover shadow-sm ring-1 ring-primary-soft/55'
+                    : 'text-link hover:bg-primary-soft/14 hover:text-link-hover'
                 }`}
               >
                 {item}
@@ -81,7 +85,7 @@ export default function AdminPagination({
           aria-label="Next page"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-35"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-link shadow-sm transition hover:border-link/25 hover:bg-primary-soft/14 hover:text-link-hover disabled:pointer-events-none disabled:opacity-35 disabled:hover:border-zinc-200 disabled:hover:bg-white disabled:hover:text-link"
         >
           <Chevron dir="right" />
         </button>

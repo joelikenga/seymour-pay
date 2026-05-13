@@ -20,7 +20,7 @@ export default defineConfig({
         short_name: 'Seymour Pay',
         description:
           'Scan tickets, pay, and manage the Seymour Aviation ledger — client and admin.',
-        theme_color: '#ea580c',
+        theme_color: '#ca8a04',
         background_color: '#f9fafb',
         display: 'standalone',
         orientation: 'portrait-primary',

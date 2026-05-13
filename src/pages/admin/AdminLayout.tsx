@@ -41,7 +41,7 @@ export default function AdminLayout() {
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-3 px-3 sm:px-4 md:px-8">
           <Link
             to="/admin"
-            className="min-w-0 rounded-xl outline-none ring-zinc-950/10 focus-visible:ring-4"
+            className="min-w-0 rounded-xl outline-none ring-zinc-950/10 focus-visible:ring-4 focus-visible:ring-link/35"
             aria-label="Seymour Aviation — Dashboard"
           >
             <SeymourLogo className="max-w-[min(100%,200px)] sm:max-w-[min(100%,240px)]" />
@@ -59,8 +59,8 @@ export default function AdminLayout() {
                 className={({ isActive }) =>
                   `rounded-full px-4 py-2 text-sm font-semibold transition lg:px-5 ${
                     isActive
-                      ? 'bg-[#ea580c] text-white shadow-md shadow-orange-900/20'
-                      : 'text-zinc-500 hover:text-zinc-800'
+                      ? 'bg-primary-soft/38 text-link-hover shadow-sm ring-1 ring-primary-soft/55'
+                      : 'text-link hover:bg-primary-soft/14 hover:text-link-hover'
                   }`
                 }
               >
@@ -73,7 +73,7 @@ export default function AdminLayout() {
             type="button"
             onClick={handleLogout}
             aria-label="Log out"
-            className="flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.99] sm:px-4"
+            className="flex shrink-0 items-center gap-2 rounded-full border border-link/25 bg-white px-3 py-2 text-sm font-semibold text-link shadow-sm transition hover:border-link/40 hover:bg-primary-soft/14 hover:text-link-hover active:scale-[0.99] sm:px-4"
           >
             <svg
               width="18"
@@ -107,8 +107,8 @@ export default function AdminLayout() {
                 className={({ isActive }) =>
                   `shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                     isActive
-                      ? 'bg-[#ea580c] text-white shadow-sm shadow-orange-900/20'
-                      : 'border border-zinc-200/80 bg-zinc-50 text-zinc-600 hover:text-zinc-900'
+                      ? 'bg-primary-soft/38 text-link-hover shadow-sm ring-1 ring-primary-soft/55'
+                      : 'border border-zinc-200/80 bg-zinc-50 text-link hover:border-link/30 hover:bg-primary-soft/14 hover:text-link-hover'
                   }`
                 }
               >

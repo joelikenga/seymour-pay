@@ -8,7 +8,7 @@ import type { AdminLogsPaginatedResponse } from '../types/adminLogs'
 
 export const LOG_PAGE_SIZE = 50
 
-/** Prefix for `invalidateQueries` — matches `adminLogsInfiniteQueryKey`. */
+/** Prefix for `invalidateQueries` — matches all `['admin', 'logs', …]` query keys. */
 export const adminLogsQueryRootKey = ['admin', 'logs'] as const
 
 export const adminLogsInfiniteQueryKey = [
@@ -23,6 +23,7 @@ function totalPagesFromResponse(last: AdminLogsPaginatedResponse): number {
   return 0
 }
 
+/** Loads `/admin/logs` page-by-page; UI paginates merged rows by Lagos calendar day. */
 export function useAdminLogsInfiniteQuery(): UseInfiniteQueryResult<
   InfiniteData<AdminLogsPaginatedResponse>,
   Error

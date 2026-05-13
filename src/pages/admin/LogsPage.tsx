@@ -18,7 +18,7 @@ const DAYS_PER_PAGE = 10
 const DOT_HEX: Record<string, string> = {
   navigation: '#0ea5e9',
   login: '#10b981',
-  export: '#f97316',
+  export: '#eab308',
   reconciliation: '#8b5cf6',
   settings: '#71717a',
 }
@@ -159,6 +159,7 @@ export default function LogsPage() {
     })
   }, [daySections])
 
+  /** Fetch more API pages only when the selected calendar-day page needs more rows (not scroll-driven). */
   useEffect(() => {
     let cancelled = false
     const neededDistinct = (dayPageIndex + 1) * DAYS_PER_PAGE
@@ -193,7 +194,8 @@ export default function LogsPage() {
   const showEmpty =
     !logsQuery.isPending &&
     !logsQuery.isError &&
-    allRows.length === 0
+    allRows.length === 0 &&
+    !logsQuery.hasNextPage
 
   function toggleSection(id: string) {
     setOpenSectionId((cur) => (cur === id ? null : id))
@@ -237,7 +239,7 @@ export default function LogsPage() {
               {loadingOlderDays && daySections.length === 0 ? (
                 <p className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-zinc-500">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-500" />
-                  Loading older calendar days…
+                  Loading more days…
                 </p>
               ) : (
                 daySections.map(({ id, label, rows }) => {
@@ -356,7 +358,7 @@ export default function LogsPage() {
               {logsQuery.isFetchingNextPage && daySections.length > 0 ? (
                 <p className="flex items-center justify-center gap-2 py-2 text-xs text-zinc-500">
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-300 border-t-orange-500" />
-                  Loading older days…
+                  Loading more days…
                 </p>
               ) : null}
 
@@ -367,6 +369,7 @@ export default function LogsPage() {
                     totalPages={totalDayPages}
                     totalItems={pagerTotalItems}
                     pageSize={DAYS_PER_PAGE}
+                    countLabel="calendar days"
                     onPageChange={(p) => setDayPageIndex(p - 1)}
                   />
                 </div>

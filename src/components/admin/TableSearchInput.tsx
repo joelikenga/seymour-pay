@@ -59,7 +59,7 @@ export default function TableSearchInput({
         onFocus={() => onFocus?.()}
         onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-2xl border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-sm shadow-inner outline-none placeholder:text-zinc-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-500/15 read-only:cursor-pointer read-only:bg-zinc-50/80"
+        className="w-full rounded-2xl border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-sm shadow-inner outline-none placeholder:text-zinc-400 focus:border-primary focus:ring-4 focus:ring-primary/15 read-only:cursor-pointer read-only:bg-zinc-50/80"
       />
     </label>
   )

@@ -18,7 +18,7 @@ import {
 } from '../../types/adminUser'
 
 const inputClass =
-  'h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 shadow-inner outline-none transition placeholder:text-zinc-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20'
+  'h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 shadow-inner outline-none transition placeholder:text-zinc-400 focus:border-primary focus:ring-2 focus:ring-primary/20'
 
 const modalShell =
   'w-full max-w-md rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-[0_24px_48px_-28px_rgba(15,23,42,0.22)] ring-1 ring-zinc-950/5'
@@ -336,7 +336,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 pb-10">
-      <header className="relative overflow-hidden rounded-2xl border border-zinc-200/90 bg-linear-to-br from-white via-orange-50/35 to-zinc-50 p-6 shadow-[0_20px_50px_-40px_rgba(234,88,12,0.18)] ring-1 ring-zinc-950/5 sm:p-8">
+      <header className="relative overflow-hidden rounded-2xl border border-zinc-200/90 bg-linear-to-br from-white via-orange-50/35 to-zinc-50 p-6 shadow-[0_20px_50px_-40px_rgba(202,138,4,0.2)] ring-1 ring-zinc-950/5 sm:p-8">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-orange-300/50 to-transparent"
           aria-hidden
@@ -414,7 +414,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={discardAccessDraft}
-                      className="font-medium text-orange-700 underline decoration-orange-200 underline-offset-2 hover:text-orange-900"
+                      className="rounded px-0.5 font-medium text-link underline decoration-link/45 underline-offset-2 hover:bg-primary-soft/14 hover:text-link-hover"
                     >
                       Discard all
                     </button>

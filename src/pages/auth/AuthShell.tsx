@@ -36,7 +36,10 @@ export default function AuthShell({
         {footerText && footerLinkText && footerLinkTo ? (
           <p className="mt-5 text-sm text-zinc-600">
             {footerText}{' '}
-            <Link to={footerLinkTo} className="font-medium text-zinc-900 underline underline-offset-2">
+            <Link
+              to={footerLinkTo}
+              className="rounded font-medium text-link underline underline-offset-2 hover:bg-primary-soft/14 hover:text-link-hover"
+            >
               {footerLinkText}
             </Link>
           </p>

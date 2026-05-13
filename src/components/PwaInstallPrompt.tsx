@@ -112,7 +112,7 @@ export default function PwaInstallPrompt() {
     >
       <div className="w-full max-w-md rounded-t-3xl border border-zinc-200 bg-white p-6 shadow-2xl sm:rounded-3xl">
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-[#ea580c] to-orange-600 text-2xl font-bold text-white shadow-md">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-orange-500 to-orange-600 text-2xl font-bold text-white shadow-md">
             S
           </div>
           <div className="min-w-0 flex-1">
@@ -140,7 +140,7 @@ export default function PwaInstallPrompt() {
             <button
               type="button"
               onClick={() => void install()}
-              className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-[#ea580c] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-orange-600 active:scale-[0.99] sm:max-w-[200px]"
+              className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-orange-700 active:scale-[0.99] sm:max-w-[200px]"
             >
               Download / Install
             </button>

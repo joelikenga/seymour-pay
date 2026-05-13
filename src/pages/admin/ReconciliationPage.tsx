@@ -399,7 +399,7 @@ export default function ReconciliationPage() {
                         <button
                           type="button"
                           onClick={() => openEdit(t)}
-                          className="rounded-xl bg-[#ea580c] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
+                          className="rounded-xl bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-700"
                         >
                           Edit
                         </button>

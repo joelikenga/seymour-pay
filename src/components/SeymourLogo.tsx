@@ -1,4 +1,6 @@
-import LOGO from"../../public/seymour-retina-logo-288x118-1copy.svg";
+/** Served from `public/` — filename contains a space */
+const LOGO_SRC = '/logo%201.svg'
+
 interface SeymourLogoProps {
   className?: string
   /** Use PNG from /public when you add the official file */
@@ -24,27 +26,20 @@ export default function SeymourLogo({
     )
   }
 
-
-
-  if (markOnly) {
-    return (
-      <span className={`inline-flex items-center ${className}`} aria-hidden>
-      {<img src={LOGO} className="w-15"/>}
-      </span>
-    )
-  }
+  const imgClass = markOnly
+    ? 'h-8 w-auto max-w-[140px] object-contain object-left sm:h-9'
+    : 'h-9 w-auto max-w-[min(100%,240px)] object-contain object-left sm:h-10'
 
   return (
-    <span className={`inline-flex items-center gap-3  ${className}`}>
-      {<img src={LOGO} className="w-15"/>}
-      <span className="flex min-w-0 flex-col leading-none">
-        <span className="text-[14px] font-bold tracking-[0.14em] text-zinc-900 sm:text-[15px]">
-          SEYMOUR
-        </span>
-        <span className="mt-1 text-[10px] font-bold tracking-[0.16em] text-zinc-600 sm:text-[11px]">
-          AVIATION LTD
-        </span>
-      </span>
+    <span className={`inline-flex items-center ${className}`}>
+      <img
+        src={LOGO_SRC}
+        alt="Seymour Aviation Ltd."
+        width={876}
+        height={176}
+        className={imgClass}
+        decoding="async"
+      />
     </span>
   )
 }

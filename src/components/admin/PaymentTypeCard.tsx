@@ -133,7 +133,7 @@ export default function PaymentTypeCard(props: PaymentTypeCardProps) {
           <span className="font-medium text-zinc-500">{count} tx</span>
           <span
             className={`font-bold tabular-nums ${
-              selected ? 'text-orange-700' : 'text-zinc-600'
+              selected ? 'text-orange-800' : 'text-zinc-600'
             }`}
           >
             {sharePct}%

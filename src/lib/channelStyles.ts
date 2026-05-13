@@ -32,7 +32,7 @@ export const channelPillClass: Record<PaymentChannel, string> = {
 
 export const channelChartHex: Record<PaymentChannel, string> = {
   cash: '#22c55e',
-  pos: '#f97316',
+  pos: '#eab308',
   transfer: '#0ea5e9',
   epayment: '#8b5cf6',
   ussd: '#14b8a6',
