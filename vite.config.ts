@@ -14,7 +14,13 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'pwa-192.png', 'pwa-512.png'],
+      includeAssets: [
+        'favicon.svg',
+        'logo 1.svg',
+        'logo-tail 1.svg',
+        'pwa-192.png',
+        'pwa-512.png',
+      ],
       manifest: {
         name: 'Seymour Aviation Pay',
         short_name: 'Seymour Pay',

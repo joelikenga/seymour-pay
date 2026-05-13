@@ -1,22 +1,8 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import SeymourLoadingShell from '../SeymourLoadingShell'
 import { useAdminProfileQuery } from '../../query/adminProfile'
 import { pathnameToAdminPageKey } from '../../lib/adminRoutePageKey'
 import AdminInaccessibleRoute from './AdminInaccessibleRoute'
-
-function SessionShellLoader() {
-  return (
-    <div
-      className="flex min-h-[50vh] flex-col items-center justify-center px-6"
-      aria-busy="true"
-      aria-label="Loading"
-    >
-      <div
-        className="h-9 w-9 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-700"
-        aria-hidden
-      />
-    </div>
-  )
-}
 
 /**
  * Enforces `profile.pageAccess` for nested `/admin/*` routes. Does not mount child routes until
@@ -33,7 +19,7 @@ export default function AdminPageAccessOutlet() {
       return <Navigate to="/login" replace />
     }
     if (isPending) {
-      return <SessionShellLoader />
+      return <SeymourLoadingShell />
     }
     // Settled without a usable profile (e.g. empty `/me` body)
     return <Navigate to="/login" replace />

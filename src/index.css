@@ -85,3 +85,43 @@ body {
 .animate-spin-slow {
   animation: client-spin-slow 1.15s linear infinite;
 }
+
+/* SeymourLoadingShell — staggered snake-like hover for the three dots */
+@keyframes seymour-loader-snake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(6px, -12px);
+  }
+  50% {
+    transform: translate(0, -4px);
+  }
+  75% {
+    transform: translate(-6px, -12px);
+  }
+}
+
+.seymour-loader-ball {
+  display: block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 9999px;
+  animation: seymour-loader-snake 1.05s ease-in-out infinite;
+  will-change: transform;
+}
+
+.seymour-loader-ball--b {
+  width: 0.75rem;
+  height: 0.75rem;
+  animation-delay: 0.14s;
+}
+
+.seymour-loader-ball--a {
+  animation-delay: 0s;
+}
+
+.seymour-loader-ball--c {
+  animation-delay: 0.28s;
+}

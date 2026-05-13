@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppToaster } from './components/AppToaster'
+import SeymourLoadingShell from './components/SeymourLoadingShell'
 import { NetworkStatusToasts } from './components/NetworkStatusToasts'
 import NavigationLogger from './components/admin/NavigationLogger'
-import PwaInstallPrompt from './components/PwaInstallPrompt.tsx'
+import PwaInstallPrompt from './components/PwaInstallPrompt'
 import SessionLoginLogger from './components/admin/SessionLoginLogger'
 import { AdminDataProvider } from './context/AdminDataContext'
 import AdminLayout from './pages/admin/AdminLayout.tsx'
@@ -35,9 +36,7 @@ export default function App() {
               element={
                 <Suspense
                   fallback={
-                    <div className="flex min-h-[40vh] items-center justify-center px-6 text-sm text-zinc-500">
-                      Loading overview…
-                    </div>
+                    <SeymourLoadingShell minHeightClass="min-h-[40vh]" />
                   }
                 >
                   <Dashboard />
