@@ -1,12 +1,15 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import {
+  ADMIN_ACCESS_DENIED_MESSAGE,
+  AXIOS_ERR_NETWORK_USER_MESSAGE,
+  messageIndicatesAdminAccessDenied,
+} from "../../lib/apiErrors";
+import {
   getToken,
   removeToken,
   getAdminToken,
   removeAdminToken,
 } from "../cookies";
-
-// Create a separate export for network status management
 export let setNetworkError: (status: boolean) => void;
 export let onAuthError: (() => void) | null = null;
 
@@ -59,7 +62,7 @@ axiosInstance.interceptors.response.use(
       } else if (error.code === "ERR_NETWORK") {
         setNetworkError?.(true);
         throw new Error(
-          "No Internet connection. Please check your internet connection."
+          AXIOS_ERR_NETWORK_USER_MESSAGE
         );
       } else {
         setNetworkError?.(true);
@@ -67,7 +70,7 @@ axiosInstance.interceptors.response.use(
       }
     }
 
-    const errBody = error.response.data as { message?: string }
+    const errBody = error.response.data as { message?: string; error?: string }
 
     if (error.response.status === 401) {
       if (errBody.message === "Invalid email or password") {
@@ -117,7 +120,19 @@ axiosInstance.interceptors.response.use(
       );
     }
 
-    throw new Error(errBody.message || "An error occurred.");
+    const status = error.response.status
+    const rawMsg =
+      (typeof errBody.message === "string" ? errBody.message.trim() : "") ||
+      (typeof errBody.error === "string" ? errBody.error.trim() : "")
+
+    if (status === 403) {
+      throw new Error(ADMIN_ACCESS_DENIED_MESSAGE)
+    }
+    if (messageIndicatesAdminAccessDenied(rawMsg)) {
+      throw new Error(ADMIN_ACCESS_DENIED_MESSAGE)
+    }
+
+    throw new Error(rawMsg || "An error occurred.");
   }
 );
 

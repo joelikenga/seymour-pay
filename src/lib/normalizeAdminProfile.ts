@@ -1,4 +1,9 @@
 import type { AdminProfile } from '../types/adminProfile'
+import {
+  defaultPageAccess,
+  pageAccessFromApi,
+  type AdminPageKey,
+} from '../types/adminUser'
 
 function asRecord(x: unknown): Record<string, unknown> | null {
   return x && typeof x === 'object' && !Array.isArray(x)
@@ -26,6 +31,17 @@ function mergeProfileLayers(body: unknown): Record<string, unknown> {
     ...(userInData ?? {}),
     ...(userRoot ?? {}),
   }
+}
+
+function pickPageAccessFromSource(src: Record<string, unknown>): Record<
+  AdminPageKey,
+  boolean
+> {
+  const pa = src.page_access ?? src.pageAccess
+  if (pa && typeof pa === 'object' && !Array.isArray(pa)) {
+    return pageAccessFromApi(pa as Partial<Record<AdminPageKey, boolean>>)
+  }
+  return defaultPageAccess()
 }
 
 function initialsFrom(first: string, last: string, fallback: string): string {
@@ -75,6 +91,8 @@ export function normalizeAdminProfile(body: unknown): AdminProfile | null {
 
   const raw = { ...src }
   const initials = initialsFrom(firstName, lastName, displayName)
+  const role = pickString(src, ['role', 'admin_role', 'adminRole'])
+  const pageAccess = pickPageAccessFromSource(src)
 
   return {
     raw,
@@ -84,6 +102,8 @@ export function normalizeAdminProfile(body: unknown): AdminProfile | null {
     lastName,
     displayName,
     initials,
+    role,
+    pageAccess,
     phone,
     photoUrl,
   }

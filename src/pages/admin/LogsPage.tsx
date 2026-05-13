@@ -10,6 +10,7 @@ import {
   logMatchesLagosYmd,
 } from '../../lib/logDatePreset'
 import { formatDateShort, formatTimeOnly } from '../../lib/formatters'
+import { toastRequestFailed } from '../../lib/apiErrors'
 import { useAdminLogsInfiniteQuery } from '../../query/adminLogs'
 
 /** Pagination steps through Lagos calendar days (newest first), not raw API rows. */
@@ -87,6 +88,18 @@ export default function LogsPage() {
 
   const logsQueryRef = useRef(logsQuery)
   logsQueryRef.current = logsQuery
+
+  const logsErrorToastSent = useRef(false)
+  useEffect(() => {
+    if (logsQuery.isError && logsQuery.error) {
+      if (!logsErrorToastSent.current) {
+        logsErrorToastSent.current = true
+        toastRequestFailed('Could not load activity log', logsQuery.error)
+      }
+    } else if (!logsQuery.isError) {
+      logsErrorToastSent.current = false
+    }
+  }, [logsQuery.isError, logsQuery.error])
 
   const allRows = useMemo(() => {
     const pages = logsQuery.data?.pages ?? []

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { toastRequestFailed } from '../../lib/apiErrors'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
@@ -7,6 +8,7 @@ import TableSearchInput from '../../components/admin/TableSearchInput'
 import TableToolbar from '../../components/admin/TableToolbar'
 import TransactionDateFilterDropdown from '../../components/admin/TransactionDateFilterDropdown'
 import { useAdminData } from '../../context/AdminDataContext'
+import { useAdminPageAccess } from '../../hooks/useAdminPageAccess'
 import { getAuditActorLabel } from '../../lib/auditActorLabel'
 import { totalVolume } from '../../lib/dashboardStats'
 import { channelLabel, channelPillClass } from '../../lib/channelStyles'
@@ -42,6 +44,7 @@ function downloadCsv(filename: string, content: string) {
 
 export default function TransactionsPage() {
   const { appendLog } = useAdminData()
+  const { canAccess } = useAdminPageAccess()
   const navigate = useNavigate()
   const location = useLocation()
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -154,10 +157,7 @@ export default function TransactionsPage() {
         description: `${exported.length} row${exported.length === 1 ? '' : 's'} downloaded as CSV.`,
       })
     } catch (e) {
-      toast.error('Export failed', {
-        description:
-          e instanceof Error ? e.message : 'Could not build or download the CSV.',
-      })
+      toastRequestFailed('Export failed', e)
     } finally {
       setExporting(false)
     }
@@ -210,12 +210,14 @@ export default function TransactionsPage() {
               </p>
 
             </div>
-            <Link
-              to="/admin/settlement"
-              className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-5 py-3 text-sm font-semibold text-sky-950 shadow-sm transition hover:border-sky-300 hover:bg-sky-100/90"
-            >
-              Settlement →
-            </Link>
+            {canAccess('settlement') ? (
+              <Link
+                to="/admin/settlement"
+                className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-5 py-3 text-sm font-semibold text-sky-950 shadow-sm transition hover:border-sky-300 hover:bg-sky-100/90"
+              >
+                Settlement →
+              </Link>
+            ) : null}
           </div>
         </div>
       </header>

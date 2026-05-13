@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppToaster } from './components/AppToaster'
+import { NetworkStatusToasts } from './components/NetworkStatusToasts'
 import NavigationLogger from './components/admin/NavigationLogger'
 import PwaInstallPrompt from './components/PwaInstallPrompt.tsx'
 import SessionLoginLogger from './components/admin/SessionLoginLogger'
@@ -21,6 +22,7 @@ export default function App() {
     <AdminDataProvider>
       <BrowserRouter>
         <AppToaster />
+        <NetworkStatusToasts />
         <PwaInstallPrompt />
         <SessionLoginLogger />
         <NavigationLogger />

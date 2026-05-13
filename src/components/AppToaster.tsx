@@ -9,7 +9,7 @@ export function AppToaster() {
       position="top-center"
       offset={20}
       gap={12}
-      duration={4800}
+      duration={5000}
       visibleToasts={5}
       closeButton
       toastOptions={{

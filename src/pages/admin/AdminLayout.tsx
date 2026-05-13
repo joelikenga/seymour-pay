@@ -1,24 +1,24 @@
-import { useCallback } from 'react'
-import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useCallback, useMemo } from 'react'
+import { Link, Navigate, NavLink, useNavigate } from 'react-router-dom'
 import SeymourLogo from '../../components/SeymourLogo'
+import AdminPageAccessOutlet from '../../components/admin/AdminPageAccessOutlet'
 import { SEYMOUR_ADMIN_TAB_SESSION_KEY } from '../../components/admin/SessionLoginLogger.tsx'
 import { useAdminData } from '../../context/AdminDataContext'
+import { useAdminPageAccess } from '../../hooks/useAdminPageAccess'
+import { ADMIN_APP_NAV } from '../../lib/adminRoutePageKey'
 import { performAdminLogout } from '../../utils/adminAuth'
 import { hasAdminToken } from '../../utils/cookies'
-
-const nav = [
-  { to: '/admin', label: 'Dashboard', end: true },
-  { to: '/admin/transactions', label: 'Transactions' },
-  { to: '/admin/settlement', label: 'Settlement' },
-  { to: '/admin/analytics', label: 'Analytics' },
-  { to: '/admin/logs', label: 'Logs' },
-  { to: '/admin/reconciliation', label: 'Reconciliation' },
-  { to: '/admin/settings', label: 'Settings' },
-] as const
 
 export default function AdminLayout() {
   const navigate = useNavigate()
   const { appendLog } = useAdminData()
+  const { profile } = useAdminPageAccess()
+
+  /** Do not render any route labels until `pageAccess` is known (avoids flashing full nav on reload). */
+  const visibleNav = useMemo(() => {
+    if (!profile) return []
+    return ADMIN_APP_NAV.filter((item) => profile.pageAccess[item.page])
+  }, [profile])
 
   const handleLogout = useCallback(async () => {
     await performAdminLogout()
@@ -51,7 +51,7 @@ export default function AdminLayout() {
             className="hidden items-center gap-1 rounded-full border border-zinc-200/80 bg-zinc-50/80 p-1 shadow-inner md:flex"
             aria-label="Main"
           >
-            {nav.map((item) => (
+            {visibleNav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -99,7 +99,7 @@ export default function AdminLayout() {
             aria-label="Main"
             className="-mx-px flex gap-1 overflow-x-auto px-3 py-2 [scrollbar-width:none] sm:px-4 [&::-webkit-scrollbar]:hidden"
           >
-            {nav.map((item) => (
+            {visibleNav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -120,7 +120,7 @@ export default function AdminLayout() {
       </header>
 
       <main className="mx-auto max-w-[1400px] px-3 py-5 sm:px-4 sm:py-6 md:px-8 md:py-8">
-        <Outlet />
+        <AdminPageAccessOutlet />
       </main>
     </div>
   )

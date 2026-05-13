@@ -4,5 +4,6 @@ import * as TransactionsApi from "./services/transactions";
 import * as SettlementApi from "./services/settlement";
 import * as PublicApi from "./services/publicApi";
 import * as LogsApi from "./services/logsApi";
+import * as UsersApi from "./services/usersApi";
 
-export { AuthApi, OverviewApi, TransactionsApi, SettlementApi, PublicApi, LogsApi };
+export { AuthApi, OverviewApi, TransactionsApi, SettlementApi, PublicApi, LogsApi, UsersApi };

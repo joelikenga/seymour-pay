@@ -1,6 +1,8 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { toastRequestFailed } from '../../lib/apiErrors'
+import { normalizeAdminProfile } from '../../lib/normalizeAdminProfile'
 import AuthShell from './AuthShell'
 import { AuthApi } from '../../utils'
 import {
@@ -13,11 +15,10 @@ import { queryClient } from '../../query/queryClient'
 import { useAdminData } from '../../context/AdminDataContext'
 
 export default function LoginPage() {
-  const { appendLog } = useAdminData()
+  const { appendLog, refreshAdminUsers } = useAdminData()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -26,18 +27,25 @@ export default function LoginPage() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setError(null)
     setSubmitting(true)
     try {
       const data = await AuthApi.adminLogin(email.trim(), password)
-      const token = extractAdminLoginToken(data)
+      const token = extractAdminLoginToken(data) ?? data.token
       if (!token) {
-        setError('Sign-in succeeded but no access token was returned.')
+        toastRequestFailed('Sign-in incomplete', undefined, {
+          description:
+            'No access token was returned. Try again or contact support.',
+        })
         return
       }
-      const expiresIn = extractTokenExpirySeconds(data)
+      const expiresIn = extractTokenExpirySeconds(data, token)
       setAdminToken(token, expiresIn)
+      const profile = data.user ? normalizeAdminProfile(data.user) : null
+      if (profile) {
+        queryClient.setQueryData(adminProfileQueryKey, profile)
+      }
       void queryClient.invalidateQueries({ queryKey: adminProfileQueryKey })
+      void refreshAdminUsers()
       const emailTrim = email.trim()
       appendLog({
         action: 'login',
@@ -49,7 +57,7 @@ export default function LoginPage() {
       })
       navigate('/admin', { replace: true })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not sign in.')
+      toastRequestFailed('Could not sign in', e)
     } finally {
       setSubmitting(false)
     }
@@ -61,15 +69,6 @@ export default function LoginPage() {
       subtitle="Access your dashboard with your account details."
       onSubmit={(e) => void onSubmit(e)}
     >
-      {error ? (
-        <p
-          className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
-          role="alert"
-        >
-          {error}
-        </p>
-      ) : null}
-
       <label className="block space-y-1">
         <span className="text-sm font-medium text-zinc-700">Email</span>
         <input

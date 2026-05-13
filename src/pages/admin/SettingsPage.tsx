@@ -7,12 +7,11 @@ import {
   type ReactNode,
 } from 'react'
 import { toast } from 'sonner'
-import ChangePasswordModal from '../../components/admin/ChangePasswordModal'
+import { adminUsersListShowsAccessDenied, toastRequestFailed } from '../../lib/apiErrors'
 import { useAdminData } from '../../context/AdminDataContext'
 import {
   ADMIN_PAGE_KEYS,
   ADMIN_PAGE_LABELS,
-  defaultPageAccess,
   type AdminPageKey,
   type AdminUserRecord,
 } from '../../types/adminUser'
@@ -92,11 +91,19 @@ function ModalBackdrop({
 export default function SettingsPage() {
   const {
     adminUsers,
+    adminUsersLoading,
+    adminUsersError,
+    refreshAdminUsers,
     addAdminUser,
     removeAdminUser,
     replaceUserPageAccess,
     appendLog,
   } = useAdminData()
+
+  const usersListAccessDenied = useMemo(
+    () => adminUsersListShowsAccessDenied(adminUsersError),
+    [adminUsersError],
+  )
 
   /** Pending page-access edits until Save — keyed by user id. */
   const [pageAccessDraft, setPageAccessDraft] = useState<
@@ -133,16 +140,16 @@ export default function SettingsPage() {
     (user: AdminUserRecord): Record<AdminPageKey, boolean> => {
       const draft = pageAccessDraft[user.id]
       if (draft) return draft
-      return { ...defaultPageAccess(), ...user.pageAccess }
+      return user.pageAccess
     },
     [pageAccessDraft],
   )
 
   const handleDraftToggle = useCallback((user: AdminUserRecord, page: AdminPageKey, allowed: boolean) => {
     setPageAccessDraft((prev) => {
-      const base = prev[user.id] ?? { ...defaultPageAccess(), ...user.pageAccess }
+      const base = prev[user.id] ?? user.pageAccess
       const next = { ...base, [page]: allowed }
-      const saved = { ...defaultPageAccess(), ...user.pageAccess }
+      const saved = user.pageAccess
       const unchanged = ADMIN_PAGE_KEYS.every((k) => next[k] === saved[k])
       if (unchanged) {
         const { [user.id]: _, ...rest } = prev
@@ -158,26 +165,30 @@ export default function SettingsPage() {
   }, [])
 
   const applyAccessForUser = useCallback(
-    (userId: string) => {
+    async (userId: string) => {
       const access = pageAccessDraft[userId]
       if (!access) {
         setAccessSaveUserId(null)
         return
       }
-      replaceUserPageAccess(userId, access)
       const u = adminUsers.find((x) => x.id === userId)
-      if (u) {
-        appendLog({
-          action: 'settings',
-          summary: 'Page access updated',
-          detail: `Saved access for ${u.firstName} ${u.lastName} (${u.email}).`,
+      try {
+        await replaceUserPageAccess(userId, access)
+        if (u) {
+          appendLog({
+            action: 'settings',
+            summary: 'Page access updated',
+            detail: `Saved access for ${u.firstName} ${u.lastName} (${u.email}).`,
+          })
+        }
+        setPageAccessDraft((prev) => {
+          const { [userId]: _, ...rest } = prev
+          return rest
         })
+        setAccessSaveUserId(null)
+      } catch (e) {
+        toastRequestFailed('Could not save access', e)
       }
-      setPageAccessDraft((prev) => {
-        const { [userId]: _, ...rest } = prev
-        return rest
-      })
-      setAccessSaveUserId(null)
     },
     [pageAccessDraft, adminUsers, replaceUserPageAccess, appendLog],
   )
@@ -202,8 +213,6 @@ export default function SettingsPage() {
     name: string
   } | null>(null)
   const [copyDone, setCopyDone] = useState(false)
-
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
 
   const openCreateModal = useCallback(() => {
     setFormError(null)
@@ -237,7 +246,7 @@ export default function SettingsPage() {
   }, [])
 
   const handleCreateSubmit = useCallback(
-    (event: FormEvent) => {
+    async (event: FormEvent) => {
       event.preventDefault()
       setFormError(null)
       if (!email.trim() || !firstName.trim() || !lastName.trim()) {
@@ -248,40 +257,55 @@ export default function SettingsPage() {
         setFormError('Confirm the checkbox to continue.')
         return
       }
-      const result = addAdminUser({ email, firstName, lastName })
-      if (result.ok === false) {
-        if (result.error === 'duplicate_email') {
-          setFormError('That email was already added.')
-        } else {
-          setFormError('Could not create user — check all fields.')
+      try {
+        const result = await addAdminUser({ email, firstName, lastName })
+        if (result.ok === false) {
+          if (result.error === 'duplicate_email') {
+            toast.error('Email already in use', {
+              description:
+                'That address is already registered. Use a different email or remove the existing user first.',
+            })
+            setFormError('That email was already added.')
+          } else {
+            toastRequestFailed('Could not create user', undefined, {
+              description:
+                'Check all fields and try again. If the problem continues, contact support.',
+            })
+            setFormError('Could not create user — check all fields.')
+          }
+          return
         }
-        return
+        const displayName = `${result.user.firstName} ${result.user.lastName}`.trim()
+        setLastCreated({
+          email: result.user.email,
+          password: result.password,
+          name: displayName,
+        })
+        setCopyDone(false)
+        setCopyError(null)
+        setEmail('')
+        setFirstName('')
+        setLastName('')
+        setCreateStep(2)
+        appendLog({
+          action: 'settings',
+          summary: 'Admin user created',
+          detail: `Added ${displayName} (${result.user.email}) from Settings.`,
+        })
+        toast.success('User added', {
+          description: `${displayName} can sign in with the temporary password on the next step.`,
+        })
+      } catch (e) {
+        toastRequestFailed('Could not create user', e)
+        setFormError(
+          e instanceof Error ? e.message : 'Could not create user. Try again.',
+        )
       }
-      const displayName = `${result.user.firstName} ${result.user.lastName}`.trim()
-      setLastCreated({
-        email: result.user.email,
-        password: result.password,
-        name: displayName,
-      })
-      setCopyDone(false)
-      setCopyError(null)
-      setEmail('')
-      setFirstName('')
-      setLastName('')
-      setCreateStep(2)
-      appendLog({
-        action: 'settings',
-        summary: 'Admin user created',
-        detail: `Added ${displayName} (${result.user.email}) from Settings.`,
-      })
-      toast.success('User added', {
-        description: `${displayName} can sign in with the temporary password on the next step.`,
-      })
     },
     [email, firstName, lastName, createAck, addAdminUser, appendLog],
   )
 
-  const handleConfirmRemove = useCallback(() => {
+  const handleConfirmRemove = useCallback(async () => {
     setRemoveError(null)
     if (!removeAck) {
       setRemoveError('Confirm the checkbox to continue.')
@@ -293,13 +317,17 @@ export default function SettingsPage() {
       closeRemoveFlow()
       return
     }
-    removeAdminUser(user.id)
-    appendLog({
-      action: 'settings',
-      summary: 'Admin user removed',
-      detail: `Removed ${user.email} from Settings.`,
-    })
-    closeRemoveFlow()
+    try {
+      await removeAdminUser(user.id)
+      appendLog({
+        action: 'settings',
+        summary: 'Admin user removed',
+        detail: `Removed ${user.email} from Settings.`,
+      })
+      closeRemoveFlow()
+    } catch (e) {
+      toastRequestFailed('Could not remove user', e)
+    }
   }, [removeAck, removeTargetId, adminUsers, removeAdminUser, appendLog, closeRemoveFlow])
 
   const copyCredentials = useCallback(async () => {
@@ -313,10 +341,11 @@ export default function SettingsPage() {
         description: 'Email and temporary password are ready to paste securely.',
       })
       window.setTimeout(() => setCopyDone(false), 2500)
-    } catch {
+    } catch (e) {
       setCopyError('Could not copy.')
-      toast.error('Could not copy', {
-        description: 'Allow clipboard access or copy the fields manually.',
+      toastRequestFailed('Could not copy', e, {
+        description:
+          'Allow clipboard access in your browser, or copy the email and password manually.',
       })
     }
   }, [lastCreated])
@@ -331,7 +360,7 @@ export default function SettingsPage() {
 
   const userCountLabel = useMemo(() => {
     const n = adminUsers.length
-    return `${n} ${n === 1 ? 'person' : 'people'}`
+    return `${n} ${n === 1 ? 'user' : 'users'}`
   }, [adminUsers.length])
 
   return (
@@ -351,44 +380,11 @@ export default function SettingsPage() {
               Manage who can sign in and which areas of the console they can open.
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 px-4 py-3 shadow-sm backdrop-blur-sm">
-            <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Team</span>
-            <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold tabular-nums text-orange-950">
+          <div className="flex font-semibold shrink-0 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 px-4 py-3 shadow-sm backdrop-blur-sm">
               {userCountLabel}
-            </span>
           </div>
         </div>
       </header>
-
-      <section className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_16px_48px_-36px_rgba(15,23,42,0.18)] ring-1 ring-zinc-950/[0.03]">
-        <div className="flex flex-col gap-4 border-b border-zinc-100 bg-linear-to-r from-zinc-50/90 via-white to-sky-50/20 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-sky-500 to-sky-600 text-white shadow-md shadow-sky-500/25">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M12 15v2M6 20h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2zM12 15V9m0 0a3 3 0 100-6 3 3 0 000 6z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold text-zinc-950">Your password</h2>
-              <p className="mt-1 text-sm text-zinc-600">
-                Opens a secure dialog — use your current password to set a new one.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPasswordModalOpen(true)}
-            className={`${btnAccent} shrink-0`}
-          >
-            Change password
-          </button>
-        </div>
-      </section>
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_16px_48px_-36px_rgba(15,23,42,0.18)] ring-1 ring-zinc-950/[0.03]">
         <div className="border-b border-zinc-100 bg-linear-to-r from-zinc-50/90 via-white to-orange-50/25 px-5 py-5 sm:px-7">
@@ -422,13 +418,52 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-            <button type="button" onClick={openCreateModal} className={`${btnAccent} shrink-0`}>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              disabled={usersListAccessDenied}
+              className={`${btnAccent} shrink-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none`}
+            >
               Create user
             </button>
           </div>
         </div>
 
-        {adminUsers.length === 0 ? (
+        {adminUsersError ? (
+          usersListAccessDenied ? (
+            <div className="flex min-h-[220px] flex-col items-center justify-center px-6 py-16 text-center sm:px-8">
+              <p className="text-2xl font-semibold tracking-tight text-zinc-900">Access Denied</p>
+            </div>
+          ) : (
+            <div className="px-6 py-8 sm:px-8">
+              <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900 sm:flex-row sm:items-center sm:justify-between">
+                <p className="min-w-0">{adminUsersError}</p>
+                <button
+                  type="button"
+                  onClick={() => void refreshAdminUsers()}
+                  className={`${btnSecondary} shrink-0 border-rose-200 bg-white text-rose-900 hover:bg-rose-50`}
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )
+        ) : adminUsersLoading && adminUsers.length === 0 ? (
+          <div className="space-y-3 px-6 py-8 sm:px-8" aria-busy="true" aria-label="Loading users">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div
+                key={i}
+                className="flex animate-pulse gap-4 rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-4"
+              >
+                <div className="h-10 w-10 shrink-0 rounded-full bg-zinc-200/90" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-4 w-40 rounded bg-zinc-200/90" />
+                  <div className="h-3 w-56 max-w-full rounded bg-zinc-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : adminUsers.length === 0 ? (
           <div className="px-6 py-14 text-center sm:px-8">
             <div className="mx-auto max-w-md rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-8 py-12">
               <p className="text-base font-semibold text-zinc-800">No users yet</p>
@@ -609,7 +644,7 @@ export default function SettingsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => applyAccessForUser(accessSaveUserId)}
+                onClick={() => void applyAccessForUser(accessSaveUserId)}
                 className={btnAccent}
               >
                 Confirm save
@@ -649,7 +684,7 @@ export default function SettingsPage() {
                 <button type="button" onClick={closeRemoveFlow} className={btnSecondary}>
                   Cancel
                 </button>
-                <button type="button" onClick={handleConfirmRemove} className={btnDanger}>
+                <button type="button" onClick={() => void handleConfirmRemove()} className={btnDanger}>
                   Remove user
                 </button>
               </div>
@@ -657,11 +692,6 @@ export default function SettingsPage() {
           </div>
         </ModalBackdrop>
       ) : null}
-
-      <ChangePasswordModal
-        open={passwordModalOpen}
-        onOpenChange={setPasswordModalOpen}
-      />
     </div>
   )
 }
@@ -703,7 +733,7 @@ function UserRow({
         <td key={key} className="px-2 py-4 text-center align-middle">
           <div className="flex justify-center">
             <PageAccessToggle
-              allowed={pageAccess[key] ?? defaultPageAccess()[key]}
+              allowed={pageAccess[key] ?? false}
               label={ADMIN_PAGE_LABELS[key]}
               onChange={(next) => onToggle(key, next)}
             />

@@ -48,6 +48,7 @@ import {
   formatMoneyAbbreviated,
 } from '../../lib/formatters'
 import { useRecentTransactionsQuery } from '../../query/transactionsList'
+import type { AdminPageKey } from '../../types/adminUser'
 import type { PaymentChannel, TransactionStatus } from '../../types/transaction'
 
 const ORANGE = '#eab308'
@@ -100,6 +101,10 @@ export default function Dashboard() {
   const overviewQuery = useDashboardOverviewQuery()
   const profileQuery = useAdminProfileQuery()
   const me = profileQuery.data
+  const canAccessPage = useCallback(
+    (page: AdminPageKey) => Boolean(me?.pageAccess[page]),
+    [me],
+  )
   const profileName = me?.displayName ?? OPS_PROFILE.name
   const profileEmail = me?.email ?? OPS_PROFILE.email
   const profileInitials = me?.initials ?? OPS_PROFILE.initials
@@ -293,18 +298,22 @@ export default function Dashboard() {
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3 border-t border-zinc-100 pt-8">
-              <Link
-                to="/admin/transactions"
-                className="inline-flex items-center justify-center rounded-xl bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-800"
-              >
-                All transactions
-              </Link>
-              <Link
-                to="/admin/settlement"
-                className="inline-flex items-center justify-center rounded-xl border border-sky-200 bg-sky-50/80 px-5 py-2.5 text-sm font-semibold text-sky-950 shadow-sm transition hover:border-sky-300 hover:bg-sky-100/80"
-              >
-                Settlement
-              </Link>
+              {canAccessPage('transactions') ? (
+                <Link
+                  to="/admin/transactions"
+                  className="inline-flex items-center justify-center rounded-xl bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-800"
+                >
+                  All transactions
+                </Link>
+              ) : null}
+              {canAccessPage('settlement') ? (
+                <Link
+                  to="/admin/settlement"
+                  className="inline-flex items-center justify-center rounded-xl border border-sky-200 bg-sky-50/80 px-5 py-2.5 text-sm font-semibold text-sky-950 shadow-sm transition hover:border-sky-300 hover:bg-sky-100/80"
+                >
+                  Settlement
+                </Link>
+              ) : null}
             </div>
           </div>
 
@@ -529,12 +538,14 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-          <Link
-            to="/admin/transactions"
-            className="-mx-1 shrink-0 rounded-md px-1 py-0.5 text-sm font-semibold text-link underline-offset-4 hover:bg-primary-soft/14 hover:text-link-hover hover:underline"
-          >
-            View Transactions
-          </Link>
+          {canAccessPage('transactions') ? (
+            <Link
+              to="/admin/transactions"
+              className="-mx-1 shrink-0 rounded-md px-1 py-0.5 text-sm font-semibold text-link underline-offset-4 hover:bg-primary-soft/14 hover:text-link-hover hover:underline"
+            >
+              View Transactions
+            </Link>
+          ) : null}
         </div>
 
         <div

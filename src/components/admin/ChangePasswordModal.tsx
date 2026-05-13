@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
+import { toastRequestFailed } from '../../lib/apiErrors'
 import { useAdminData } from '../../context/AdminDataContext'
 import { AuthApi } from '../../utils'
 import { adminProfileQueryKey } from '../../query/adminProfile'
@@ -126,9 +127,10 @@ export default function ChangePasswordModal({
         })
         onOpenChange(false)
       } catch (err) {
-        setPasswordChangeError(
-          err instanceof Error ? err.message : 'Could not change password.',
-        )
+        const msg =
+          err instanceof Error ? err.message : 'Could not change password.'
+        setPasswordChangeError(msg)
+        toastRequestFailed('Could not change password', err)
       } finally {
         setPasswordChangeBusy(false)
       }

@@ -29,12 +29,50 @@ export function extractAdminLoginToken(body: unknown): string | null {
   return null
 }
 
-export function extractTokenExpirySeconds(body: unknown): number | undefined {
-  if (!body || typeof body !== 'object') return undefined
-  const o = body as Record<string, unknown>
-  const n = o.expires_in ?? o.expiresIn
-  if (typeof n === 'number' && Number.isFinite(n)) return n
-  return nestedExpiry(o.data)
+function base64UrlPayload(payloadSegment: string): Record<string, unknown> | null {
+  try {
+    let b64 = payloadSegment.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64.length % 4
+    if (pad) b64 += '='.repeat(4 - pad)
+    const json = atob(b64)
+    const parsed = JSON.parse(json) as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null
+  } catch {
+    return null
+  }
+}
+
+/** Seconds until JWT `exp`, if present and in the future. */
+export function secondsUntilJwtExpiry(token: string): number | undefined {
+  const parts = token.split('.')
+  if (parts.length < 2) return undefined
+  const payload = base64UrlPayload(parts[1])
+  const exp = payload?.exp
+  if (typeof exp !== 'number' || !Number.isFinite(exp)) return undefined
+  const now = Math.floor(Date.now() / 1000)
+  const delta = exp - now
+  return delta > 0 ? delta : undefined
+}
+
+/**
+ * OAuth-style `expires_in` / `expiresIn` from the login body, or seconds until JWT `exp`
+ * when a bearer token is passed and the body omits expiry.
+ */
+export function extractTokenExpirySeconds(
+  body: unknown,
+  bearerToken?: string | null,
+): number | undefined {
+  if (body && typeof body === 'object') {
+    const o = body as Record<string, unknown>
+    const n = o.expires_in ?? o.expiresIn
+    if (typeof n === 'number' && Number.isFinite(n)) return n
+    const nested = nestedExpiry(o.data)
+    if (nested !== undefined) return nested
+  }
+  if (bearerToken) return secondsUntilJwtExpiry(bearerToken)
+  return undefined
 }
 
 function nestedExpiry(data: unknown): number | undefined {

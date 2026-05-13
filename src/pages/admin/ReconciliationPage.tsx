@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { toastRequestFailed } from '../../lib/apiErrors'
 import EditTransactionModal from '../../components/admin/EditTransactionModal'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
@@ -136,15 +137,13 @@ export default function ReconciliationPage() {
       toast.success('Transaction updated', {
         description: `Ticket ${ticket} saved.`,
       })
-    } catch {
+    } catch (e) {
       appendLog({
         action: 'settings',
         summary: `Save failed for ${prev.reference ?? id}`,
         detail: 'Could not update transaction on the server.',
       })
-      toast.error('Could not save transaction', {
-        description: 'Check your connection and try again.',
-      })
+      toastRequestFailed('Could not save transaction', e)
     }
   }
 
@@ -179,15 +178,13 @@ export default function ReconciliationPage() {
           description: 'The ledger and dashboards will refresh momentarily.',
         },
       )
-    } catch {
+    } catch (e) {
       appendLog({
         action: 'settings',
         summary: 'Bulk delete failed',
         detail: 'Could not delete transactions on the server.',
       })
-      toast.error('Could not delete transactions', {
-        description: 'Check your connection and try again.',
-      })
+      toastRequestFailed('Could not delete transactions', e)
     } finally {
       setDeleting(false)
     }

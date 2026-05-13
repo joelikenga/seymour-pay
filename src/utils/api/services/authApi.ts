@@ -1,16 +1,15 @@
+import type { AdminLoginResponse } from "../../../types/adminAuthApi";
 import { axios$ } from "../..";
 
-export const adminLogin = async (email: string, password: string) => {
-  try {
-    const response = await axios$.post("/admin/auth/login", {
-      email,
-      password,
-    });
-    return response;
-  }
-  catch (error) {
-    throw error;
-  }
+export const adminLogin = async (
+  email: string,
+  password: string,
+): Promise<AdminLoginResponse> => {
+  const data = await axios$.post("/admin/auth/login", {
+    email,
+    password,
+  });
+  return data as unknown as AdminLoginResponse;
 };
 
 export const adminChangePassword = async (
