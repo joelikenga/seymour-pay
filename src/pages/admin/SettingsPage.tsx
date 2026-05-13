@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner'
 import { adminUsersListShowsAccessDenied, toastRequestFailed } from '../../lib/apiErrors'
 import { useAdminData } from '../../context/AdminDataContext'
+import { useAdminProfileQuery } from '../../query/adminProfile'
 import {
   ADMIN_PAGE_KEYS,
   ADMIN_PAGE_LABELS,
@@ -99,6 +100,18 @@ export default function SettingsPage() {
     replaceUserPageAccess,
     appendLog,
   } = useAdminData()
+
+  const { data: sessionProfile } = useAdminProfileQuery()
+
+  const sortedAdminUsers = useMemo(() => {
+    if (adminUsers.length <= 1) return adminUsers
+    const rawId = sessionProfile?.id
+    if (rawId === undefined || rawId === null) return adminUsers
+    const selfId = String(rawId)
+    const self = adminUsers.find((u) => u.id === selfId)
+    if (!self) return adminUsers
+    return [self, ...adminUsers.filter((u) => u.id !== selfId)]
+  }, [adminUsers, sessionProfile?.id])
 
   const usersListAccessDenied = useMemo(
     () => adminUsersListShowsAccessDenied(adminUsersError),
@@ -500,7 +513,7 @@ export default function SettingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {adminUsers.map((user) => (
+                {sortedAdminUsers.map((user) => (
                   <UserRow
                     key={user.id}
                     user={user}
