@@ -25,7 +25,7 @@ export default defineConfig({
         name: 'Seymour Aviation Pay',
         short_name: 'Seymour Pay',
         description:
-          'Scan tickets, pay, and manage the Seymour Aviation ledger — client and admin.',
+          'Seymour E-payment System',
         theme_color: '#ca8a04',
         background_color: '#f9fafb',
         display: 'standalone',
