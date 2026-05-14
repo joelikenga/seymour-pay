@@ -26,6 +26,8 @@ type PropsSingle = {
   mode?: 'single'
   data: ChartPoint[]
   color: string
+  /** Overrides default fixed chart height (e.g. tall analytics layout). */
+  chartContainerClassName?: string
 }
 
 type PropsMulti = {
@@ -33,6 +35,7 @@ type PropsMulti = {
   data: MultiChartRow[]
   channels: PaymentChannel[]
   colors: Record<PaymentChannel, string>
+  chartContainerClassName?: string
 }
 
 export type ChannelVolumeChartProps = PropsSingle | PropsMulti
@@ -41,11 +44,22 @@ function sanitizeId(raw: string): string {
   return raw.replace(/:/g, '')
 }
 
-function SingleVolumeChart({ data, color }: { data: ChartPoint[]; color: string }) {
+function SingleVolumeChart({
+  data,
+  color,
+  chartContainerClassName,
+}: {
+  data: ChartPoint[]
+  color: string
+  chartContainerClassName?: string
+}) {
   const gid = sanitizeId(useId())
+  const boxClass =
+    chartContainerClassName ??
+    'h-[268px] w-full min-h-[240px] sm:h-[292px]'
 
   return (
-    <div className="h-[268px] w-full min-h-[240px] sm:h-[292px]">
+    <div className={boxClass}>
       <ResponsiveContainer width="100%" height="100%" debounce={80}>
         <AreaChart
           data={data}
@@ -110,15 +124,20 @@ function MultiVolumeChart({
   data,
   channels,
   colors,
+  chartContainerClassName,
 }: {
   data: MultiChartRow[]
   channels: PaymentChannel[]
   colors: Record<PaymentChannel, string>
+  chartContainerClassName?: string
 }) {
   const baseId = sanitizeId(useId())
+  const boxClass =
+    chartContainerClassName ??
+    'h-[320px] min-h-[300px] w-full sm:h-[340px]'
 
   return (
-    <div className="h-[320px] min-h-[300px] w-full sm:h-[340px]">
+    <div className={boxClass}>
       <ResponsiveContainer width="100%" height="100%" debounce={80}>
         <AreaChart
           data={data}
@@ -222,8 +241,15 @@ export default function ChannelVolumeChart(props: ChannelVolumeChartProps) {
         data={props.data}
         channels={props.channels}
         colors={props.colors}
+        chartContainerClassName={props.chartContainerClassName}
       />
     )
   }
-  return <SingleVolumeChart data={props.data} color={props.color} />
+  return (
+    <SingleVolumeChart
+      data={props.data}
+      color={props.color}
+      chartContainerClassName={props.chartContainerClassName}
+    />
+  )
 }

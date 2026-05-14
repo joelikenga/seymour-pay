@@ -1,19 +1,32 @@
 import { useMemo, useState } from 'react'
-import ChannelDetailPanel from '../../components/admin/ChannelDetailPanel'
+import ChannelDetailPanel, {
+  type ChannelDetailAnalyticsBundle,
+} from '../../components/admin/ChannelDetailPanel'
 import PaymentTypeCard from '../../components/admin/PaymentTypeCard'
-import { useAdminData } from '../../context/AdminDataContext'
+import { mapAnalyticsDailySeriesToChartPoints } from '../../lib/mapAnalyticsDailySeriesToChart'
 import { PAYMENT_CHANNELS } from '../../lib/channelStyles'
-import { totalVolume } from '../../lib/dashboardStats'
-import type { PaymentChannel } from '../../types/transaction'
 import {
   type DateFilterSelection,
-  filterRowsByDateSelection,
+  dateSelectionToApiRange,
   labelForMonthFilterValue,
   parseFilterValue,
 } from '../../lib/transactionDateFilter'
+import { useAnalyticsOverviewQuery } from '../../query/analyticsOverview'
+import type { PaymentChannel } from '../../types/transaction'
+
+function sharePctForChannel(
+  cardsTotalVolume: number,
+  channel: PaymentChannel,
+  breakdown: { channel: PaymentChannel; share_pct: number; volume: number }[],
+): number {
+  const row = breakdown.find((r) => r.channel === channel)
+  if (row && Number.isFinite(row.share_pct)) return Math.round(row.share_pct)
+  const vol = row?.volume ?? 0
+  const denom = Math.max(1, cardsTotalVolume)
+  return Math.round((vol / denom) * 100)
+}
 
 export default function AnalyticsPage() {
-  const { transactions } = useAdminData()
   const [selected, setSelected] = useState<PaymentChannel | 'all'>('all')
   const [filterValue, setFilterValue] = useState<string>('all')
   const [customStart, setCustomStart] = useState('')
@@ -27,31 +40,85 @@ export default function AnalyticsPage() {
     return parsed
   }, [filterValue, customStart, customEnd])
 
-  const filtered = useMemo(
-    () => filterRowsByDateSelection(transactions, dateSelection),
-    [transactions, dateSelection],
+  const apiParams = useMemo(
+    () => dateSelectionToApiRange(dateSelection),
+    [dateSelection],
   )
 
-  const totals = useMemo(() => {
-    const map = new Map<PaymentChannel, number>()
-    for (const ch of PAYMENT_CHANNELS) map.set(ch, 0)
-    for (const t of filtered) {
-      map.set(t.channel, (map.get(t.channel) ?? 0) + t.amount)
-    }
-    return map
-  }, [filtered])
+  const customIncomplete =
+    filterValue === 'custom' &&
+    (!customStart.trim() || !customEnd.trim())
 
-  const counts = useMemo(() => {
-    const map = new Map<PaymentChannel, number>()
-    for (const ch of PAYMENT_CHANNELS) map.set(ch, 0)
-    for (const t of filtered) {
-      map.set(t.channel, (map.get(t.channel) ?? 0) + 1)
-    }
-    return map
-  }, [filtered])
+  const queryEnabled = !customIncomplete
 
-  const grand = useMemo(() => totalVolume(filtered), [filtered])
-  const grandDenom = grand || 1
+  const cardsQuery = useAnalyticsOverviewQuery(apiParams, {
+    enabled: queryEnabled,
+  })
+
+  const detailParams = useMemo(() => {
+    if (selected === 'all') return apiParams
+    return { ...apiParams, channel: selected }
+  }, [apiParams, selected])
+
+  const detailQuery = useAnalyticsOverviewQuery(detailParams, {
+    enabled: queryEnabled && selected !== 'all',
+  })
+
+  const cardsData = cardsQuery.data
+  const overviewLoading = queryEnabled && cardsQuery.isPending
+  const channelDetailLoading = selected !== 'all' && detailQuery.isPending
+
+  const detailData =
+    selected === 'all' ? cardsData : detailQuery.data ?? undefined
+
+  const channelTotals = useMemo(() => {
+    if (!cardsData) return null
+    const map = new Map<
+      PaymentChannel,
+      { volume: number; count: number; sharePct: number }
+    >()
+    for (const ch of PAYMENT_CHANNELS) {
+      const row = cardsData.channel_breakdown.find((r) => r.channel === ch)
+      map.set(ch, {
+        volume: row?.volume ?? 0,
+        count: row?.count ?? 0,
+        sharePct: Math.round(row?.share_pct ?? 0),
+      })
+    }
+    return {
+      map,
+      grand: cardsData.total_volume,
+      grandCount: cardsData.total_count,
+    }
+  }, [cardsData])
+
+  const analyticsDetail: ChannelDetailAnalyticsBundle | null = useMemo(() => {
+    if (overviewLoading || channelDetailLoading || !detailData) return null
+    const chartPoints = mapAnalyticsDailySeriesToChartPoints(
+      detailData.daily_volume_series,
+    )
+    const sharePct =
+      selected === 'all'
+        ? 100
+        : sharePctForChannel(
+            cardsData?.total_volume ?? 0,
+            selected,
+            cardsData?.channel_breakdown ?? [],
+          )
+    return {
+      volume: detailData.total_volume,
+      count: detailData.total_count,
+      avgTicket: detailData.avg_ticket,
+      sharePct,
+      chartPoints,
+    }
+  }, [
+    overviewLoading,
+    channelDetailLoading,
+    detailData,
+    selected,
+    cardsData,
+  ])
 
   const filterSummary = useMemo(() => {
     if (filterValue === 'all') return 'All time'
@@ -68,10 +135,6 @@ export default function AnalyticsPage() {
     return 'Month'
   }, [filterValue, customStart, customEnd])
 
-  const customIncomplete =
-    filterValue === 'custom' &&
-    (!customStart.trim() || !customEnd.trim())
-
   return (
     <div className="space-y-8">
       <header className="relative overflow-hidden rounded-3xl border border-zinc-200/90 bg-linear-to-br from-white via-white to-orange-50/35 p-6 shadow-[0_12px_48px_-28px_rgba(15,23,42,0.1)] ring-1 ring-zinc-950/5 sm:p-8">
@@ -87,7 +150,8 @@ export default function AnalyticsPage() {
             Analytics
           </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-zinc-600">
-            Payment rails and trends.
+            Payment rails and trends — totals follow the date range; each card applies the
+            channel filter on the server.
           </p>
         </div>
       </header>
@@ -99,15 +163,16 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6">
           <PaymentTypeCard
             variant="all"
-            volume={grand}
-            count={filtered.length}
+            volume={channelTotals?.grand ?? 0}
+            count={channelTotals?.grandCount ?? 0}
             selected={selected === 'all'}
             onSelect={() => setSelected('all')}
           />
           {PAYMENT_CHANNELS.map((ch) => {
-            const volume = totals.get(ch) ?? 0
-            const count = counts.get(ch) ?? 0
-            const sharePct = Math.round((volume / grandDenom) * 100)
+            const t = channelTotals?.map.get(ch)
+            const volume = t?.volume ?? 0
+            const count = t?.count ?? 0
+            const sharePct = t?.sharePct ?? 0
             return (
               <PaymentTypeCard
                 key={ch}
@@ -122,6 +187,25 @@ export default function AnalyticsPage() {
             )
           })}
         </div>
+        {overviewLoading ? (
+          <p className="mt-3 text-xs text-zinc-500" aria-live="polite">
+            Loading payment-type totals…
+          </p>
+        ) : cardsQuery.isFetching && cardsData ? (
+          <p className="mt-3 text-xs text-zinc-500" aria-live="polite">
+            Refreshing totals…
+          </p>
+        ) : null}
+        {cardsQuery.isError ? (
+          <p className="mt-3 text-sm text-rose-700">
+            Could not load analytics overview.{' '}
+            <span className="text-zinc-600">
+              {cardsQuery.error instanceof Error
+                ? cardsQuery.error.message
+                : 'Unknown error'}
+            </span>
+          </p>
+        ) : null}
       </section>
 
       {customIncomplete ? (
@@ -133,8 +217,8 @@ export default function AnalyticsPage() {
 
       <ChannelDetailPanel
         selection={selected}
-        transactions={filtered}
-        grandVolume={grand}
+        transactions={[]}
+        grandVolume={channelTotals?.grand ?? 0}
         filterValue={filterValue}
         onFilterChange={setFilterValue}
         filterSummary={filterSummary}
@@ -142,6 +226,8 @@ export default function AnalyticsPage() {
         customEnd={customEnd}
         onCustomStartChange={setCustomStart}
         onCustomEndChange={setCustomEnd}
+        analytics={analyticsDetail}
+        detailLoading={overviewLoading || channelDetailLoading}
       />
     </div>
   )

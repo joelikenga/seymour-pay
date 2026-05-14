@@ -345,7 +345,7 @@ export default function SettingsPage() {
 
   const copyCredentials = useCallback(async () => {
     if (!lastCreated) return
-    const body = `Email: ${lastCreated.email}\nPassword: ${lastCreated.password}\n\nPlease ask them to reset their password after first sign-in.`
+    const body = `Email: ${lastCreated.email}\nPassword: ${lastCreated.password}\n\nPlease Reset Your password after first sign-in.`
     try {
       await navigator.clipboard.writeText(body)
       setCopyDone(true)

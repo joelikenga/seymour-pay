@@ -30,6 +30,7 @@ function mapChannelBreakdown(raw: unknown): DashboardOverviewResponse['channel_b
     return {
       channel: normalizePaymentChannel(r.channel),
       count: num(r.count),
+      share_pct: num(r.share_pct),
       volume: num(r.volume),
     }
   })
@@ -78,7 +79,7 @@ function mapVehicleBreakdown(raw: unknown): DashboardOverviewResponse['vehicle_b
 export function normalizeDashboardOverview(raw: unknown): DashboardOverviewResponse {
   const root = asRecord(unwrapEnvelope(raw)) ?? {}
 
-  return {
+  const out: DashboardOverviewResponse = {
     channel_breakdown: mapChannelBreakdown(root.channel_breakdown),
     daily_volume_series: mapDailySeries(root.daily_volume_series),
     month_volume: num(root.month_volume),
@@ -92,4 +93,25 @@ export function normalizeDashboardOverview(raw: unknown): DashboardOverviewRespo
     vehicle_breakdown: mapVehicleBreakdown(root.vehicle_breakdown),
     week_volume: num(root.week_volume),
   }
+
+  if (root.avg_ticket !== undefined && root.avg_ticket !== null) {
+    out.avg_ticket = num(root.avg_ticket)
+  }
+  if (root.settled_volume !== undefined && root.settled_volume !== null) {
+    out.settled_volume = num(root.settled_volume)
+  }
+  if (root.pipeline_volume !== undefined && root.pipeline_volume !== null) {
+    out.pipeline_volume = num(root.pipeline_volume)
+  }
+  if (root.settled_share_pct !== undefined && root.settled_share_pct !== null) {
+    out.settled_share_pct = num(root.settled_share_pct)
+  }
+  if (root.yesterday_count !== undefined && root.yesterday_count !== null) {
+    out.yesterday_count = num(root.yesterday_count)
+  }
+  if (root.yesterday_volume !== undefined && root.yesterday_volume !== null) {
+    out.yesterday_volume = num(root.yesterday_volume)
+  }
+
+  return out
 }

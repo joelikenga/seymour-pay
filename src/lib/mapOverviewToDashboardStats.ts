@@ -74,18 +74,37 @@ export function mapOverviewToDashboardStats(
   const weekRange = weekToDateRange()
   const monthRange = monthToDateRange()
 
-  const byStatus = {
-    completed: {
-      count: paid_count,
-      volume: total_volume * (paid_count / denom),
-    },
-    pending: {
-      count: pending_count,
-      volume: total_volume * (pending_count / denom),
-    },
-    failed: { count: 0, volume: 0 },
-    reconciled: { count: 0, volume: 0 },
-  } as OverviewDashboardStats['byStatus']
+  const useApiSettlementVolumes =
+    raw.settled_volume !== undefined &&
+    raw.pipeline_volume !== undefined &&
+    Number.isFinite(raw.settled_volume) &&
+    Number.isFinite(raw.pipeline_volume)
+
+  const byStatus: OverviewDashboardStats['byStatus'] = useApiSettlementVolumes
+    ? {
+        completed: {
+          count: paid_count,
+          volume: num(raw.settled_volume),
+        },
+        pending: {
+          count: pending_count,
+          volume: num(raw.pipeline_volume),
+        },
+        failed: { count: 0, volume: 0 },
+        reconciled: { count: 0, volume: 0 },
+      }
+    : {
+        completed: {
+          count: paid_count,
+          volume: total_volume * (paid_count / denom),
+        },
+        pending: {
+          count: pending_count,
+          volume: total_volume * (pending_count / denom),
+        },
+        failed: { count: 0, volume: 0 },
+        reconciled: { count: 0, volume: 0 },
+      }
 
   const settledVol = byStatus.completed.volume + byStatus.reconciled.volume
   const pipelineVol = byStatus.pending.volume + byStatus.failed.volume
@@ -139,8 +158,18 @@ export function mapOverviewToDashboardStats(
   })
 
   const grand = total_volume
-  const avgTicket = total_count > 0 ? Math.round(grand / total_count) : 0
-  const settledSharePct = grand > 0 ? Math.round((settledVol / grand) * 100) : 0
+  const computedAvgTicket =
+    total_count > 0 ? Math.round(grand / total_count) : 0
+  const avgTicket =
+    raw.avg_ticket !== undefined && Number.isFinite(raw.avg_ticket)
+      ? Math.round(num(raw.avg_ticket))
+      : computedAvgTicket
+  const computedSettledSharePct =
+    grand > 0 ? Math.round((settledVol / grand) * 100) : 0
+  const settledSharePct =
+    raw.settled_share_pct !== undefined && Number.isFinite(raw.settled_share_pct)
+      ? Math.round(num(raw.settled_share_pct))
+      : computedSettledSharePct
 
   return {
     grand,
@@ -154,7 +183,10 @@ export function mapOverviewToDashboardStats(
     trafficTotal,
     today: num(raw.today_volume),
     todaySessions: num(raw.today_count),
-    yesterday: 0,
+    yesterday:
+      raw.yesterday_volume !== undefined && Number.isFinite(raw.yesterday_volume)
+        ? num(raw.yesterday_volume)
+        : 0,
     weekToDate: num(raw.week_volume),
     monthToDate: num(raw.month_volume),
     todayLabel: formatDayStamp(todayYmd()),
