@@ -45,14 +45,84 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Fullscreen pay scanner — camera fills the host region */
+/* Fullscreen pay scanner — camera fills host; slight scale = zoomed-out crop */
 .pay-scanner-host video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+  transform: scale(0.9);
+  transform-origin: center center;
 }
 .pay-scanner-host canvas {
   object-fit: cover;
+}
+.pay-scanner-host > div,
+.pay-scanner-host [id$='__scan_region'] {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+.pay-scanner-host [id$='__dashboard'] {
+  display: none !important;
+}
+/* Custom yellow corners replace the library shaded box */
+.pay-scanner-host #qr-shaded-region,
+.pay-scanner-host .qr-shaded-region {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* QR viewfinder — sweep spans inner area aligned to h-11 corner arms */
+.pay-scan-viewfinder-track {
+  position: absolute;
+  inset: 2.75rem;
+  overflow: hidden;
+  pointer-events: none;
+}
+.pay-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(250, 204, 21, 0.55) 0%,
+    rgba(254, 240, 138, 0.98) 50%,
+    rgba(250, 204, 21, 0.55) 100%
+  );
+  box-shadow:
+    0 0 10px 2px rgba(250, 204, 21, 0.4),
+    0 0 22px 6px rgba(250, 204, 21, 0.15);
+  filter: blur(0.65px);
+  animation: pay-scan-sweep 2.6s linear infinite;
+  will-change: top, opacity;
+}
+@keyframes pay-scan-sweep {
+  0% {
+    top: 0;
+    opacity: 0.3;
+  }
+  6% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 1;
+  }
+  100% {
+    top: calc(100% - 2px);
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pay-scan-line {
+    animation: none;
+    top: 50%;
+    opacity: 0.6;
+    transform: translateY(-50%);
+  }
 }
 
 /* Client pay shell — safe areas + touch scrolling */
