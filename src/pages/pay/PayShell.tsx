@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import SeymourLogo from '../../components/SeymourLogo'
-import { DESKTOP_MEDIA, PAY_SHELL_INNER, PAY_SHELL_OUTER } from './payFlowShared'
+import {
+  DESKTOP_MEDIA,
+  isPayCheckoutStep,
+  isPayTicketDetailsStep,
+  PAY_SHELL_INNER,
+  PAY_SHELL_OUTER,
+  PAY_TICKET_ID_PARAM,
+} from './payFlowShared'
 
 const safeAreaPad = {
   paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -47,10 +54,19 @@ function MobilePayNavLink({ to, end, label, icon }: MobilePayNavLinkProps) {
 
 export default function PayShell() {
   const { pathname } = useLocation()
-  const isCheckout = pathname.startsWith('/pay/checkout')
+  const [searchParams] = useSearchParams()
+  const isPaymentFlow = isPayCheckoutStep(searchParams)
+  const isTicketDetails =
+    (pathname === '/pay' || pathname === '/pay/') &&
+    isPayTicketDetailsStep(searchParams)
+  const isPayIndex = pathname === '/pay' || pathname === '/pay/'
+  const hasTicketId = Boolean(searchParams.get(PAY_TICKET_ID_PARAM)?.trim())
+  const isScanCamera = isPayIndex && !hasTicketId
+  const hideShellNav = isPaymentFlow || isTicketDetails
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(DESKTOP_MEDIA).matches,
   )
+  const isFocusedPayFlow = (isPaymentFlow || isTicketDetails) && !isDesktop
 
   useEffect(() => {
     const mq = window.matchMedia(DESKTOP_MEDIA)
@@ -60,10 +76,22 @@ export default function PayShell() {
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
+  const shellOuterClass =
+    isScanCamera && !isDesktop
+      ? `${PAY_SHELL_OUTER} max-lg:items-stretch max-lg:bg-black max-lg:sm:p-0`
+      : PAY_SHELL_OUTER
+
+  const shellInnerClass =
+    isScanCamera && !isDesktop
+      ? 'relative flex h-screen max-h-screen min-h-dvh w-full max-w-none flex-col overflow-hidden bg-black max-lg:sm:h-screen max-lg:sm:max-h-screen max-lg:sm:rounded-none max-lg:sm:shadow-none max-lg:sm:ring-0'
+      : isFocusedPayFlow
+        ? 'relative flex min-h-dvh w-full max-w-none flex-col overflow-hidden bg-zinc-100 max-lg:rounded-none max-lg:shadow-none max-lg:ring-0'
+        : `relative ${PAY_SHELL_INNER}`
+
   return (
-    <div className={PAY_SHELL_OUTER}>
-      <div className={`relative ${PAY_SHELL_INNER}`} style={safeAreaPad}>
-        {!isCheckout ? (
+    <div className={shellOuterClass}>
+      <div className={shellInnerClass} style={safeAreaPad}>
+        {!hideShellNav ? (
           <header className="hidden shrink-0 lg:flex lg:items-center lg:justify-between lg:gap-8 lg:border-b lg:border-zinc-200/90 lg:bg-white lg:px-8 lg:py-4">
             <SeymourLogo className="scale-95" />
             <nav
@@ -80,11 +108,17 @@ export default function PayShell() {
           </header>
         ) : null}
 
-        <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          className={
+            isScanCamera && !isDesktop
+              ? 'relative h-screen min-h-0 flex-1'
+              : 'relative flex min-h-0 flex-1 flex-col'
+          }
+        >
           <Outlet />
         </div>
 
-        {!isCheckout && !isDesktop ? (
+        {!hideShellNav && !isDesktop ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
             <nav
               className="pointer-events-auto flex w-full max-w-[260px] gap-0.5 rounded-2xl border border-white/12 bg-zinc-950/65 p-1 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.65)] backdrop-blur-xl"

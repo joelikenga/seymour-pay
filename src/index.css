@@ -45,33 +45,35 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Fullscreen pay scanner — camera fills host; slight scale = zoomed-out crop */
+/* Pay scanner — host needs size; do not override scan_region/canvas (breaks QR decode). */
+.pay-scanner-host {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
 .pay-scanner-host video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  transform: scale(0.9);
-  transform-origin: center center;
-}
-.pay-scanner-host canvas {
+  width: 100%;
+  height: 100vh;
   object-fit: cover;
+  object-position: center;
 }
-.pay-scanner-host > div,
-.pay-scanner-host [id$='__scan_region'] {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  border: none !important;
-  background: transparent !important;
+
+/* Dim everything outside the yellow-corner scan window */
+.pay-scan-viewfinder-slot {
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.82);
 }
 .pay-scanner-host [id$='__dashboard'] {
   display: none !important;
 }
-/* Custom yellow corners replace the library shaded box */
+/* Yellow viewfinder corners replace the library shaded box */
 .pay-scanner-host #qr-shaded-region,
 .pay-scanner-host .qr-shaded-region {
   display: none !important;
   opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* QR viewfinder — sweep spans inner area aligned to h-11 corner arms */
@@ -205,4 +207,28 @@ body {
 
 .seymour-loader-ball--c {
   animation-delay: 0.28s;
+}
+
+/* Pay flow — flat paper receipt (no glossy shadow stack) */
+.pay-receipt-paper {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.pay-exit-sheet-panel {
+  animation: pay-exit-sheet-up 0.35s ease-out;
+}
+
+@keyframes pay-exit-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pay-exit-sheet-panel {
+    animation: none;
+  }
 }

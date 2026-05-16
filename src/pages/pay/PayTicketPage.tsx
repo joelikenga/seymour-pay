@@ -1,65 +1,113 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import QRCode from 'react-qr-code'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { fetchPayTicketById } from '../../utils/api/services/ticketPayApi'
 import PayMobileLogo from './PayMobileLogo'
 import {
   DEFAULT_TICKET_QR_URL,
-  isDesktopViewport,
+  payTicketUrl,
   PAY_TICKET_ID_PARAM,
 } from './payFlowShared'
+
+type TicketQrPreviewProps = {
+  qrValue: string
+  isCustomTicketQr: boolean
+  size: number
+  compact?: boolean
+}
+
+function TicketQrPreview({
+  qrValue,
+  isCustomTicketQr,
+  size,
+  compact = false,
+}: TicketQrPreviewProps) {
+  return (
+    <div
+      className={`w-full rounded-2xl border border-zinc-200/80 bg-white shadow-[0_12px_40px_-20px_rgba(15,23,42,0.15)] ring-1 ring-zinc-950/5 ${
+        compact ? 'p-4' : 'rounded-3xl p-5 lg:p-7'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          QR preview
+        </p>
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+            isCustomTicketQr
+              ? 'bg-orange-100 text-orange-800'
+              : 'bg-zinc-100 text-zinc-600'
+          }`}
+        >
+          {isCustomTicketQr ? 'Ticket' : 'Default'}
+        </span>
+      </div>
+      <div className={`flex flex-col items-center ${compact ? 'mt-4' : 'mt-5'}`}>
+        <div className="rounded-2xl bg-white p-3 ring-1 ring-zinc-100">
+          <QRCode
+            value={qrValue}
+            size={size}
+            style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+            viewBox="0 0 256 256"
+          />
+        </div>
+        <p
+          className={`mt-3 max-w-full break-all text-center font-mono font-medium text-zinc-800 ${
+            compact ? 'text-xs' : 'text-sm lg:text-base'
+          }`}
+        >
+          {qrValue}
+        </p>
+        {isCustomTicketQr ? (
+          <p className="mt-2 text-center text-xs leading-relaxed text-zinc-500">
+            Scan or show this code for your ticket ID.
+          </p>
+        ) : (
+          <p className="mt-2 text-center text-xs leading-relaxed text-zinc-500">
+            Type your ticket ID above to update this code.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function PayTicketPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [ticketInput, setTicketInput] = useState('')
-  const [lookupError, setLookupError] = useState<string | null>(null)
-  const [lookupLoading, setLookupLoading] = useState(false)
-  const [isDesktop, setIsDesktop] = useState(isDesktopViewport)
+
+  const ticketIdParam = searchParams.get(PAY_TICKET_ID_PARAM)?.trim() ?? ''
 
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)')
-    const onChange = () => setIsDesktop(mq.matches)
-    onChange()
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [])
-
-  useEffect(() => {
-    const fromUrl = searchParams.get('ticketID')?.trim()
-    if (fromUrl) setTicketInput(fromUrl)
-  }, [searchParams])
+    if (ticketIdParam) {
+      navigate(payTicketUrl(ticketIdParam), { replace: true })
+    }
+  }, [ticketIdParam, navigate])
 
   const trimmedInput = ticketInput.trim()
   const isCustomTicketQr = trimmedInput.length > 0
-  const qrValue = isDesktop
-    ? trimmedInput || DEFAULT_TICKET_QR_URL
-    : trimmedInput
-  const qrSize = isDesktop ? 240 : 200
-  const showQr = Boolean(qrValue)
+  const qrValue = trimmedInput || DEFAULT_TICKET_QR_URL
+  const mobileQrSize = 160
+  const desktopQrSize = 240
 
-  const onContinue = useCallback(async () => {
-    const id = trimmedInput
-    if (!id) return
-    setLookupError(null)
-    setLookupLoading(true)
-    try {
-      const details = await fetchPayTicketById(id)
-      navigate(
-        `/pay/checkout?${PAY_TICKET_ID_PARAM}=${encodeURIComponent(details.ticketId)}`,
-      )
-    } catch (e) {
-      setLookupError(e instanceof Error ? e.message : 'Could not load ticket.')
-    } finally {
-      setLookupLoading(false)
-    }
-  }, [navigate, trimmedInput])
+  const onSubmit = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault()
+      const id = trimmedInput
+      if (!id) return
+      navigate(payTicketUrl(id))
+    },
+    [navigate, trimmedInput],
+  )
+
+  if (ticketIdParam) return null
 
   return (
-    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-zinc-100 max-lg:pb-20 lg:bg-linear-to-b lg:from-zinc-50 lg:to-zinc-100/80 lg:px-12 lg:pb-12 lg:pt-10">
-      <div className="mx-auto w-full max-w-md px-4 pb-8 max-lg:pb-24 lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-center lg:gap-14 lg:px-0 lg:pb-0">
+    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-zinc-100 max-lg:pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:bg-linear-to-b lg:from-zinc-50 lg:to-zinc-100/80 lg:px-12 lg:pb-12 lg:pt-10">
+      <div className="mx-auto w-full max-w-md px-4 pb-8 lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-center lg:gap-14 lg:px-0 lg:pb-0">
         <PayMobileLogo />
-        <div className="lg:text-left">
+        <form className="lg:text-left" onSubmit={onSubmit}>
           <p className="text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-600/90 lg:text-left">
             Manual entry
           </p>
@@ -67,8 +115,7 @@ export default function PayTicketPage() {
             Enter ticket
           </h1>
           <p className="mt-2 text-center text-sm leading-relaxed text-zinc-600 lg:text-left lg:text-base lg:leading-relaxed">
-            Type your ticket ID to generate its QR code. On desktop, the preview
-            starts with Seymour Aviation until you enter a value.
+            Type your ticket ID, then continue to view parking details and pay.
           </p>
           <label className="mt-6 block lg:mt-8">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -82,65 +129,31 @@ export default function PayTicketPage() {
               autoComplete="off"
             />
           </label>
-          {lookupError ? (
-            <p className="mt-4 text-sm text-rose-600" role="alert">
-              {lookupError}
-            </p>
-          ) : null}
-          <button
-            type="button"
-            disabled={lookupLoading || !trimmedInput}
-            onClick={() => void onContinue()}
-            className="mt-6 w-full rounded-xl bg-linear-to-b from-orange-500 to-orange-600 px-4 py-3.5 text-sm font-bold text-white shadow-[0_4px_18px_-4px_rgba(234,88,12,0.55)] transition hover:from-orange-400 hover:to-orange-500 active:scale-[0.99] disabled:opacity-45 disabled:active:scale-100 lg:max-w-sm lg:py-4"
-          >
-            {lookupLoading ? 'Loading…' : 'Continue'}
-          </button>
-        </div>
 
-        <div className="mt-8 flex flex-col items-center lg:mt-0">
-          <div className="w-full max-w-[280px] rounded-3xl border border-zinc-200/80 bg-white p-5 shadow-[0_20px_50px_-24px_rgba(15,23,42,0.18)] ring-1 ring-zinc-950/5 lg:max-w-none lg:p-7">
-            <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                QR preview
-              </p>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                  isCustomTicketQr
-                    ? 'bg-orange-100 text-orange-800'
-                    : 'bg-zinc-100 text-zinc-600'
-                }`}
-              >
-                {isCustomTicketQr ? 'Ticket' : 'Default'}
-              </span>
-            </div>
-            {showQr ? (
-              <div className="mt-5 flex flex-col items-center">
-                <div className="rounded-2xl bg-white p-3 ring-1 ring-zinc-100 lg:p-4">
-                  <QRCode
-                    value={qrValue}
-                    size={qrSize}
-                    style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                    viewBox="0 0 256 256"
-                  />
-                </div>
-                <p className="mt-4 max-w-full break-all text-center font-mono text-sm font-medium text-zinc-800 lg:text-base">
-                  {qrValue}
-                </p>
-                {isCustomTicketQr ? (
-                  <p className="mt-2 text-center text-xs leading-relaxed text-zinc-500">
-                    Scan or show this code for your ticket ID.
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div
-                className="mx-auto mt-5 flex h-[200px] w-[200px] items-center justify-center rounded-2xl bg-zinc-50 text-center text-sm text-zinc-500 ring-1 ring-zinc-100"
-                aria-hidden
-              >
-                QR appears when you type
-              </div>
-            )}
+          <div className="mt-5 lg:hidden">
+            <TicketQrPreview
+              qrValue={qrValue}
+              isCustomTicketQr={isCustomTicketQr}
+              size={mobileQrSize}
+              compact
+            />
           </div>
+
+          <button
+            type="submit"
+            disabled={!trimmedInput}
+            className="mt-6 w-full rounded-xl bg-linear-to-b from-orange-500 to-orange-600 px-4 py-3.5 text-sm font-bold text-white shadow-[0_4px_18px_-4px_rgba(234,88,12,0.55)] transition hover:from-orange-400 hover:to-orange-500 active:scale-[0.99] disabled:opacity-45 disabled:active:scale-100 lg:mt-8 lg:max-w-sm lg:py-4"
+          >
+            Continue
+          </button>
+        </form>
+
+        <div className="mt-8 hidden flex-col items-center lg:mt-0 lg:flex">
+          <TicketQrPreview
+            qrValue={qrValue}
+            isCustomTicketQr={isCustomTicketQr}
+            size={desktopQrSize}
+          />
         </div>
       </div>
     </div>
