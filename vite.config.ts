@@ -30,7 +30,7 @@ export default defineConfig({
         background_color: '#f9fafb',
         display: 'standalone',
         orientation: 'portrait-primary',
-        start_url: '/',
+        start_url: '/pay',
         scope: '/',
         icons: [
           {

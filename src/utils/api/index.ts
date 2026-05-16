@@ -1,6 +1,7 @@
 import * as AuthApi from "./services/authApi";
 import * as OverviewApi from "./services/overview";
 import * as AnalyticsApi from "./services/analyticsApi";
+import * as ReconciliationApi from "./services/reconciliationApi";
 import * as TransactionsApi from "./services/transactions";
 import * as SettlementApi from "./services/settlement";
 import * as PublicApi from "./services/publicApi";
@@ -11,6 +12,7 @@ export {
   AuthApi,
   OverviewApi,
   AnalyticsApi,
+  ReconciliationApi,
   TransactionsApi,
   SettlementApi,
   PublicApi,

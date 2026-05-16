@@ -45,11 +45,22 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Fullscreen pay scanner — camera fills the host region */
+.pay-scanner-host video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+.pay-scanner-host canvas {
+  object-fit: cover;
+}
+
 /* Client pay shell — safe areas + touch scrolling */
 .client-touch-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }
+
 
 #root {
   min-height: 100svh;

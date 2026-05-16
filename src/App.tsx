@@ -15,6 +15,7 @@ import SettingsPage from './pages/admin/SettingsPage.tsx'
 import SettlementPage from './pages/admin/SettlementPage.tsx'
 import TransactionsPage from './pages/admin/TransactionsPage.tsx'
 import LoginPage from './pages/auth/LoginPage.tsx'
+import TicketPayPage from './pages/pay/TicketPayPage.tsx'
 
 const Dashboard = lazy(() => import('./pages/admin/Dashboard.tsx'))
 
@@ -28,8 +29,9 @@ export default function App() {
         <SessionLoginLogger />
         <NavigationLogger />
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Navigate to="/pay" replace />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/pay" element={<TicketPayPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route
               index
