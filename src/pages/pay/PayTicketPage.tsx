@@ -13,21 +13,15 @@ type TicketQrPreviewProps = {
   qrValue: string
   isCustomTicketQr: boolean
   size: number
-  compact?: boolean
 }
 
 function TicketQrPreview({
   qrValue,
   isCustomTicketQr,
   size,
-  compact = false,
 }: TicketQrPreviewProps) {
   return (
-    <div
-      className={`w-full rounded-2xl border border-zinc-200/80 bg-white shadow-[0_12px_40px_-20px_rgba(15,23,42,0.15)] ring-1 ring-zinc-950/5 ${
-        compact ? 'p-4' : 'rounded-3xl p-5 lg:p-7'
-      }`}
-    >
+    <div className="w-full rounded-3xl border border-zinc-200/80 bg-white p-5 shadow-[0_12px_40px_-20px_rgba(15,23,42,0.15)] ring-1 ring-zinc-950/5 lg:p-7">
       <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
           QR preview
@@ -42,7 +36,7 @@ function TicketQrPreview({
           {isCustomTicketQr ? 'Ticket' : 'Default'}
         </span>
       </div>
-      <div className={`flex flex-col items-center ${compact ? 'mt-4' : 'mt-5'}`}>
+      <div className="mt-5 flex flex-col items-center">
         <div className="rounded-2xl bg-white p-3 ring-1 ring-zinc-100">
           <QRCode
             value={qrValue}
@@ -52,9 +46,7 @@ function TicketQrPreview({
           />
         </div>
         <p
-          className={`mt-3 max-w-full break-all text-center font-mono font-medium text-zinc-800 ${
-            compact ? 'text-xs' : 'text-sm lg:text-base'
-          }`}
+          className="mt-3 max-w-full break-all text-center font-mono text-sm font-medium text-zinc-800 lg:text-base"
         >
           {qrValue}
         </p>
@@ -88,7 +80,6 @@ export default function PayTicketPage() {
   const trimmedInput = ticketInput.trim()
   const isCustomTicketQr = trimmedInput.length > 0
   const qrValue = trimmedInput || DEFAULT_TICKET_QR_URL
-  const mobileQrSize = 160
   const desktopQrSize = 240
 
   const onSubmit = useCallback(
@@ -104,7 +95,7 @@ export default function PayTicketPage() {
   if (ticketIdParam) return null
 
   return (
-    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-zinc-100 max-lg:pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:bg-linear-to-b lg:from-zinc-50 lg:to-zinc-100/80 lg:px-12 lg:pb-12 lg:pt-10">
+    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-zinc-100 lg:bg-linear-to-b lg:from-zinc-50 lg:to-zinc-100/80 lg:px-12 lg:pb-12 lg:pt-10">
       <div className="mx-auto w-full max-w-md px-4 pb-8 lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-center lg:gap-14 lg:px-0 lg:pb-0">
         <PayMobileLogo />
         <form className="lg:text-left" onSubmit={onSubmit}>
@@ -129,15 +120,6 @@ export default function PayTicketPage() {
               autoComplete="off"
             />
           </label>
-
-          <div className="mt-5 lg:hidden">
-            <TicketQrPreview
-              qrValue={qrValue}
-              isCustomTicketQr={isCustomTicketQr}
-              size={mobileQrSize}
-              compact
-            />
-          </div>
 
           <button
             type="submit"

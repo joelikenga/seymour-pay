@@ -108,20 +108,14 @@ export default function PayShell() {
           </header>
         ) : null}
 
-        <div
-          className={
-            isScanCamera && !isDesktop
-              ? 'relative h-screen min-h-0 flex-1'
-              : 'relative flex min-h-0 flex-1 flex-col'
-          }
-        >
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <Outlet />
         </div>
 
         {!hideShellNav && !isDesktop ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
+          <div className="relative z-50 flex shrink-0 justify-center px-3 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
             <nav
-              className="pointer-events-auto flex w-full max-w-[260px] gap-0.5 rounded-2xl border border-white/12 bg-zinc-950/65 p-1 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+              className="flex w-full max-w-[260px] gap-0.5 rounded-2xl border border-white/12 bg-zinc-950/65 p-1 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.65)] backdrop-blur-xl"
               aria-label="Pay navigation"
             >
               <MobilePayNavLink to="/pay" end label="Scan" icon={<QrScanIcon />} />

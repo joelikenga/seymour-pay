@@ -103,9 +103,8 @@ const PayScannerCamera = forwardRef<PayScannerCameraHandle, PayScannerCameraProp
 
     return (
       <div
-      // style={{height:"100vh"}}
         ref={mountRef}
-        className="pay-scanner-host absolute inset-0 z-0 h-screen  w-full overflow-hidden bg-black"
+        className="pay-scanner-host absolute inset-0 z-0 h-full w-full overflow-hidden bg-black"
         aria-hidden={!active}
       />
     )

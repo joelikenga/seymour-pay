@@ -56,14 +56,18 @@ body {
 }
 .pay-scanner-host video {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   object-fit: cover;
   object-position: center;
 }
 
-/* Dim everything outside the yellow-corner scan window */
+/* Camera + dimmed mask share the same square as the yellow corners */
 .pay-scan-viewfinder-slot {
+  overflow: hidden;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.82);
+}
+.pay-scan-viewfinder-slot .pay-scanner-host {
+  border-radius: 0;
 }
 .pay-scanner-host [id$='__dashboard'] {
   display: none !important;

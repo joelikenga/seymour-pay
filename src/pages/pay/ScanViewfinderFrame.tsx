@@ -1,5 +1,4 @@
 import { forwardRef } from 'react'
-import { PAY_SCAN_VIEWFINDER_CLASS } from './payFlowShared'
 
 const cornerClass = 'absolute h-11 w-11 border-yellow-400'
 
@@ -7,13 +6,13 @@ type ScanViewfinderFrameProps = {
   showScanLine?: boolean
 }
 
-/** Yellow corner brackets + animated scan line over fullscreen camera. */
+/** Yellow corner brackets + animated scan line (fills viewfinder slot). */
 const ScanViewfinderFrame = forwardRef<HTMLDivElement, ScanViewfinderFrameProps>(
   function ScanViewfinderFrame({ showScanLine = true }, ref) {
     return (
       <div
         ref={ref}
-        className={`pay-scan-viewfinder-slot pointer-events-none relative z-10 ${PAY_SCAN_VIEWFINDER_CLASS}`}
+        className="pointer-events-none absolute inset-0 z-10"
         aria-hidden
       >
         {showScanLine ? (

@@ -10,6 +10,7 @@ import {
   isDesktopViewport,
   isPayCheckoutStep,
   parseScannedTicketId,
+  PAY_SCAN_VIEWFINDER_CLASS,
   PAY_TICKET_ID_PARAM,
   PAY_STEP_PARAM,
   PAY_STEP_CHECKOUT,
@@ -116,24 +117,24 @@ export default function PayScanPage() {
   }
 
   return (
-    <div className="relative h-screen  w-full bg-black">
-      <PayScannerCamera
-        ref={cameraRef}
-        active={!scannerError}
-        onDecoded={onQrDecoded}
-        onError={onScannerError}
-      />
-
-      <div
-        className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center "
-        aria-hidden
-      >
-        <ScanViewfinderFrame showScanLine={!scannerError} />
+    <div className="relative flex h-full min-h-0 w-full flex-col bg-black">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
+        <div
+          className={`pay-scan-viewfinder-slot relative ${PAY_SCAN_VIEWFINDER_CLASS}`}
+        >
+          <PayScannerCamera
+            ref={cameraRef}
+            active={!scannerError}
+            onDecoded={onQrDecoded}
+            onError={onScannerError}
+          />
+          <ScanViewfinderFrame showScanLine={!scannerError} />
+        </div>
       </div>
 
       {scannerError ? <ScanCameraErrorBanner message={scannerError} /> : null}
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-linear-to-t from-black/80 via-black/30 to-transparent px-4 pb-24 pt-10">
+      <div className="pointer-events-none shrink-0 bg-linear-to-t from-black/80 via-black/25 to-transparent px-4 pb-2 pt-6">
         <p className="text-center text-sm font-medium leading-snug text-white drop-shadow-md">
           Point at the ticket QR code to scan.
         </p>

@@ -26,8 +26,8 @@ export default function PayHistoryPage() {
   )
 
   return (
-    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-zinc-100 max-lg:pb-20 lg:px-12 lg:pb-12 lg:pt-10">
-      <div className="mx-auto w-full max-w-md px-4 pb-8 max-lg:pb-24 lg:max-w-lg lg:px-0">
+    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-zinc-100 lg:px-12 lg:pb-12 lg:pt-10">
+      <div className="mx-auto w-full max-w-md px-4 pb-8 lg:max-w-lg lg:px-0">
         <PayMobileLogo />
         <div className="flex flex-col gap-3 border-b border-zinc-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
