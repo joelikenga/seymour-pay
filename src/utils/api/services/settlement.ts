@@ -5,7 +5,7 @@ export type AdminGetSettlementParams = {
   page_size?: number;
 };
 
-/** Paginated Fidelity settlement rows — matches `{ data, page, page_size, total, total_pages }`. */
+/** Paginated Fidelity settlement rows - matches `{ data, page, page_size, total, total_pages }`. */
 export const adminGetSettlement = async (
   params: AdminGetSettlementParams,
 ): Promise<unknown> => {

@@ -57,7 +57,7 @@ function initialsFrom(first: string, last: string, fallback: string): string {
 
 /**
  * Maps arbitrary `/admin/auth/me` JSON into {@link AdminProfile}.
- * Safe when the backend adds or renames fields — unknown keys stay in `raw`.
+ * Safe when the backend adds or renames fields - unknown keys stay in `raw`.
  */
 export function normalizeAdminProfile(body: unknown): AdminProfile | null {
   const src = mergeProfileLayers(body)

@@ -42,7 +42,7 @@ export default function AdminLayout() {
           <Link
             to="/admin"
             className="min-w-0 rounded-xl outline-none ring-zinc-950/10 focus-visible:ring-4 focus-visible:ring-link/35"
-            aria-label="Seymour Aviation — Dashboard"
+            aria-label="Seymour Aviation - Dashboard"
           >
             <SeymourLogo className="max-w-[min(100%,200px)] sm:max-w-[min(100%,240px)]" />
           </Link>

@@ -86,7 +86,7 @@ export function useTransactionsListQuery(
   })
 }
 
-/** Latest rows for dashboard (newest first — assumes API returns sorted desc). */
+/** Latest rows for dashboard (newest first - assumes API returns sorted desc). */
 export function useRecentTransactionsQuery(): UseQueryResult<
   PaginatedTransactionsResponse,
   Error

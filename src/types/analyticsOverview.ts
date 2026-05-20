@@ -1,7 +1,7 @@
 import type { PaymentChannel } from './transaction'
 
 /**
- * `GET /admin/analytics/overview` — summary + trend for the analytics page.
+ * `GET /admin/analytics/overview` - summary + trend for the analytics page.
  *
  * `channel_breakdown` lists each rail; `share_pct` is share of total volume (0–100).
  */

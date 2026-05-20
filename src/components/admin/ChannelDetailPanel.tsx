@@ -100,14 +100,14 @@ export default function ChannelDetailPanel({
       ? 'Daily volume trend for the selected date range (from the server).'
       : 'Daily volume trend for this rail and date range (from the server).'
     : selection === 'all'
-      ? 'Fourteen-day stack — cash vs Fidelity-switched rails.'
+      ? 'Fourteen-day stack - cash vs Fidelity-switched rails.'
       : 'Fourteen-day trend for this payment type (WAT-posted days).'
 
   const trendHeading = analytics ? 'Volume trend' : 'Volume trend (14 days)'
 
   const kpiPending = detailLoading
 
-  /** Tall chart area — full width; ~20% shorter than the previous viewport-relative height. */
+  /** Tall chart area - full width; ~20% shorter than the previous viewport-relative height. */
   const chartAreaClass =
     'h-[min(45svh,512px)] w-full min-h-[224px] sm:h-[min(50svh,576px)]'
 
@@ -189,7 +189,7 @@ export default function ChannelDetailPanel({
               Volume
             </p>
             <p className="mt-1 text-base font-semibold tabular-nums text-zinc-950">
-              {kpiPending ? '—' : formatMoney(volume)}
+              {kpiPending ? 'N/A' : formatMoney(volume)}
             </p>
           </div>
           <div className="flex min-h-18 min-w-0 flex-1 flex-col justify-center rounded-xl border border-zinc-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
@@ -197,7 +197,7 @@ export default function ChannelDetailPanel({
               Transactions
             </p>
             <p className="mt-1 text-base font-semibold tabular-nums text-zinc-950">
-              {kpiPending ? '—' : count}
+              {kpiPending ? 'N/A' : count}
             </p>
           </div>
           <div className="flex min-h-18 min-w-0 flex-1 flex-col justify-center rounded-xl border border-zinc-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
@@ -205,7 +205,7 @@ export default function ChannelDetailPanel({
               Avg. ticket
             </p>
             <p className="mt-1 text-base font-semibold tabular-nums text-zinc-950">
-              {kpiPending ? '—' : formatMoney(avg)}
+              {kpiPending ? 'N/A' : formatMoney(avg)}
             </p>
           </div>
           <div className="flex min-h-18 min-w-0 flex-1 flex-col justify-center rounded-xl border border-zinc-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
@@ -213,7 +213,7 @@ export default function ChannelDetailPanel({
               Share of total
             </p>
             <p className="mt-1 text-base font-semibold tabular-nums text-zinc-950">
-              {kpiPending ? '—' : `${sharePct}%`}
+              {kpiPending ? 'N/A' : `${sharePct}%`}
             </p>
           </div>
         </div>

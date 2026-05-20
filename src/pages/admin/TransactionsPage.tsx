@@ -151,7 +151,7 @@ export default function TransactionsPage() {
       appendLog({
         action: 'export',
         summary: `${who} exported transactions data`,
-        detail: `${who} exported CSV — ${filterDesc}; total amount ${formatMoney(exportTotal)} (${exported.length} row${exported.length === 1 ? '' : 's'}).`,
+        detail: `${who} exported CSV - ${filterDesc}; total amount ${formatMoney(exportTotal)} (${exported.length} row${exported.length === 1 ? '' : 's'}).`,
       })
       toast.success('Export ready', {
         description: `${exported.length} row${exported.length === 1 ? '' : 's'} downloaded as CSV.`,

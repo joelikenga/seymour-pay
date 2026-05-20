@@ -1,7 +1,7 @@
 import type { PaymentChannel, VehicleType } from './transaction'
 
 /**
- * `GET /admin/analytics/dashboard` — analytics overview payload.
+ * `GET /admin/analytics/dashboard` - analytics overview payload.
  *
  * ```json
  * {

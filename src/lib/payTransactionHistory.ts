@@ -9,6 +9,7 @@ export type PayTransactionRecord = {
   paymentRef: string
   paidAt: string
   payMethod: string
+  duration?: string
 }
 
 function readRaw(): PayTransactionRecord[] {

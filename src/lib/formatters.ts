@@ -1,4 +1,4 @@
-/** Nigerian operations baseline — West Africa Time (UTC+1, no DST). */
+/** Nigerian operations baseline - West Africa Time (UTC+1, no DST). */
 export const DISPLAY_TIMEZONE = 'Africa/Lagos'
 
 export function formatMoney(n: number, currency = 'NGN') {
@@ -10,7 +10,7 @@ export function formatMoney(n: number, currency = 'NGN') {
 }
 
 /**
- * Short Naira (K / M / B) for the **Dashboard overview hero only** — carousel
+ * Short Naira (K / M / B) for the **Dashboard overview hero only** - carousel
  * headline and the four period stat tiles. Do **not** use in tables, exports,
  * or other pages; use {@link formatMoney} there.
  *
@@ -18,7 +18,7 @@ export function formatMoney(n: number, currency = 'NGN') {
  * ` +` when the remainder is material (see implementation).
  */
 export function formatMoneyAbbreviated(n: number): string {
-  if (!Number.isFinite(n)) return '—'
+  if (!Number.isFinite(n)) return 'N/A'
   const sign = n < 0 ? '-' : ''
   const abs = Math.abs(n)
   if (abs < 1000) return formatMoney(n)
@@ -47,7 +47,7 @@ export function formatMoneyAbbreviated(n: number): string {
   return `${sign}₦${b} B${plus}`
 }
 
-/** Client ticket flow (Figma) — USD display. */
+/** Client ticket flow (Figma) - USD display. */
 export function formatUsd(n: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -76,7 +76,7 @@ export function formatDateShort(iso: string) {
   })
 }
 
-/** Time only (Lagos) — for compact log timelines. */
+/** Time only (Lagos) - for compact log timelines. */
 export function formatTimeOnly(iso: string) {
   const d = new Date(iso)
   return d.toLocaleTimeString('en-NG', {

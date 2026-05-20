@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchPayTicketById } from '../../utils/api/services/ticketPayApi'
 import type { PayTicketDetails } from '../../types/ticketPay'
 
-export function usePayTicketLookup(ticketId: string) {
+export function usePayTicketLookup(ticketId: string, extraPay = false) {
   const [ticket, setTicket] = useState<PayTicketDetails | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [loading, setLoading] = useState(false)
@@ -20,7 +20,7 @@ export function usePayTicketLookup(ticketId: string) {
     setLoading(true)
     setError(null)
 
-    void fetchPayTicketById(id)
+    void fetchPayTicketById(id, { extra: extraPay })
       .then((details) => {
         if (!cancelled) {
           setTicket(details)
@@ -40,7 +40,7 @@ export function usePayTicketLookup(ticketId: string) {
     return () => {
       cancelled = true
     }
-  }, [ticketId])
+  }, [ticketId, extraPay])
 
   return { ticket, error, loading }
 }

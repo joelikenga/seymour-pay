@@ -194,7 +194,7 @@ export default function LossTicketTab() {
                     </span>
                   </td>
                   <td className="max-w-[200px] truncate px-5 py-3.5 text-zinc-600">
-                    {(t.lossReason ?? t.notes) || '—'}
+                    {(t.lossReason ?? t.notes) || 'N/A'}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
                     {formatDateTime(t.createdAt)}

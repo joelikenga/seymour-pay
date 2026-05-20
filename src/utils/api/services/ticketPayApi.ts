@@ -1,4 +1,5 @@
 import type { PayTicketDetails } from '../../../types/ticketPay'
+import { computePayExtraCharges } from '../../../lib/payExtraCharges'
 
 export class PayTicketNotFoundError extends Error {
   readonly ticketId: string
@@ -22,6 +23,7 @@ export function isPayTicketNotFoundError(
  */
 export async function fetchPayTicketById(
   ticketId: string,
+  options?: { extra?: boolean },
 ): Promise<PayTicketDetails> {
   const id = ticketId.trim()
   if (!id) {
@@ -36,13 +38,28 @@ export async function fetchPayTicketById(
   }
 
   const entry = new Date(Date.now() - 3 * 60 * 60 * 1000 - 24 * 15 * 60 * 1000)
-  return {
+  const base: PayTicketDetails = {
     ticketId: id.toUpperCase(),
     vehicleClass: 'Small SUV',
-    entryZone: 'Terminal A — long-stay',
+    entryZone: 'Terminal A, long-stay',
     entryTime: entry.toISOString(),
     durationParked: '3h 24m',
     amountDue: 8500,
     currency: 'NGN',
+    chargeType: 'standard',
   }
+
+  if (options?.extra) {
+    const extra = computePayExtraCharges(base.vehicleClass)
+    return {
+      ...base,
+      chargeType: 'extra',
+      amountDue: extra.amountDue,
+      durationParked: extra.durationLabel,
+      extraHours: extra.extraHours,
+      extraHourRate: extra.extraHourRate,
+    }
+  }
+
+  return base
 }

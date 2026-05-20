@@ -18,8 +18,8 @@ export default defineConfig({
         'favicon.svg',
         'logo 1.svg',
         'logo-tail 1.svg',
-        'pwa-192.png',
-        'pwa-512.png',
+        'pwa-192.svg',
+        'pwa-512.svg',
       ],
       manifest: {
         name: 'Seymour Aviation Pay',
@@ -34,21 +34,21 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: 'pwa-192.png',
+            src: 'pwa-192.svg',
             sizes: '192x192',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'any',
           },
           {
-            src: 'pwa-512.png',
+            src: 'pwa-512.svg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'any',
           },
           {
-            src: 'pwa-512.png',
+            src: 'pwa-512.svg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'maskable',
           },
         ],

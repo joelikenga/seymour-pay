@@ -46,7 +46,7 @@ const SIZE_PADDING: Record<'md' | 'sm', string> = {
 }
 
 /**
- * Custom div-based dropdown — replaces native `<select>` so we can fully style
+ * Custom div-based dropdown - replaces native `<select>` so we can fully style
  * the trigger / menu / option rows. Keyboard support: Enter/Space/Arrow toggles
  * and moves through options; Escape closes.
  */

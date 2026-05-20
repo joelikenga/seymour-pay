@@ -18,6 +18,14 @@ export const EXIT_SHEET_DELAY_MS = 2000
 export const EXIT_WINDOW_COPY =
   'You have 20 minutes from payment confirmation to leave the facility. After that, additional charges may apply.'
 
+export const PAY_DEMO_VIRTUAL_ACCOUNT = '4012345678'
+export const PAY_DEMO_BANK_NAME = 'Fidelity Bank Plc'
+export const PAY_DEMO_ACCOUNT_NAME = 'Seymour Aviation Ltd.'
+
+/** Transfer wait sheet: shows a 5-minute countdown but completes in 5 seconds (demo). */
+export const TRANSFER_WAIT_DISPLAY_MS = 5 * 60 * 1000
+export const TRANSFER_WAIT_REAL_MS = 5000
+
 export const DESKTOP_MEDIA = '(min-width: 1024px)'
 
 export function isDesktopViewport(): boolean {
@@ -33,7 +41,28 @@ export function formatRemaining(ms: number): string {
 }
 
 export const PAY_SHELL_OUTER =
-  'client-touch-scroll flex min-h-dvh justify-center text-zinc-900 max-lg:bg-linear-to-br max-lg:from-zinc-200 max-lg:via-zinc-300 max-lg:to-zinc-400 max-lg:sm:items-center max-lg:sm:px-4 max-lg:sm:py-6 lg:items-center lg:bg-zinc-100 lg:px-8 lg:py-10'
+  'client-touch-scroll flex min-h-dvh justify-center text-zinc-900 max-lg:bg-linear-to-br max-lg:from-zinc-200 max-lg:via-zinc-300 max-lg:to-zinc-400 max-lg:sm:items-center max-lg:sm:px-4 max-lg:sm:py-6'
+
+/** Full-width pay app on desktop (no phone frame). */
+export const PAY_SHELL_OUTER_DESKTOP =
+  'client-touch-scroll flex min-h-dvh flex-col bg-zinc-100 text-zinc-900'
+
+export const PAY_SHELL_INNER_DESKTOP =
+  'relative flex min-h-dvh w-full max-w-none flex-col overflow-hidden bg-zinc-50'
+
+/** Page body: full-screen overlay on mobile, normal scroll region on desktop. */
+export const PAY_PAGE_MAIN =
+  'client-touch-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain max-lg:absolute max-lg:inset-0 max-lg:z-0 max-lg:bg-zinc-100'
+
+/** Top inset when mobile shell shows the fixed logo bar (manual entry + history). */
+export const PAY_MOBILE_TOP_BAR_OFFSET =
+  'max-lg:pt-[calc(3.5rem+max(0.75rem,env(safe-area-inset-top)))]'
+
+/** Bottom inset so scroll content clears the floating mobile tab bar. */
+export const PAY_MOBILE_NAV_CLEARANCE =
+  'max-lg:pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]'
+
+export const PAY_PAGE_INNER = 'mx-auto w-full max-w-lg px-4 py-5 sm:py-6 lg:max-w-3xl lg:px-8 lg:py-10'
 
 /** Default QR payload on desktop enter-ticket before a ticket ID is typed. */
 export const DEFAULT_TICKET_QR_URL = 'www.seymouraviation.ng'
@@ -57,13 +86,47 @@ export function payTicketUrl(ticketId: string): string {
   return `/pay?${PAY_TICKET_ID_PARAM}=${encodeURIComponent(ticketId.trim())}`
 }
 
-/** Payment flow on the same route: `/pay?ticketID=…&pay=1` */
-export function payTicketCheckoutUrl(ticketId: string): string {
+export const PAY_EXTRA_PARAM = 'extra'
+
+export const PAY_EXTRA_VALUE = '1'
+
+export function isPayExtraStep(searchParams: URLSearchParams): boolean {
+  return searchParams.get(PAY_EXTRA_PARAM) === PAY_EXTRA_VALUE
+}
+
+/** Overstay / extra parking: `/pay?ticketID=…&extra=1` */
+export function payExtraTicketUrl(ticketId: string): string {
   const q = new URLSearchParams({
     [PAY_TICKET_ID_PARAM]: ticketId.trim(),
+    [PAY_EXTRA_PARAM]: PAY_EXTRA_VALUE,
+  })
+  return `/pay?${q.toString()}`
+}
+
+/** Extra checkout: `/pay?ticketID=…&extra=1&pay=1` */
+export function payExtraTicketCheckoutUrl(ticketId: string): string {
+  const q = new URLSearchParams({
+    [PAY_TICKET_ID_PARAM]: ticketId.trim(),
+    [PAY_EXTRA_PARAM]: PAY_EXTRA_VALUE,
     [PAY_STEP_PARAM]: PAY_STEP_CHECKOUT,
   })
   return `/pay?${q.toString()}`
+}
+
+function payTicketSearchParams(
+  ticketId: string,
+  extra?: boolean,
+  checkout?: boolean,
+): URLSearchParams {
+  const q = new URLSearchParams({ [PAY_TICKET_ID_PARAM]: ticketId.trim() })
+  if (extra) q.set(PAY_EXTRA_PARAM, PAY_EXTRA_VALUE)
+  if (checkout) q.set(PAY_STEP_PARAM, PAY_STEP_CHECKOUT)
+  return q
+}
+
+/** Payment flow on the same route: `/pay?ticketID=…&pay=1` */
+export function payTicketCheckoutUrl(ticketId: string, extra?: boolean): string {
+  return `/pay?${payTicketSearchParams(ticketId, extra, true).toString()}`
 }
 
 export function isPayCheckoutStep(searchParams: URLSearchParams): boolean {
@@ -143,4 +206,4 @@ export function computeScanQrBox(
 }
 
 export const PAY_SHELL_INNER =
-  'flex h-dvh max-h-dvh w-full max-w-[428px] min-h-0 flex-col overflow-hidden bg-zinc-50 sm:h-[min(100dvh,880px)] sm:max-h-[min(100dvh,880px)] sm:rounded-[2.5rem] sm:shadow-[0_25px_80px_-16px_rgba(0,0,0,0.45)] sm:ring-1 sm:ring-white/60 lg:h-auto lg:max-h-[calc(100dvh-4rem)] lg:min-h-[min(84vh,900px)] lg:w-full lg:max-w-6xl lg:rounded-2xl lg:border lg:border-zinc-200/90 lg:bg-white lg:shadow-[0_24px_64px_-28px_rgba(15,23,42,0.14)] lg:ring-0'
+  'flex h-dvh max-h-dvh w-full max-w-[428px] min-h-0 flex-col overflow-hidden bg-zinc-100 sm:h-[min(100dvh,880px)] sm:max-h-[min(100dvh,880px)] sm:rounded-[2.5rem] sm:shadow-[0_25px_80px_-16px_rgba(0,0,0,0.45)] sm:ring-1 sm:ring-white/60 lg:h-auto lg:max-h-[calc(100dvh-4rem)] lg:min-h-[min(84vh,900px)] lg:w-full lg:max-w-6xl lg:rounded-2xl lg:border lg:border-zinc-200/90 lg:bg-white lg:shadow-[0_24px_64px_-28px_rgba(15,23,42,0.14)] lg:ring-0'

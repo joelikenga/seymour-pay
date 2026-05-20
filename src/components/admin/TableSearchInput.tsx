@@ -18,7 +18,7 @@ export interface TableSearchInputProps {
 }
 
 /**
- * Canonical admin-table search input — matches the Reconciliation page chrome
+ * Canonical admin-table search input - matches the Reconciliation page chrome
  * (rounded-2xl shell, inset shadow, orange focus ring, leading magnifier icon).
  * All admin tables should use this so search inputs look identical everywhere.
  */

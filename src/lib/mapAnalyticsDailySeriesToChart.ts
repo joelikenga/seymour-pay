@@ -8,7 +8,7 @@ export function mapAnalyticsDailySeriesToChartPoints(
 ): ChartPoint[] {
   const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
   return sorted.map((p) => ({
-    label: p.date && /^\d{4}-\d{2}-\d{2}$/.test(p.date) ? formatDayStamp(p.date) : p.date || '—',
+    label: p.date && /^\d{4}-\d{2}-\d{2}$/.test(p.date) ? formatDayStamp(p.date) : p.date || 'N/A',
     amount: p.volume,
   }))
 }

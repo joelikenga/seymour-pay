@@ -415,7 +415,7 @@ function rollingWindowMs(
   return { lo: start.getTime(), hi: end.getTime() }
 }
 
-/** Seven local calendar days, oldest first — same bounds as {@link dailyVolumeSeries}. */
+/** Seven local calendar days, oldest first - same bounds as {@link dailyVolumeSeries}. */
 function localSevenDayBounds(): { lo: number; hi: number }[] {
   const now = new Date()
   const out: { lo: number; hi: number }[] = []

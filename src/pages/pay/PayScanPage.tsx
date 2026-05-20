@@ -9,11 +9,14 @@ import PayTicketDetailsStep from './PayTicketDetailsStep'
 import {
   isDesktopViewport,
   isPayCheckoutStep,
+  isPayExtraStep,
   parseScannedTicketId,
+  PAY_EXTRA_PARAM,
+  PAY_EXTRA_VALUE,
   PAY_SCAN_VIEWFINDER_CLASS,
-  PAY_TICKET_ID_PARAM,
   PAY_STEP_PARAM,
   PAY_STEP_CHECKOUT,
+  PAY_TICKET_ID_PARAM,
 } from './payFlowShared'
 
 function ScanCameraErrorBanner({ message }: { message: string }) {
@@ -54,6 +57,19 @@ export default function PayScanPage() {
 
   const ticketIdParam = searchParams.get(PAY_TICKET_ID_PARAM)?.trim() ?? ''
   const isPaying = isPayCheckoutStep(searchParams)
+  const isExtraPay = isPayExtraStep(searchParams)
+
+  const ticketSearchParams = useCallback(
+    (checkout?: boolean) => {
+      const params: Record<string, string> = {
+        [PAY_TICKET_ID_PARAM]: ticketIdParam,
+      }
+      if (isExtraPay) params[PAY_EXTRA_PARAM] = PAY_EXTRA_VALUE
+      if (checkout) params[PAY_STEP_PARAM] = PAY_STEP_CHECKOUT
+      return params
+    },
+    [ticketIdParam, isExtraPay],
+  )
 
   useEffect(() => {
     if (!ticketIdParam) scanLockRef.current = false
@@ -66,15 +82,12 @@ export default function PayScanPage() {
   }, [setSearchParams])
 
   const showDetailsOnly = useCallback(() => {
-    setSearchParams({ [PAY_TICKET_ID_PARAM]: ticketIdParam }, { replace: true })
-  }, [setSearchParams, ticketIdParam])
+    setSearchParams(ticketSearchParams(), { replace: true })
+  }, [setSearchParams, ticketSearchParams])
 
   const startPayment = useCallback(() => {
-    setSearchParams(
-      { [PAY_TICKET_ID_PARAM]: ticketIdParam, [PAY_STEP_PARAM]: PAY_STEP_CHECKOUT },
-      { replace: true },
-    )
-  }, [setSearchParams, ticketIdParam])
+    setSearchParams(ticketSearchParams(true), { replace: true })
+  }, [setSearchParams, ticketSearchParams])
 
   const onQrDecoded = useCallback(
     async (raw: string) => {
@@ -100,6 +113,7 @@ export default function PayScanPage() {
     return (
       <PayPaymentFlow
         ticketId={ticketIdParam}
+        extraPay={isExtraPay}
         onBackToDetails={showDetailsOnly}
       />
     )
@@ -109,9 +123,10 @@ export default function PayScanPage() {
     return (
       <PayTicketDetailsStep
         ticketId={ticketIdParam}
+        extraPay={isExtraPay}
         onBack={clearTicket}
         onContinueToPay={startPayment}
-        backLabel="Scan another ticket"
+        backLabel={isExtraPay ? 'Back to receipt' : 'Scan another ticket'}
       />
     )
   }

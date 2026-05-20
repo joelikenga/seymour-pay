@@ -9,7 +9,7 @@ export const adminProfileQueryKey = ['admin', 'auth', 'me'] as const
 const PROFILE_REFETCH_MS = 45_000
 
 /**
- * Current admin profile — refetches on an interval and when the window regains focus
+ * Current admin profile - refetches on an interval and when the window regains focus
  * so UI stays in sync when details change on the server.
  */
 export function useAdminProfileQuery(): UseQueryResult<AdminProfile | null, Error> {

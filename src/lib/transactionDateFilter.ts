@@ -90,7 +90,7 @@ export function dateSelectionToApiRange(
 }
 
 /**
- * Readable inclusive bounds for audit logs on CSV export — **from** … **to** …
+ * Readable inclusive bounds for audit logs on CSV export - **from** … **to** …
  * (uses the same calendar range as the API `from` / `to` params).
  */
 export function describeDateSelectionForExportLog(
@@ -193,7 +193,7 @@ export interface MonthOption {
 /**
  * Calendar months from **January** of the earliest relevant year through the
  * current month (inclusive). Each full past year includes Jan–Dec; the current
- * year stops at the present month — matches month-picker grids (Jan → now).
+ * year stops at the present month - matches month-picker grids (Jan → now).
  */
 export function monthsThroughCurrent(
   earliestTransaction: Date | null,

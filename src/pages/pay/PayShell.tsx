@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import SeymourLogo from '../../components/SeymourLogo'
+import PayMobileTopBar from './PayMobileLogo'
 import {
   DESKTOP_MEDIA,
-  isPayCheckoutStep,
-  isPayTicketDetailsStep,
   PAY_SHELL_INNER,
+  PAY_SHELL_INNER_DESKTOP,
   PAY_SHELL_OUTER,
+  PAY_SHELL_OUTER_DESKTOP,
   PAY_TICKET_ID_PARAM,
 } from './payFlowShared'
 
@@ -16,11 +17,11 @@ const safeAreaPad = {
   paddingRight: 'env(safe-area-inset-right, 0px)',
 } as const
 
-function navLinkClass({ isActive }: { isActive: boolean }) {
-  return `rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
+function desktopNavClass({ isActive }: { isActive: boolean }) {
+  return `rounded-full px-4 py-2 text-sm font-semibold transition lg:px-5 ${
     isActive
-      ? 'bg-white text-orange-600 shadow-sm ring-1 ring-zinc-900/8'
-      : 'text-zinc-600 hover:bg-white/60 hover:text-zinc-900'
+      ? 'bg-white text-orange-700 shadow-sm ring-1 ring-zinc-200/80'
+      : 'text-zinc-600 hover:bg-white/70 hover:text-zinc-900'
   }`
 }
 
@@ -41,7 +42,7 @@ type MobilePayNavLinkProps = {
 
 function MobilePayNavLink({ to, end, label, icon }: MobilePayNavLinkProps) {
   return (
-    <NavLink to={to} end={end} className={mobileNavClass}>
+    <NavLink to={to} end={end} className={({ isActive }) => mobileNavClass({ isActive })}>
       {({ isActive }) => (
         <>
           {icon}
@@ -55,18 +56,16 @@ function MobilePayNavLink({ to, end, label, icon }: MobilePayNavLinkProps) {
 export default function PayShell() {
   const { pathname } = useLocation()
   const [searchParams] = useSearchParams()
-  const isPaymentFlow = isPayCheckoutStep(searchParams)
-  const isTicketDetails =
-    (pathname === '/pay' || pathname === '/pay/') &&
-    isPayTicketDetailsStep(searchParams)
   const isPayIndex = pathname === '/pay' || pathname === '/pay/'
   const hasTicketId = Boolean(searchParams.get(PAY_TICKET_ID_PARAM)?.trim())
   const isScanCamera = isPayIndex && !hasTicketId
-  const hideShellNav = isPaymentFlow || isTicketDetails
+  const isTicketEntryPage = pathname === '/pay/ticket' || pathname === '/pay/ticket/'
+  const isHistoryPage = pathname === '/pay/history' || pathname === '/pay/history/'
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(DESKTOP_MEDIA).matches,
   )
-  const isFocusedPayFlow = (isPaymentFlow || isTicketDetails) && !isDesktop
+  const showMobileTopBar =
+    !isDesktop && (isTicketEntryPage || isHistoryPage)
 
   useEffect(() => {
     const mq = window.matchMedia(DESKTOP_MEDIA)
@@ -76,46 +75,55 @@ export default function PayShell() {
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
-  const shellOuterClass =
-    isScanCamera && !isDesktop
+  const shellOuterClass = isDesktop
+    ? PAY_SHELL_OUTER_DESKTOP
+    : isScanCamera
       ? `${PAY_SHELL_OUTER} max-lg:items-stretch max-lg:bg-black max-lg:sm:p-0`
       : PAY_SHELL_OUTER
 
-  const shellInnerClass =
-    isScanCamera && !isDesktop
+  const shellInnerClass = isDesktop
+    ? PAY_SHELL_INNER_DESKTOP
+    : isScanCamera
       ? 'relative flex h-screen max-h-screen min-h-dvh w-full max-w-none flex-col overflow-hidden bg-black max-lg:sm:h-screen max-lg:sm:max-h-screen max-lg:sm:rounded-none max-lg:sm:shadow-none max-lg:sm:ring-0'
-      : isFocusedPayFlow
-        ? 'relative flex min-h-dvh w-full max-w-none flex-col overflow-hidden bg-zinc-100 max-lg:rounded-none max-lg:shadow-none max-lg:ring-0'
-        : `relative ${PAY_SHELL_INNER}`
+      : `relative ${PAY_SHELL_INNER}`
 
   return (
     <div className={shellOuterClass}>
       <div className={shellInnerClass} style={safeAreaPad}>
-        {!hideShellNav ? (
-          <header className="hidden shrink-0 lg:flex lg:items-center lg:justify-between lg:gap-8 lg:border-b lg:border-zinc-200/90 lg:bg-white lg:px-8 lg:py-4">
-            <SeymourLogo className="scale-95" />
-            <nav
-              className="flex rounded-xl bg-zinc-200/60 p-1 shadow-inner ring-1 ring-zinc-950/5"
-              aria-label="Pay navigation"
-            >
-              <NavLink to="/pay/ticket" className={navLinkClass}>
-                Enter ticket
-              </NavLink>
-              <NavLink to="/pay/history" className={navLinkClass}>
-                History
-              </NavLink>
-            </nav>
+        {isDesktop ? (
+          <header className="sticky top-0 z-40 shrink-0 border-b border-zinc-200/80 bg-white/90 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-md">
+            <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6 lg:px-8">
+              <Link
+                to="/pay/ticket"
+                className="min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30"
+                aria-label="Seymour Aviation pay"
+              >
+                <SeymourLogo className="max-w-[min(100%,220px)]" />
+              </Link>
+              <nav
+                className="flex items-center gap-1 rounded-full border border-zinc-200/80 bg-zinc-50/80 p-1 shadow-inner"
+                aria-label="Pay navigation"
+              >
+                <NavLink to="/pay/ticket" end className={desktopNavClass}>
+                  Enter ticket
+                </NavLink>
+                <NavLink to="/pay/history" className={desktopNavClass}>
+                  History
+                </NavLink>
+              </nav>
+            </div>
           </header>
         ) : null}
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          {showMobileTopBar ? <PayMobileTopBar /> : null}
           <Outlet />
         </div>
 
-        {!hideShellNav && !isDesktop ? (
-          <div className="relative z-50 flex shrink-0 justify-center px-3 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
+        {!isDesktop ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-center bg-transparent px-3 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-6">
             <nav
-              className="flex w-full max-w-[260px] gap-0.5 rounded-2xl border border-white/12 bg-zinc-950/65 p-1 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+              className="pointer-events-auto flex w-full max-w-[260px] gap-0.5 rounded-2xl border border-white/10 bg-zinc-950/75 p-1 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.55)] backdrop-blur-xl"
               aria-label="Pay navigation"
             >
               <MobilePayNavLink to="/pay" end label="Scan" icon={<QrScanIcon />} />

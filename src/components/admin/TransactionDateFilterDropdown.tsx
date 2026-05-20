@@ -108,7 +108,7 @@ export default function TransactionDateFilterDropdown({
     }
   }, [open, closeMenu])
 
-  /** Fullscreen modal on narrow viewports — lock scroll behind the sheet. */
+  /** Fullscreen modal on narrow viewports - lock scroll behind the sheet. */
   useEffect(() => {
     if (!open) return
     const mq = window.matchMedia('(max-width: 639px)')

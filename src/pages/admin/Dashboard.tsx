@@ -249,7 +249,7 @@ export default function Dashboard() {
                 if (visibleTotal <= 0) {
                   return (
                     <p className="mt-4 text-sm text-zinc-500">
-                      No transactions yet — volume breakdown will appear here.
+                      No transactions yet - volume breakdown will appear here.
                     </p>
                   )
                 }
@@ -418,7 +418,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Middle grid — items-start so calendar column height fits its contents */}
+      {/* Middle grid - items-start so calendar column height fits its contents */}
       <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
         <section className="lg:col-span-4">
           <div>

@@ -21,7 +21,7 @@
   --color-orange-950: #422006;
 
   /**
-   * Brand / UI accent (yellow-gold): focus rings, fills, charts — not default link color.
+   * Brand / UI accent (yellow-gold): focus rings, fills, charts - not default link color.
    * Inline links and nav: `text-link` / `text-link-hover` + `hover:bg-primary-soft/{n}` so
    * yellow surfaces match `--color-primary-soft` (same family as the logo mark).
    * Navy: tweak `--color-link*` if brand assets change.
@@ -45,7 +45,7 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Pay scanner — host needs size; do not override scan_region/canvas (breaks QR decode). */
+/* Pay scanner - host needs size; do not override scan_region/canvas (breaks QR decode). */
 .pay-scanner-host {
   position: absolute;
   inset: 0;
@@ -80,7 +80,7 @@ body {
   pointer-events: none !important;
 }
 
-/* QR viewfinder — sweep spans inner area aligned to h-11 corner arms */
+/* QR viewfinder - sweep spans inner area aligned to h-11 corner arms */
 .pay-scan-viewfinder-track {
   position: absolute;
   inset: 2.75rem;
@@ -131,7 +131,7 @@ body {
   }
 }
 
-/* Client pay shell — safe areas + touch scrolling */
+/* Client pay shell - safe areas + touch scrolling */
 .client-touch-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
@@ -173,7 +173,7 @@ body {
   animation: client-spin-slow 1.15s linear infinite;
 }
 
-/* SeymourLoadingShell — staggered snake-like hover for the three dots */
+/* SeymourLoadingShell - staggered snake-like hover for the three dots */
 @keyframes seymour-loader-snake {
   0%,
   100% {
@@ -213,16 +213,18 @@ body {
   animation-delay: 0.28s;
 }
 
-/* Pay flow — flat paper receipt (no glossy shadow stack) */
+/* Pay flow - flat paper receipt (no glossy shadow stack) */
 .pay-receipt-paper {
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 40px -20px rgba(15, 23, 42, 0.1);
 }
 
-.pay-exit-sheet-panel {
-  animation: pay-exit-sheet-up 0.35s ease-out;
+.pay-overlay-panel {
+  animation: pay-overlay-sheet-up 0.35s ease-out;
 }
 
-@keyframes pay-exit-sheet-up {
+@keyframes pay-overlay-sheet-up {
   from {
     transform: translateY(100%);
   }
@@ -231,8 +233,25 @@ body {
   }
 }
 
+@media (min-width: 1024px) {
+  .pay-overlay-panel {
+    animation: pay-overlay-modal-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes pay-overlay-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .pay-exit-sheet-panel {
+  .pay-overlay-panel {
     animation: none;
   }
 }

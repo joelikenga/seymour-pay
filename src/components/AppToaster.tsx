@@ -1,7 +1,7 @@
 import { Toaster } from 'sonner'
 
 /**
- * Global toast host — glass surface, orange/zinc palette aligned with admin shell.
+ * Global toast host - glass surface, orange/zinc palette aligned with admin shell.
  */
 export function AppToaster() {
   return (

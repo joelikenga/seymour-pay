@@ -12,7 +12,7 @@ export interface TableToolbarProps {
 }
 
 /**
- * Canonical admin-table toolbar — light gradient background, bottom border, and
+ * Canonical admin-table toolbar - light gradient background, bottom border, and
  * a flex row that stacks on mobile. Pages drop their search box (left) and any
  * counters / chips / action buttons (right) into the corresponding slots so all
  * tables share the same chrome.

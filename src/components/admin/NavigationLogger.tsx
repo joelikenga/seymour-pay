@@ -5,10 +5,10 @@ import { getAuditActorLabel } from '../../lib/auditActorLabel'
 
 const titles: Record<string, string> = {
   '/login': 'Login',
-  '/pay': 'Pay — Scan',
-  '/pay/ticket': 'Pay — Enter ticket',
-  '/pay/history': 'Pay — History',
-  '/pay/checkout': 'Pay — Checkout',
+  '/pay': 'Pay - Scan',
+  '/pay/ticket': 'Pay - Enter ticket',
+  '/pay/history': 'Pay - History',
+  '/pay/checkout': 'Pay - Checkout',
   '/admin': 'Dashboard',
   '/admin/transactions': 'Transactions',
   '/admin/analytics': 'Analytics',

@@ -24,7 +24,7 @@ const WIDTH_CYCLE = [
 ] as const
 
 /**
- * Placeholder `<tbody>` rows — keep the real `<thead>` from the page for layout match.
+ * Placeholder `<tbody>` rows - keep the real `<thead>` from the page for layout match.
  */
 export default function AdminTableSkeletonBody({
   rows = 8,

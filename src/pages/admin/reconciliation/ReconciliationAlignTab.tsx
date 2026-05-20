@@ -159,7 +159,7 @@ export default function ReconciliationAlignTab() {
       appendLog({
         action: 'reconciliation',
         summary: `Deleted ${ticketIds.length} transaction${ticketIds.length === 1 ? '' : 's'}`,
-        detail: `Bulk deleted on server — ticket refs: ${preview}${more}`,
+        detail: `Bulk deleted on server - ticket refs: ${preview}${more}`,
       })
       void queryClient.invalidateQueries({ queryKey: ['admin', 'transactions'] })
       void queryClient.invalidateQueries({

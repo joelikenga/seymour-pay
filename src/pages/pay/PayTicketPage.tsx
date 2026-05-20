@@ -2,12 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import QRCode from 'react-qr-code'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import PayMobileLogo from './PayMobileLogo'
 import {
   DEFAULT_TICKET_QR_URL,
   payTicketUrl,
+  PAY_PAGE_INNER,
+  PAY_PAGE_MAIN,
+  PAY_MOBILE_TOP_BAR_OFFSET,
+  PAY_MOBILE_NAV_CLEARANCE,
   PAY_TICKET_ID_PARAM,
 } from './payFlowShared'
+import { payBtnPrimary } from './payUi'
 
 type TicketQrPreviewProps = {
   qrValue: string
@@ -95,9 +99,8 @@ export default function PayTicketPage() {
   if (ticketIdParam) return null
 
   return (
-    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-zinc-100 lg:bg-linear-to-b lg:from-zinc-50 lg:to-zinc-100/80 lg:px-12 lg:pb-12 lg:pt-10">
-      <div className="mx-auto w-full max-w-md px-4 pb-8 lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-center lg:gap-14 lg:px-0 lg:pb-0">
-        <PayMobileLogo />
+    <div className={`${PAY_PAGE_MAIN} ${PAY_MOBILE_TOP_BAR_OFFSET} ${PAY_MOBILE_NAV_CLEARANCE}`}>
+      <div className={`${PAY_PAGE_INNER} lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-center lg:gap-14 lg:py-12`}>
         <form className="lg:text-left" onSubmit={onSubmit}>
           <p className="text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-600/90 lg:text-left">
             Manual entry
@@ -124,7 +127,7 @@ export default function PayTicketPage() {
           <button
             type="submit"
             disabled={!trimmedInput}
-            className="mt-6 w-full rounded-xl bg-linear-to-b from-orange-500 to-orange-600 px-4 py-3.5 text-sm font-bold text-white shadow-[0_4px_18px_-4px_rgba(234,88,12,0.55)] transition hover:from-orange-400 hover:to-orange-500 active:scale-[0.99] disabled:opacity-45 disabled:active:scale-100 lg:mt-8 lg:max-w-sm lg:py-4"
+            className={`mt-6 lg:mt-8 lg:max-w-sm ${payBtnPrimary}`}
           >
             Continue
           </button>

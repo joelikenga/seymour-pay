@@ -27,7 +27,7 @@ function asBody<T>(data: unknown): T {
   return data as T
 }
 
-/** `GET /admin/users` — array of users with `pageAccess` (new accounts: dashboard & transactions only). */
+/** `GET /admin/users` - array of users with `pageAccess` (new accounts: dashboard & transactions only). */
 export async function adminGetUsers(): Promise<AdminUserResponse[]> {
   const data = await axios$.get('/admin/users')
   return assertUserArray(asBody<unknown>(data))
@@ -38,7 +38,7 @@ export async function adminGetUserById(id: string): Promise<AdminUserResponse> {
   return asBody<AdminUserResponse>(data)
 }
 
-/** `DELETE /admin/users/:id` — `{ message: "ok" }`. */
+/** `DELETE /admin/users/:id` - `{ message: "ok" }`. */
 export async function adminDeleteUserById(
   id: string,
 ): Promise<AdminDeleteUserResponse> {
@@ -47,7 +47,7 @@ export async function adminDeleteUserById(
 }
 
 /**
- * `POST /admin/users` — email, firstName, lastName, and `pageAccess` (dashboard + transactions only for new accounts).
+ * `POST /admin/users` - email, firstName, lastName, and `pageAccess` (dashboard + transactions only for new accounts).
  * Response: `{ password, user }`.
  */
 export async function adminCreateUser(
@@ -63,7 +63,7 @@ export async function adminCreateUser(
 }
 
 /**
- * `PATCH /admin/users/:id/page-access` — body `{ pageAccess: { ... } }` with the full map.
+ * `PATCH /admin/users/:id/page-access` - body `{ pageAccess: { ... } }` with the full map.
  * Response: updated user object.
  */
 export async function adminUpdateUserById(

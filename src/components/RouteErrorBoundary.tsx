@@ -37,7 +37,7 @@ export default class RouteErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex min-h-svh flex-col items-center justify-center gap-5 bg-[#f4f4f5] px-6 py-12 text-center">
           <p className="max-w-md text-sm leading-relaxed text-zinc-700">
-            Something broke while rendering this screen — common right after a code save during
+            Something broke while rendering this screen - common right after a code save during
             development. Try again, go home, or do a full reload.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">

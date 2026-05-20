@@ -108,7 +108,7 @@ export function createSeedTransactions(): Transaction[] {
         VEHICLE_TYPES[Math.floor(rand() * VEHICLE_TYPES.length)]
       const status = statuses[Math.floor(rand() * statuses.length)]
 
-      const hour = 7 + Math.floor(rand() * 14) // 07:00 — 20:59
+      const hour = 7 + Math.floor(rand() * 14) // 07:00 - 20:59
       const minute = Math.floor(rand() * 60)
       const second = Math.floor(rand() * 60)
       const d = new Date(date)

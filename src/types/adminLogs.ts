@@ -5,7 +5,7 @@ export interface AdminLogRecord {
   detail: string
   summary: string
   userLabel: string
-  /** Backend action key — matches audit trail labels where possible */
+  /** Backend action key - matches audit trail labels where possible */
   action: string
 }
 

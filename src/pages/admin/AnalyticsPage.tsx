@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
             Analytics
           </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-zinc-600">
-            Payment rails and trends — totals follow the date range; each card applies the
+            Payment rails and trends - totals follow the date range; each card applies the
             channel filter on the server.
           </p>
         </div>

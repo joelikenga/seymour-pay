@@ -137,7 +137,7 @@ export default function PwaInstallPrompt() {
               </p>
             ) : (
               <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                Download the app to your device — quick launch from your home screen, full-screen
+                Download the app to your device - quick launch from your home screen, full-screen
                 experience, and automatic updates when you&apos;re online.
               </p>
             )}

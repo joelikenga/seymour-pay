@@ -1,4 +1,4 @@
-/** Served from `public/` — filename contains a space */
+/** Served from `public/` - filename contains a space */
 const LOGO_SRC = '/logo%201.svg'
 
 interface SeymourLogoProps {

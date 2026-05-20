@@ -29,7 +29,7 @@ export function createPayScanner(): Html5Qrcode {
   })
 }
 
-/** Playback + visibility only — do not resize scan_region/canvas (breaks decode crop math). */
+/** Playback + visibility only - do not resize scan_region/canvas (breaks decode crop math). */
 export function ensureScannerVideoPlaying(hostId: string): void {
   const host = document.getElementById(hostId)
   if (!host) return

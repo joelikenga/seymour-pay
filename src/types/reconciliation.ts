@@ -36,7 +36,7 @@ export interface CashierTransaction extends Transaction {
   cashpointName: string
 }
 
-/** Loss ticket row — same core fields as ledger plus optional reason. */
+/** Loss ticket row - same core fields as ledger plus optional reason. */
 export interface LossTicketRow {
   id: string
   reference: string

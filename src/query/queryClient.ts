@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 
 /**
- * Shared TanStack client — tuned so admin screens (dashboard, profile, logs, future API tables)
+ * Shared TanStack client - tuned so admin screens (dashboard, profile, logs, future API tables)
  * pick up server changes when you return to the tab or reconnect.
  */
 export const queryClient = new QueryClient({

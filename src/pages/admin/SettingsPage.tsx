@@ -118,7 +118,7 @@ export default function SettingsPage() {
     [adminUsersError],
   )
 
-  /** Pending page-access edits until Save — keyed by user id. */
+  /** Pending page-access edits until Save - keyed by user id. */
   const [pageAccessDraft, setPageAccessDraft] = useState<
     Record<string, Record<AdminPageKey, boolean>>
   >({})
@@ -284,7 +284,7 @@ export default function SettingsPage() {
               description:
                 'Check all fields and try again. If the problem continues, contact support.',
             })
-            setFormError('Could not create user — check all fields.')
+            setFormError('Could not create user - check all fields.')
           }
           return
         }
@@ -530,7 +530,7 @@ export default function SettingsPage() {
         )}
       </section>
 
-      {/* Create user — step 1 */}
+      {/* Create user - step 1 */}
       {createOpen && createStep === 1 ? (
         <ModalBackdrop>
           <div
@@ -602,7 +602,7 @@ export default function SettingsPage() {
         </ModalBackdrop>
       ) : null}
 
-      {/* Create user — credentials */}
+      {/* Create user - credentials */}
       {createOpen && createStep === 2 && lastCreated ? (
         <ModalBackdrop>
           <div role="dialog" aria-modal="true" className={modalShell}>

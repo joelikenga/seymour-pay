@@ -6,7 +6,7 @@ export type AdminGetTransactionsListParams = {
   page: number;
   page_size?: number;
   search?: string;
-  /** Inclusive local `YYYY-MM-DD` — both sent when filtering by period. */
+  /** Inclusive local `YYYY-MM-DD` - both sent when filtering by period. */
   from?: string;
   to?: string;
 };
@@ -35,7 +35,7 @@ export const adminGetTransactionsList = async (
 };
 
 /**
- * `GET /admin/transactions/:id` — one ledger row.
+ * `GET /admin/transactions/:id` - one ledger row.
  * Shape (camelCase): amount, channel, createdAt, customerName, id, notes, reference, status, vehicleType.
  * If the server wraps the row as `{ data: { ... } }`, that is unwrapped before normalization.
  */
@@ -69,7 +69,7 @@ export type AdminPatchTransactionBody = {
 };
 
 /**
- * `PATCH /admin/transactions/:id` — response is the updated row (camelCase):
+ * `PATCH /admin/transactions/:id` - response is the updated row (camelCase):
  * amount, channel, createdAt, customerName, id, notes, reference, status, vehicleType.
  * Same shape as {@link adminGetTransactionById}. Wrapped `{ data: row }` is unwrapped.
  */
@@ -85,7 +85,7 @@ export async function adminUpdateTransactionById(
 }
 
 /**
- * Bulk delete — body `{ ids: string[] }` where each entry is a ticket reference
+ * Bulk delete - body `{ ids: string[] }` where each entry is a ticket reference
  * (e.g. `"TKT-001"`), not stringified JSON.
  */
 export const adminDeleteBulkTransactions = async (ids: string[] | undefined) => {

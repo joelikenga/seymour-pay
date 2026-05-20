@@ -8,7 +8,7 @@ import type { AdminLogsPaginatedResponse } from '../types/adminLogs'
 
 export const LOG_PAGE_SIZE = 50
 
-/** Prefix for `invalidateQueries` — matches all `['admin', 'logs', …]` query keys. */
+/** Prefix for `invalidateQueries` - matches all `['admin', 'logs', …]` query keys. */
 export const adminLogsQueryRootKey = ['admin', 'logs'] as const
 
 export const adminLogsInfiniteQueryKey = [
