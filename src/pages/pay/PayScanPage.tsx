@@ -3,6 +3,11 @@ import { Navigate, useSearchParams } from 'react-router-dom'
 import PayScannerCamera, {
   type PayScannerCameraHandle,
 } from '../../components/pay/PayScannerCamera'
+import ScanCameraDropdown from '../../components/pay/ScanCameraDropdown'
+import {
+  pickDefaultCameraId,
+  type PayScannerCameraDevice,
+} from '../../lib/payScanner'
 import ScanViewfinderFrame from './ScanViewfinderFrame'
 import PayPaymentFlow from './PayPaymentFlow'
 import PayTicketDetailsStep from './PayTicketDetailsStep'
@@ -54,6 +59,10 @@ export default function PayScanPage() {
   const scanLockRef = useRef(false)
 
   const [scannerError, setScannerError] = useState<string | null>(null)
+  const [cameras, setCameras] = useState<PayScannerCameraDevice[]>([])
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(
+    undefined,
+  )
 
   const ticketIdParam = searchParams.get(PAY_TICKET_ID_PARAM)?.trim() ?? ''
   const isPaying = isPayCheckoutStep(searchParams)
@@ -105,6 +114,15 @@ export default function PayScanPage() {
     setScannerError(message)
   }, [])
 
+  const onCamerasReady = useCallback((discovered: PayScannerCameraDevice[]) => {
+    setCameras(discovered)
+  }, [])
+
+  const activeDeviceId =
+    selectedDeviceId ?? pickDefaultCameraId(cameras) ?? cameras[0]?.id
+
+  const showCameraPicker = cameras.length > 1 && !scannerError
+
   if (isDesktopViewport() && !ticketIdParam) {
     return <Navigate to="/pay/ticket" replace />
   }
@@ -140,11 +158,22 @@ export default function PayScanPage() {
           <PayScannerCamera
             ref={cameraRef}
             active={!scannerError}
+            deviceId={selectedDeviceId}
             onDecoded={onQrDecoded}
             onError={onScannerError}
+            onCamerasReady={onCamerasReady}
           />
           <ScanViewfinderFrame showScanLine={!scannerError} />
         </div>
+
+        {showCameraPicker && activeDeviceId ? (
+          <ScanCameraDropdown
+            className="relative z-20 mt-4 w-[min(72vw,58vh)] max-w-[300px]"
+            cameras={cameras}
+            value={activeDeviceId}
+            onChange={setSelectedDeviceId}
+          />
+        ) : null}
       </div>
 
       {scannerError ? <ScanCameraErrorBanner message={scannerError} /> : null}

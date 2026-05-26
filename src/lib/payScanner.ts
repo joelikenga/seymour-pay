@@ -58,23 +58,86 @@ export function createDebouncedScanHandler(
   }
 }
 
-export async function pickRearCameraId(): Promise<string | undefined> {
+export type PayScannerCameraDevice = {
+  id: string
+  label: string
+}
+
+const ULTRA_WIDE_CAMERA =
+  /ultra\s*wide|0\.5\s*[×x]?|0,5|wide\s*angle|\buw\b|超広|grand\s*angle/i
+
+const TELEPHOTO_CAMERA =
+  /telephoto|\btele\b|\b2x\b|\b3x\b|\b5x\b| téléobjectif/i
+
+const REAR_CAMERA =
+  /back|rear|environment|trás|arrière|後置|arrière/i
+
+const FRONT_CAMERA = /front|user|selfie|face|前置|self/i
+
+export function isUltraWideCameraLabel(label: string): boolean {
+  return ULTRA_WIDE_CAMERA.test(label)
+}
+
+export function isTelephotoCameraLabel(label: string): boolean {
+  return TELEPHOTO_CAMERA.test(label)
+}
+
+export function isMainRearCameraLabel(label: string): boolean {
+  if (isUltraWideCameraLabel(label) || isTelephotoCameraLabel(label)) {
+    return false
+  }
+  if (/^back camera$/i.test(label.trim())) return true
+  return REAR_CAMERA.test(label)
+}
+
+/** Prefer the standard rear lens — not ultra-wide (0.5×) or telephoto. */
+export function pickDefaultCameraId(
+  cameras: ReadonlyArray<PayScannerCameraDevice>,
+): string | undefined {
+  if (cameras.length === 0) return undefined
+  if (cameras.length === 1) return cameras[0].id
+
+  const mainRear = cameras.find((c) => isMainRearCameraLabel(c.label))
+  if (mainRear) return mainRear.id
+
+  const rearNotUltra = cameras.find(
+    (c) => REAR_CAMERA.test(c.label) && !isUltraWideCameraLabel(c.label),
+  )
+  if (rearNotUltra) return rearNotUltra.id
+
+  const notUltra = cameras.find((c) => !isUltraWideCameraLabel(c.label))
+  if (notUltra) return notUltra.id
+
+  return cameras[0].id
+}
+
+export function formatPayScannerCameraLabel(
+  label: string,
+  index: number,
+): string {
+  const trimmed = label.trim()
+  if (!trimmed) return `Camera ${index + 1}`
+  if (isUltraWideCameraLabel(trimmed)) return '0.5× Ultra wide'
+  if (isTelephotoCameraLabel(trimmed)) return 'Telephoto'
+  if (FRONT_CAMERA.test(trimmed)) return 'Front camera'
+  if (isMainRearCameraLabel(trimmed)) return 'Main camera'
+  if (REAR_CAMERA.test(trimmed)) return 'Back camera'
+  return trimmed
+}
+
+export async function listPayScannerCameras(): Promise<PayScannerCameraDevice[]> {
   try {
-    const cameras = await Html5Qrcode.getCameras()
-    if (cameras.length === 0) return undefined
-    const rear = cameras.find((c) =>
-      /back|rear|environment|trás|arrière/i.test(c.label),
-    )
-    return rear?.id ?? cameras[cameras.length - 1]?.id
+    return await Html5Qrcode.getCameras()
   } catch {
-    return undefined
+    return []
   }
 }
 
 export async function startPayScanner(
   html5: Html5Qrcode,
   onSuccess: (decoded: string) => void,
-): Promise<void> {
+  options?: { deviceId?: string },
+): Promise<PayScannerCameraDevice[]> {
   const onScan = createDebouncedScanHandler(onSuccess)
 
   const config = {
@@ -83,7 +146,9 @@ export async function startPayScanner(
     disableFlip: false,
   }
 
-  const deviceId = await pickRearCameraId()
+  const cameras = await listPayScannerCameras()
+  const deviceId = options?.deviceId ?? pickDefaultCameraId(cameras)
+
   if (deviceId) {
     await html5.start(deviceId, config, onScan, () => {})
   } else {
@@ -96,6 +161,8 @@ export async function startPayScanner(
 
   ensureScannerVideoPlaying(PAY_SCANNER_REGION_ID)
   window.setTimeout(() => ensureScannerVideoPlaying(PAY_SCANNER_REGION_ID), 300)
+
+  return cameras.length > 0 ? cameras : await listPayScannerCameras()
 }
 
 export async function stopPayScanner(html5: Html5Qrcode | null): Promise<void> {

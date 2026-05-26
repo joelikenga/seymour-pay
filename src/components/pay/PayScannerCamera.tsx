@@ -10,6 +10,7 @@ import {
   startPayScanner,
   stopPayScanner,
   waitForScannerHostLayout,
+  type PayScannerCameraDevice,
 } from '../../lib/payScanner'
 
 export type PayScannerCameraHandle = {
@@ -18,21 +19,29 @@ export type PayScannerCameraHandle = {
 
 type PayScannerCameraProps = {
   active: boolean
+  /** Explicit camera device id; omit to use the default main rear lens. */
+  deviceId?: string
   onDecoded: (raw: string) => void
   onError: (message: string) => void
+  onCamerasReady?: (cameras: PayScannerCameraDevice[]) => void
 }
 
 /** Camera mount isolated so React re-renders do not wipe html5-qrcode DOM. */
 const PayScannerCamera = forwardRef<PayScannerCameraHandle, PayScannerCameraProps>(
-  function PayScannerCamera({ active, onDecoded, onError }, ref) {
+  function PayScannerCamera(
+    { active, deviceId, onDecoded, onError, onCamerasReady },
+    ref,
+  ) {
     const mountRef = useRef<HTMLDivElement>(null)
     const scannerRef = useRef<ReturnType<typeof createPayScanner> | null>(null)
     const sessionRef = useRef(0)
     const onDecodedRef = useRef(onDecoded)
     const onErrorRef = useRef(onError)
+    const onCamerasReadyRef = useRef(onCamerasReady)
 
     onDecodedRef.current = onDecoded
     onErrorRef.current = onError
+    onCamerasReadyRef.current = onCamerasReady
 
     useImperativeHandle(ref, () => ({
       stop: () => stopPayScanner(scannerRef.current),
@@ -73,10 +82,17 @@ const PayScannerCamera = forwardRef<PayScannerCameraHandle, PayScannerCameraProp
         scannerRef.current = html5
 
         try {
-          await startPayScanner(html5, (decoded) => {
-            if (cancelled || session !== sessionRef.current) return
-            onDecodedRef.current(decoded)
-          })
+          const cameras = await startPayScanner(
+            html5,
+            (decoded) => {
+              if (cancelled || session !== sessionRef.current) return
+              onDecodedRef.current(decoded)
+            },
+            { deviceId },
+          )
+          if (!cancelled && session === sessionRef.current) {
+            onCamerasReadyRef.current?.(cameras)
+          }
         } catch (e) {
           if (cancelled || session !== sessionRef.current) return
           scannerRef.current = null
@@ -99,7 +115,7 @@ const PayScannerCamera = forwardRef<PayScannerCameraHandle, PayScannerCameraProp
         scannerRef.current = null
         void stopPayScanner(s)
       }
-    }, [active])
+    }, [active, deviceId])
 
     return (
       <div
