@@ -9,6 +9,29 @@ export function formatMoney(n: number, currency = 'NGN') {
   }).format(n)
 }
 
+/** Integer counts for tables and cards (e.g. 289,202). */
+export function formatCount(n: number): string {
+  if (!Number.isFinite(n)) return '0'
+  return Math.round(n).toLocaleString('en-NG')
+}
+
+/**
+ * Currency that fits narrow tiles: full amount under ₦10k, otherwise abbreviated
+ * (same rules as {@link formatMoneyAbbreviated}).
+ */
+export function formatMoneyCompact(n: number, currency = 'NGN'): string {
+  if (!Number.isFinite(n)) return 'N/A'
+  if (Math.abs(n) < 10_000) return formatMoney(n, currency)
+  return formatMoneyAbbreviated(n)
+}
+
+/** Share of volume (0–100), keeping one decimal when the API sends it (e.g. 53.4%). */
+export function formatSharePct(pct: number): string {
+  if (!Number.isFinite(pct)) return '0%'
+  const rounded = Math.round(pct * 10) / 10
+  return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`
+}
+
 /**
  * Short Naira (K / M / B) for the **Dashboard overview hero only** - carousel
  * headline and the four period stat tiles. Do **not** use in tables, exports,

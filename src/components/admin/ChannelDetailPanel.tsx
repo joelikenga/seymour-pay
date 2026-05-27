@@ -9,7 +9,12 @@ import {
   channelLabel,
   PAYMENT_CHANNELS,
 } from '../../lib/channelStyles'
-import { formatMoney } from '../../lib/formatters'
+import {
+  formatCount,
+  formatMoney,
+  formatMoneyCompact,
+  formatSharePct,
+} from '../../lib/formatters'
 import type { PaymentChannel, Transaction } from '../../types/transaction'
 import ChannelVolumeChart from './ChannelVolumeChart'
 import TransactionDateFilterDropdown from './TransactionDateFilterDropdown'
@@ -188,32 +193,41 @@ export default function ChannelDetailPanel({
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Volume
             </p>
-            <p className="mt-1 text-base font-semibold tabular-nums text-zinc-950">
-              {kpiPending ? 'N/A' : formatMoney(volume)}
+            <p
+              className="mt-1 min-w-0 truncate text-base font-semibold tabular-nums text-zinc-950"
+              title={kpiPending ? undefined : formatMoney(volume)}
+            >
+              {kpiPending ? 'N/A' : formatMoneyCompact(volume)}
             </p>
           </div>
           <div className="flex min-h-18 min-w-0 flex-1 flex-col justify-center rounded-xl border border-zinc-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Transactions
             </p>
-            <p className="mt-1 text-base font-semibold tabular-nums text-zinc-950">
-              {kpiPending ? 'N/A' : count}
+            <p
+              className="mt-1 min-w-0 truncate text-base font-semibold tabular-nums text-zinc-950"
+              title={kpiPending ? undefined : formatCount(count)}
+            >
+              {kpiPending ? 'N/A' : formatCount(count)}
             </p>
           </div>
           <div className="flex min-h-18 min-w-0 flex-1 flex-col justify-center rounded-xl border border-zinc-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Avg. ticket
             </p>
-            <p className="mt-1 text-base font-semibold tabular-nums text-zinc-950">
-              {kpiPending ? 'N/A' : formatMoney(avg)}
+            <p
+              className="mt-1 min-w-0 truncate text-base font-semibold tabular-nums text-zinc-950"
+              title={kpiPending ? undefined : formatMoney(avg)}
+            >
+              {kpiPending ? 'N/A' : formatMoneyCompact(avg)}
             </p>
           </div>
           <div className="flex min-h-18 min-w-0 flex-1 flex-col justify-center rounded-xl border border-zinc-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Share of total
             </p>
-            <p className="mt-1 text-base font-semibold tabular-nums text-zinc-950">
-              {kpiPending ? 'N/A' : `${sharePct}%`}
+            <p className="mt-1 min-w-0 truncate text-base font-semibold tabular-nums text-zinc-950">
+              {kpiPending ? 'N/A' : formatSharePct(sharePct)}
             </p>
           </div>
         </div>

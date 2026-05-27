@@ -1,4 +1,5 @@
-import type { PaymentChannel, VehicleType } from './transaction'
+import type { OverviewChannel } from '../lib/normalizeOverviewChannel'
+import type { VehicleType } from './transaction'
 
 /**
  * `GET /admin/analytics/dashboard` - analytics overview payload.
@@ -21,7 +22,15 @@ import type { PaymentChannel, VehicleType } from './transaction'
  *   "today_volume": 0,
  *   "total_count": 0,
  *   "total_volume": 0,
- *   "vehicle_breakdown": [{ "count": 0, "vehicle_type": "car", "volume": 0 }],
+ *   "vehicle_breakdown": [
+ *     {
+ *       "amount": 0,
+ *       "count": 0,
+ *       "extra_charge": 0,
+ *       "vehicle_type": "car",
+ *       "volume": 0
+ *     }
+ *   ],
  *   "week_volume": 0,
  *   "yesterday_count": 0,
  *   "yesterday_volume": 0
@@ -29,7 +38,7 @@ import type { PaymentChannel, VehicleType } from './transaction'
  * ```
  */
 export interface DashboardOverviewChannelBreakdown {
-  channel: PaymentChannel
+  channel: OverviewChannel
   count: number
   /** Share of total volume attributed to this channel (0–100), when the API sends it. */
   share_pct: number
@@ -50,7 +59,11 @@ export interface DashboardOverviewMonthlyTraffic {
 }
 
 export interface DashboardOverviewVehicleBreakdown {
+  /** Base ticket rate for this vehicle class. */
+  amount: number
   count: number
+  /** Per-hour overage after the base window. */
+  extra_charge: number
   vehicle_type: VehicleType
   volume: number
 }

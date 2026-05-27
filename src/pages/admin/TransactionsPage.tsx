@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { toast } from 'sonner'
 import { toastRequestFailed } from '../../lib/apiErrors'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -18,7 +19,7 @@ import { statusPillClass } from '../../lib/statusStyles'
 import type { Transaction } from '../../types/transaction'
 import {
   describeDateSelectionForExportLog,
-  labelForMonthFilterValue,
+  labelForTransactionDateFilter,
   parseFilterValue,
   transactionsToCsv,
   type DateFilterSelection,
@@ -50,6 +51,7 @@ export default function TransactionsPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const [q, setQ] = useState('')
+  const debouncedQ = useDebouncedValue(q, 300)
   const [pageIndex, setPageIndex] = useState(0)
   const [activeTx, setActiveTx] = useState<Transaction | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -65,26 +67,16 @@ export default function TransactionsPage() {
     return parsed
   }, [filterValue, customStart, customEnd])
 
-  const filterSummary = useMemo(() => {
-    if (filterValue === 'all') return 'All time'
-    if (filterValue === 'today') return 'Today'
-    if (filterValue === '7d') return 'Last 7 days'
-    if (filterValue === '30d') return 'Last 30 days'
-    if (filterValue === 'custom') {
-      if (!customStart || !customEnd) return 'Custom range (set dates)'
-      return `Custom: ${customStart} → ${customEnd}`
-    }
-    if (filterValue.startsWith('month:')) {
-      return labelForMonthFilterValue(filterValue) ?? 'Month'
-    }
-    return 'Month'
-  }, [filterValue, customStart, customEnd])
+  const filterSummary = useMemo(
+    () => labelForTransactionDateFilter(filterValue, customStart, customEnd),
+    [filterValue, customStart, customEnd],
+  )
 
   const customIncomplete =
     filterValue === 'custom' &&
     (!customStart.trim() || !customEnd.trim())
 
-  const listQuery = useTransactionsListQuery(pageIndex, q, dateSelection)
+  const listQuery = useTransactionsListQuery(pageIndex, debouncedQ, dateSelection)
   const payload = listQuery.data
   const rows = payload?.data ?? []
   const totalItems = payload?.total ?? 0
@@ -98,7 +90,7 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     setPageIndex(0)
-  }, [q, dateSelection])
+  }, [debouncedQ, dateSelection])
 
   useEffect(() => {
     const st = location.state as { focusSearch?: boolean } | null
@@ -251,7 +243,7 @@ export default function TransactionsPage() {
                 }
                 title={
                   customIncomplete
-                    ? 'Set start and end dates for a custom range'
+                    ? 'Set start and end date & time for a custom range'
                     : totalItems === 0
                       ? 'No rows match the current filters'
                       : exporting
@@ -268,7 +260,7 @@ export default function TransactionsPage() {
             customIncomplete ? (
               <p className="text-sm text-amber-800">
                 Open <strong>Date range</strong>, pick{' '}
-                <strong>Custom range</strong>, set start and end, then press{' '}
+                <strong>Custom range</strong>, set start and end date &amp; time, then press{' '}
                 <strong>Done</strong>.
               </p>
             ) : null

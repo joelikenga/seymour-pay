@@ -1,4 +1,4 @@
-import { formatDayStamp } from './formatters'
+import { DISPLAY_TIMEZONE, formatDayStamp, formatDateTime } from './formatters'
 
 /** Earliest year offered in admin date filters (year dropdown + month tiles). */
 export const TRANSACTION_FILTER_MIN_YEAR = 2026
@@ -79,13 +79,85 @@ export function toLocalYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** Inclusive `from` / `to` strings for `GET /admin/transactions` when not “all time”. */
+export type TransactionApiDateRange = {
+  from?: string
+  to?: string
+  /** Set for custom ranges (and available for reconciliation cashier APIs). */
+  from_datetime?: string
+  to_datetime?: string
+}
+
+/** Parse `datetime-local` or legacy `YYYY-MM-DD` custom filter values. */
+export function parseCustomRangeBound(
+  value: string,
+  which: 'start' | 'end',
+): Date | null {
+  const t = value.trim()
+  if (!t) return null
+  if (t.includes('T')) {
+    const d = new Date(t)
+    if (Number.isNaN(d.getTime())) return null
+    return d
+  }
+  const d = new Date(`${t}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return null
+  return which === 'start' ? startOfLocalDay(d) : endOfLocalDay(d)
+}
+
+/** Trigger label for custom `datetime-local` start/end (admin date filters). */
+export function labelForCustomDatetimeRange(start: string, end: string): string {
+  if (!start.trim() || !end.trim()) {
+    return 'Custom range (set date & time)'
+  }
+  const display = (v: string) => {
+    const d = new Date(v)
+    if (!Number.isNaN(d.getTime()) && v.includes('T')) {
+      return d.toLocaleString('en-NG', {
+        timeZone: DISPLAY_TIMEZONE,
+        dateStyle: 'short',
+        timeStyle: 'short',
+      })
+    }
+    return v.replace('T', ' ')
+  }
+  return `${display(start)} → ${display(end)}`
+}
+
+/** Summary for the date-filter trigger across admin pages. */
+export function labelForTransactionDateFilter(
+  filterValue: string,
+  customStart: string,
+  customEnd: string,
+): string {
+  if (filterValue === 'all') return 'All time'
+  if (filterValue === 'today') return 'Today'
+  if (filterValue === '7d') return 'Last 7 days'
+  if (filterValue === '30d') return 'Last 30 days'
+  if (filterValue === 'custom') {
+    return labelForCustomDatetimeRange(customStart, customEnd)
+  }
+  if (filterValue.startsWith('month:')) {
+    return labelForMonthFilterValue(filterValue) ?? 'Month'
+  }
+  return 'Month'
+}
+
+/**
+ * Inclusive range for admin APIs.
+ * Custom ranges use ISO datetimes (`from` / `to` and `from_datetime` / `to_datetime`).
+ * Presets and month tiles use calendar `YYYY-MM-DD` for `from` / `to`.
+ */
 export function dateSelectionToApiRange(
   selection: DateFilterSelection,
   now: Date = new Date(),
-): { from?: string; to?: string } {
+): TransactionApiDateRange {
   const bounds = getFilterBounds(selection, now)
   if (!bounds) return {}
+  if (selection.kind === 'custom') {
+    const from = bounds.start.toISOString()
+    const to = bounds.end.toISOString()
+    return { from, to, from_datetime: from, to_datetime: to }
+  }
   return { from: toLocalYmd(bounds.start), to: toLocalYmd(bounds.end) }
 }
 
@@ -97,6 +169,13 @@ export function describeDateSelectionForExportLog(
   selection: DateFilterSelection,
   now: Date = new Date(),
 ): string {
+  if (selection.kind === 'custom') {
+    const start = parseCustomRangeBound(selection.start, 'start')
+    const end = parseCustomRangeBound(selection.end, 'end')
+    if (start && end) {
+      return `date range: from ${formatDateTime(start.toISOString())} to ${formatDateTime(end.toISOString())}`
+    }
+  }
   const { from, to } = dateSelectionToApiRange(selection, now)
   if (!from || !to) {
     return 'date range: all dates'
@@ -109,6 +188,12 @@ export function dateSelectionToQueryKey(
   selection: DateFilterSelection,
   now: Date = new Date(),
 ): string {
+  if (selection.kind === 'custom') {
+    const s = selection.start.trim()
+    const e = selection.end.trim()
+    if (!s || !e) return 'all'
+    return `custom|${s}|${e}`
+  }
   const { from, to } = dateSelectionToApiRange(selection, now)
   if (!from || !to) return 'all'
   return `${from}|${to}`
@@ -156,9 +241,9 @@ export function getFilterBounds(
     return { start, end }
   }
   if (selection.kind === 'custom') {
-    const start = startOfLocalDay(new Date(`${selection.start}T12:00:00`))
-    const end = endOfLocalDay(new Date(`${selection.end}T12:00:00`))
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
+    const start = parseCustomRangeBound(selection.start, 'start')
+    const end = parseCustomRangeBound(selection.end, 'end')
+    if (!start || !end) return null
     if (start.getTime() > end.getTime()) return { start: end, end: start }
     return { start, end }
   }

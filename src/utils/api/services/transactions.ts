@@ -14,6 +14,7 @@ export type AdminGetTransactionsListParams = {
 /** Paginated ledger: `{ data, page, page_size, total, total_pages }`. */
 export const adminGetTransactionsList = async (
   params: AdminGetTransactionsListParams,
+  signal?: AbortSignal,
 ): Promise<unknown> => {
   const page_size = params.page_size ?? 12;
   const hasRange =
@@ -21,11 +22,15 @@ export const adminGetTransactionsList = async (
     params.from.trim() !== "" &&
     typeof params.to === "string" &&
     params.to.trim() !== "";
+  const trimmedSearch = params.search?.trim() ?? "";
   const data = await axios$.get("/admin/transactions", {
+    signal,
     params: {
       page: params.page,
       page_size,
-      ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+      ...(trimmedSearch
+        ? { search: trimmedSearch, q: trimmedSearch }
+        : {}),
       ...(hasRange
         ? { from: params.from!.trim(), to: params.to!.trim() }
         : {}),

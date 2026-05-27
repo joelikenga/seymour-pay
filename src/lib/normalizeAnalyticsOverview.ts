@@ -1,5 +1,5 @@
 import type { AnalyticsOverviewResponse } from '../types/analyticsOverview'
-import { normalizePaymentChannel } from './normalizeTransaction'
+import { normalizeOverviewChannel } from './normalizeOverviewChannel'
 
 function num(v: unknown, fallback = 0): number {
   if (typeof v === 'number' && Number.isFinite(v)) return v
@@ -27,7 +27,7 @@ function mapChannelBreakdown(raw: unknown): AnalyticsOverviewResponse['channel_b
   return raw.map((row) => {
     const r = asRecord(row) ?? {}
     return {
-      channel: normalizePaymentChannel(r.channel),
+      channel: normalizeOverviewChannel(r.channel),
       count: num(r.count),
       share_pct: num(r.share_pct),
       volume: num(r.volume),

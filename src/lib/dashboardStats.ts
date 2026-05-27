@@ -452,8 +452,14 @@ export interface OverviewDashboardStats {
   wow: number | null
   totalCount: number
   channelsUsed: number
-  /** Volume mix by vehicle class from the dashboard overview API. */
-  vehicleBreakdown: { vehicleType: VehicleType; count: number; volume: number }[]
+  /** Vehicle types panel rows from dashboard overview `vehicle_breakdown` only. */
+  vehicleBreakdown: {
+    vehicleType: VehicleType
+    count: number
+    volume: number
+    amount: number
+    extraCharge: number
+  }[]
   customerTraffic: { label: string; key: string; count: number }[]
   trafficYear: number
   trafficTotal: number
@@ -487,11 +493,7 @@ export function emptyOverviewDashboardStats(): OverviewDashboardStats {
     reconciled: { count: 0, volume: 0 },
   }
   const fidelityMix = FIDELITY_RAILS.map((c) => ({ channel: c, count: 0, pct: 0 }))
-  const vehicleBreakdown = VEHICLE_TYPES.map((vehicleType) => ({
-    vehicleType,
-    count: 0,
-    volume: 0,
-  }))
+  const vehicleBreakdown: OverviewDashboardStats['vehicleBreakdown'] = []
   const customerTraffic = TRAFFIC_MONTH_LABELS.map((label, idx) => ({
     label,
     key: `${trafficYear}-${String(idx + 1).padStart(2, '0')}`,
@@ -653,6 +655,8 @@ export function computeOverviewDashboardStats(
   const vehicleBreakdown = VEHICLE_TYPES.map((vehicleType) => ({
     vehicleType,
     ...byVehicle.get(vehicleType)!,
+    amount: 0,
+    extraCharge: 0,
   }))
 
   const totalCount = rows.length

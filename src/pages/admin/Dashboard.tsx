@@ -36,12 +36,7 @@ import {
   channelLabel,
   channelPillClass,
 } from '../../lib/channelStyles'
-import {
-  VEHICLE_TYPES,
-  vehicleLabel,
-  vehicleParkingRates,
-  vehiclePillClass,
-} from '../../lib/vehicleStyles'
+import { vehicleLabel, vehiclePillClass } from '../../lib/vehicleStyles'
 import {
   formatDateShort,
   formatMoney,
@@ -428,37 +423,57 @@ export default function Dashboard() {
                 Vehicle types
               </h3>
             </div>
-            <div className="space-y-3">
-              {VEHICLE_TYPES.map((vehicleType) => {
-                const { defaultRate, extraHourRate } =
-                  vehicleParkingRates[vehicleType]
-                return (
+            <div className="space-y-3" aria-busy={overviewLoading}>
+              {overviewLoading ? (
+                Array.from({ length: 5 }, (_, i) => (
                   <div
-                    key={vehicleType}
-                    className="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-linear-to-r from-white to-zinc-50/80 p-4 shadow-sm ring-1 ring-zinc-950/3 transition hover:border-orange-100 hover:shadow-md"
+                    key={i}
+                    className="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 ring-1 ring-zinc-100"
                   >
-                    <VehicleTypeIconBadge
-                      type={vehicleType}
-                      title={vehicleLabel[vehicleType]}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[vehicleType]}`}
-                      >
-                        {vehicleLabel[vehicleType]}
-                      </span>
+                    <div className="h-11 w-11 shrink-0 animate-pulse rounded-xl bg-zinc-200/80" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="h-5 w-20 animate-pulse rounded-full bg-zinc-200/80" />
                     </div>
-                    <div className="flex flex-col items-end">
-                      <span className="text-lg font-bold tabular-nums text-zinc-900">
-                        {formatMoney(defaultRate)}
-                      </span>
-                      <span className="text-[11px] font-medium tabular-nums text-zinc-500">
-                        extra hour {formatMoney(extraHourRate)}
-                      </span>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="h-6 w-16 animate-pulse rounded bg-zinc-200/80" />
+                      <div className="h-3 w-24 animate-pulse rounded bg-zinc-200/70" />
                     </div>
                   </div>
+                ))
+              ) : stats.vehicleBreakdown.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-6 text-center text-sm text-zinc-500">
+                  No vehicle types returned from the server.
+                </p>
+              ) : (
+                stats.vehicleBreakdown.map(
+                  ({ vehicleType, amount, extraCharge }) => (
+                    <div
+                      key={vehicleType}
+                      className="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-linear-to-r from-white to-zinc-50/80 p-4 shadow-sm ring-1 ring-zinc-950/3 transition hover:border-orange-100 hover:shadow-md"
+                    >
+                      <VehicleTypeIconBadge
+                        type={vehicleType}
+                        title={vehicleLabel[vehicleType]}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[vehicleType]}`}
+                        >
+                          {vehicleLabel[vehicleType]}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-lg font-bold tabular-nums text-zinc-900">
+                          {formatMoney(amount)}
+                        </span>
+                        <span className="text-[11px] font-medium tabular-nums text-zinc-500">
+                          extra hour {formatMoney(extraCharge)}
+                        </span>
+                      </div>
+                    </div>
+                  ),
                 )
-              })}
+              )}
             </div>
           </div>
         </section>

@@ -1,5 +1,6 @@
 import type { DashboardOverviewResponse } from '../types/dashboardOverview'
-import { normalizePaymentChannel, normalizeVehicleType } from './normalizeTransaction'
+import { normalizeOverviewChannel } from './normalizeOverviewChannel'
+import { normalizeVehicleType } from './normalizeTransaction'
 
 function num(v: unknown, fallback = 0): number {
   if (typeof v === 'number' && Number.isFinite(v)) return v
@@ -28,7 +29,7 @@ function mapChannelBreakdown(raw: unknown): DashboardOverviewResponse['channel_b
   return raw.map((row) => {
     const r = asRecord(row) ?? {}
     return {
-      channel: normalizePaymentChannel(r.channel),
+      channel: normalizeOverviewChannel(r.channel),
       count: num(r.count),
       share_pct: num(r.share_pct),
       volume: num(r.volume),
@@ -65,7 +66,9 @@ function mapVehicleBreakdown(raw: unknown): DashboardOverviewResponse['vehicle_b
   return raw.map((row) => {
     const r = asRecord(row) ?? {}
     return {
+      amount: num(r.amount),
       count: num(r.count),
+      extra_charge: num(r.extra_charge ?? r.extraCharge),
       vehicle_type: normalizeVehicleType(r.vehicle_type ?? r.vehicleType),
       volume: num(r.volume),
     }

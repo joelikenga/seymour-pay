@@ -6,9 +6,13 @@ import PaymentTypeCard from '../../components/admin/PaymentTypeCard'
 import { mapAnalyticsDailySeriesToChartPoints } from '../../lib/mapAnalyticsDailySeriesToChart'
 import { PAYMENT_CHANNELS } from '../../lib/channelStyles'
 import {
+  isKnownPaymentChannel,
+  type OverviewChannel,
+} from '../../lib/normalizeOverviewChannel'
+import {
   type DateFilterSelection,
   dateSelectionToApiRange,
-  labelForMonthFilterValue,
+  labelForTransactionDateFilter,
   parseFilterValue,
 } from '../../lib/transactionDateFilter'
 import { useAnalyticsOverviewQuery } from '../../query/analyticsOverview'
@@ -17,13 +21,22 @@ import type { PaymentChannel } from '../../types/transaction'
 function sharePctForChannel(
   cardsTotalVolume: number,
   channel: PaymentChannel,
-  breakdown: { channel: PaymentChannel; share_pct: number; volume: number }[],
+  breakdown: { channel: OverviewChannel; share_pct: number; volume: number }[],
 ): number {
-  const row = breakdown.find((r) => r.channel === channel)
-  if (row && Number.isFinite(row.share_pct)) return Math.round(row.share_pct)
+  const row = breakdown.find(
+    (r) => isKnownPaymentChannel(r.channel) && r.channel === channel,
+  )
   const vol = row?.volume ?? 0
+  const shareFromApi = row?.share_pct
+  if (
+    shareFromApi !== undefined &&
+    Number.isFinite(shareFromApi) &&
+    vol > 0
+  ) {
+    return shareFromApi
+  }
   const denom = Math.max(1, cardsTotalVolume)
-  return Math.round((vol / denom) * 100)
+  return (vol / denom) * 100
 }
 
 export default function AnalyticsPage() {
@@ -78,12 +91,21 @@ export default function AnalyticsPage() {
       { volume: number; count: number; sharePct: number }
     >()
     for (const ch of PAYMENT_CHANNELS) {
-      const row = cardsData.channel_breakdown.find((r) => r.channel === ch)
-      map.set(ch, {
-        volume: row?.volume ?? 0,
-        count: row?.count ?? 0,
-        sharePct: Math.round(row?.share_pct ?? 0),
-      })
+      const row = cardsData.channel_breakdown.find(
+        (r) => isKnownPaymentChannel(r.channel) && r.channel === ch,
+      )
+      const volume = row?.volume ?? 0
+      const count = row?.count ?? 0
+      const shareFromApi = row?.share_pct
+      const sharePct =
+        shareFromApi !== undefined &&
+        Number.isFinite(shareFromApi) &&
+        volume > 0
+          ? shareFromApi
+          : cardsData.total_volume > 0
+            ? (volume / cardsData.total_volume) * 100
+            : 0
+      map.set(ch, { volume, count, sharePct })
     }
     return {
       map,
@@ -120,20 +142,10 @@ export default function AnalyticsPage() {
     cardsData,
   ])
 
-  const filterSummary = useMemo(() => {
-    if (filterValue === 'all') return 'All time'
-    if (filterValue === 'today') return 'Today'
-    if (filterValue === '7d') return 'Last 7 days'
-    if (filterValue === '30d') return 'Last 30 days'
-    if (filterValue === 'custom') {
-      if (!customStart || !customEnd) return 'Custom range (set dates)'
-      return `Custom: ${customStart} → ${customEnd}`
-    }
-    if (filterValue.startsWith('month:')) {
-      return labelForMonthFilterValue(filterValue) ?? 'Month'
-    }
-    return 'Month'
-  }, [filterValue, customStart, customEnd])
+  const filterSummary = useMemo(
+    () => labelForTransactionDateFilter(filterValue, customStart, customEnd),
+    [filterValue, customStart, customEnd],
+  )
 
   return (
     <div className="space-y-8">
@@ -160,7 +172,7 @@ export default function AnalyticsPage() {
         <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
           Payment types
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2.5 min-[420px]:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6">
           <PaymentTypeCard
             variant="all"
             volume={channelTotals?.grand ?? 0}
@@ -211,7 +223,8 @@ export default function AnalyticsPage() {
       {customIncomplete ? (
         <p className="text-sm text-amber-800">
           Open <strong>Date range</strong> in the chart panel, choose{' '}
-          <strong>Custom range</strong>, set dates, then <strong>Done</strong>.
+          <strong>Custom range</strong>, set start and end date &amp; time, then{' '}
+          <strong>Done</strong>.
         </p>
       ) : null}
 

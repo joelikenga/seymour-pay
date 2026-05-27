@@ -9,7 +9,7 @@ import { formatDateTime, formatMoney } from '../../../lib/formatters'
 import { statusPillClass } from '../../../lib/statusStyles'
 import { vehicleLabel, vehiclePillClass } from '../../../lib/vehicleStyles'
 import {
-  labelForMonthFilterValue,
+  labelForTransactionDateFilter,
   parseFilterValue,
   dateSelectionToApiRange,
   type DateFilterSelection,
@@ -61,20 +61,10 @@ export default function LossTicketTab() {
     setPageIndex(0)
   }, [query, dateSelection])
 
-  const filterSummary = useMemo(() => {
-    if (filterValue === 'all') return 'All time'
-    if (filterValue === 'today') return 'Today'
-    if (filterValue === '7d') return 'Last 7 days'
-    if (filterValue === '30d') return 'Last 30 days'
-    if (filterValue === 'custom') {
-      if (!customStart || !customEnd) return 'Custom range (set dates)'
-      return `Custom: ${customStart} → ${customEnd}`
-    }
-    if (filterValue.startsWith('month:')) {
-      return labelForMonthFilterValue(filterValue) ?? 'Month'
-    }
-    return 'Month'
-  }, [filterValue, customStart, customEnd])
+  const filterSummary = useMemo(
+    () => labelForTransactionDateFilter(filterValue, customStart, customEnd),
+    [filterValue, customStart, customEnd],
+  )
 
   return (
     <div className="min-w-0">
@@ -124,7 +114,7 @@ export default function LossTicketTab() {
 
       {customIncomplete ? (
         <p className="border-b border-amber-100 bg-amber-50/60 px-5 py-3 text-sm text-amber-800">
-          Set a custom date range using <strong>Date range</strong> above.
+          Set a custom date &amp; time range using <strong>Date range</strong> above.
         </p>
       ) : null}
 

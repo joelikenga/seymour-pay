@@ -3,7 +3,7 @@ import { formatDayStamp, formatYmdRange } from './formatters'
 import type { DashboardOverviewResponse } from '../types/dashboardOverview'
 import type { PaymentChannel } from '../types/transaction'
 import type { OverviewDashboardStats } from './dashboardStats'
-import { VEHICLE_TYPES } from './vehicleStyles'
+import { VEHICLE_TYPES, vehicleParkingRates } from './vehicleStyles'
 import {
   emptyOverviewDashboardStats,
   FIDELITY_RAILS,
@@ -111,25 +111,35 @@ export function mapOverviewToDashboardStats(
 
   const routedTotal = FIDELITY_RAILS.reduce((sum, ch) => {
     const row = channel_breakdown.find(
-      (r) => isPaymentChannel(r.channel) && r.channel === ch,
+      (r) => r.channel !== '' && isPaymentChannel(r.channel) && r.channel === ch,
     )
     return sum + num(row?.count)
   }, 0)
 
   const fidelityMix = FIDELITY_RAILS.map((c) => {
     const row = channel_breakdown.find(
-      (r) => isPaymentChannel(r.channel) && r.channel === c,
+      (r) => r.channel !== '' && isPaymentChannel(r.channel) && r.channel === c,
     )
     const count = num(row?.count)
+    const volume = num(row?.volume)
+    const shareFromApi = row?.share_pct
+    const pct =
+      shareFromApi !== undefined &&
+      Number.isFinite(shareFromApi) &&
+      volume > 0
+        ? num(shareFromApi)
+        : routedTotal > 0
+          ? (count / routedTotal) * 100
+          : 0
     return {
       channel: c,
       count,
-      pct: routedTotal > 0 ? (count / routedTotal) * 100 : 0,
+      pct,
     }
   })
 
   const channelsUsed = channel_breakdown.filter((r) => {
-    if (!isPaymentChannel(r.channel)) return false
+    if (r.channel === '' || !isPaymentChannel(r.channel)) return false
     return num(r.count) > 0 || num(r.volume) > 0
   }).length
 
@@ -148,14 +158,30 @@ export function mapOverviewToDashboardStats(
       : emptyOverviewDashboardStats().customerTraffic
   const trafficTotal = customerTraffic.reduce((a, r) => a + r.count, 0)
 
-  const vehicleBreakdown = VEHICLE_TYPES.map((vehicleType) => {
-    const row = vehicle_breakdown.find((r) => r.vehicle_type === vehicleType)
-    return {
-      vehicleType,
-      count: num(row?.count),
-      volume: num(row?.volume),
-    }
-  })
+  /** Vehicle types panel — API `vehicle_breakdown` plus static Coaster tariffs. */
+  const coasterTariff = vehicleParkingRates.coaster
+  const coasterFromApi = vehicle_breakdown.find((r) => r.vehicle_type === 'coaster')
+  const vehicleBreakdown = [
+    ...vehicle_breakdown
+      .filter((row) => row.vehicle_type !== 'coaster')
+      .map((row) => ({
+        vehicleType: row.vehicle_type,
+        count: num(row.count),
+        volume: num(row.volume),
+        amount: num(row.amount),
+        extraCharge: num(row.extra_charge),
+      })),
+    {
+      vehicleType: 'coaster' as const,
+      count: num(coasterFromApi?.count),
+      volume: num(coasterFromApi?.volume),
+      amount: coasterTariff.defaultRate,
+      extraCharge: coasterTariff.extraHourRate,
+    },
+  ].sort(
+    (a, b) =>
+      VEHICLE_TYPES.indexOf(a.vehicleType) - VEHICLE_TYPES.indexOf(b.vehicleType),
+  )
 
   const grand = total_volume
   const computedAvgTicket =

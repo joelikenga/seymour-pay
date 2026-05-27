@@ -158,7 +158,9 @@ export default function TransactionDateFilterDropdown({
             />
           </svg>
         </span>
-        <span className="max-w-40 truncate">{triggerLabel}</span>
+        <span className="max-w-[min(100%,14rem)] truncate sm:max-w-xs">
+          {triggerLabel}
+        </span>
         <span
           className={`text-zinc-400 transition ${open ? 'rotate-180' : ''}`}
           aria-hidden
@@ -429,29 +431,34 @@ export default function TransactionDateFilterDropdown({
 
           {filterValue === 'custom' ? (
             <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
-              <div className="grid grid-cols-2 gap-2">
-                <label className="flex flex-col gap-1">
+              <p className="mb-2 text-[10px] font-medium leading-snug text-zinc-500">
+                Pick start and end date &amp; time (local).
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
+                <label className="flex min-w-0 flex-col gap-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Start
+                    Start date &amp; time
                   </span>
                   <input
-                    type="date"
-                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01`}
+                    type="datetime-local"
+                    step={1}
+                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
                     value={customStart}
                     onChange={(e) => onCustomStartChange(e.target.value)}
-                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
+                    className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   />
                 </label>
-                <label className="flex flex-col gap-1">
+                <label className="flex min-w-0 flex-col gap-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    End
+                    End date &amp; time
                   </span>
                   <input
-                    type="date"
-                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01`}
+                    type="datetime-local"
+                    step={1}
+                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
                     value={customEnd}
                     onChange={(e) => onCustomEndChange(e.target.value)}
-                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
+                    className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   />
                 </label>
               </div>

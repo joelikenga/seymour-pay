@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { toast } from 'sonner'
 import EditTransactionModal from '../../../components/admin/EditTransactionModal'
 import AdminPagination from '../../../components/admin/AdminPagination'
@@ -28,6 +29,7 @@ export default function ReconciliationAlignTab() {
   const [modalOpen, setModalOpen] = useState(false)
 
   const [query, setQuery] = useState('')
+  const debouncedQuery = useDebouncedValue(query, 300)
   const [pageIndex, setPageIndex] = useState(0)
   /** Map row id → ticket reference for API bulk delete (`ids` = references). */
   const [selectedById, setSelectedById] = useState<Map<string, string>>(
@@ -38,7 +40,7 @@ export default function ReconciliationAlignTab() {
 
   const listQuery = useTransactionsListQuery(
     pageIndex,
-    query,
+    debouncedQuery,
     { kind: 'all' },
     RECONCILIATION_PAGE_SIZE,
   )
@@ -58,7 +60,7 @@ export default function ReconciliationAlignTab() {
 
   useEffect(() => {
     setPageIndex(0)
-  }, [query])
+  }, [debouncedQuery])
 
   const visibleIds = useMemo(() => paginated.map((t) => t.id), [paginated])
   const visibleSelectedCount = useMemo(

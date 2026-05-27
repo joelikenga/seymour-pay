@@ -8,7 +8,7 @@ import { channelLabel, channelPillClass } from '../../../lib/channelStyles'
 import { formatDateShort, formatMoney } from '../../../lib/formatters'
 import {
   dateSelectionToApiRange,
-  labelForMonthFilterValue,
+  labelForTransactionDateFilter,
   parseFilterValue,
   type DateFilterSelection,
 } from '../../../lib/transactionDateFilter'
@@ -68,20 +68,10 @@ export default function CashierTransactionsTab() {
     setPageIndex(0)
   }, [selectedCashpoint?.id, dateSelection])
 
-  const filterSummary = useMemo(() => {
-    if (filterValue === 'all') return 'All time'
-    if (filterValue === 'today') return 'Today'
-    if (filterValue === '7d') return 'Last 7 days'
-    if (filterValue === '30d') return 'Last 30 days'
-    if (filterValue === 'custom') {
-      if (!customStart || !customEnd) return 'Custom range (set dates)'
-      return `Custom: ${customStart} → ${customEnd}`
-    }
-    if (filterValue.startsWith('month:')) {
-      return labelForMonthFilterValue(filterValue) ?? 'Month'
-    }
-    return 'Month'
-  }, [filterValue, customStart, customEnd])
+  const filterSummary = useMemo(
+    () => labelForTransactionDateFilter(filterValue, customStart, customEnd),
+    [filterValue, customStart, customEnd],
+  )
 
   const dateFilterControl = (
     <TransactionDateFilterDropdown
@@ -160,7 +150,7 @@ export default function CashierTransactionsTab() {
 
         {customIncomplete ? (
           <p className="border-b border-amber-100 bg-amber-50/60 px-5 py-3 text-sm text-amber-800">
-            Set a custom date range using the filter above.
+            Set a custom date &amp; time range using the filter above.
           </p>
         ) : null}
 
