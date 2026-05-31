@@ -149,7 +149,7 @@ export default function ScanCameraSwitch({
   return (
     <div
       ref={wrapperRef}
-      className="pointer-events-auto absolute inset-0 z-20"
+      className="pointer-events-none absolute inset-0 z-20"
     >
       <button
         type="button"
@@ -158,15 +158,15 @@ export default function ScanCameraSwitch({
         aria-haspopup={options.length > 2 ? 'listbox' : undefined}
         aria-expanded={options.length > 2 ? open : undefined}
         aria-controls={open && options.length > 2 ? menuId : undefined}
-        aria-label={
-          options.length === 2 ? 'Switch camera' : 'Choose camera'
-        }
+        aria-label="Switch camera"
+        title="Switch camera"
         disabled={disabled}
         onClick={onSwitchClick}
         onKeyDown={onTriggerKeyDown}
-        className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-zinc-950/65 text-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.65)] outline-none backdrop-blur-md transition hover:border-white/35 hover:bg-zinc-900/80 focus-visible:ring-2 focus-visible:ring-orange-400/70 disabled:cursor-not-allowed disabled:opacity-50"
+        className="pointer-events-auto absolute right-2 top-2 flex items-center gap-1.5 rounded-full border border-white/20 bg-zinc-950/65 px-3 py-2 text-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.65)] outline-none backdrop-blur-md transition hover:border-white/35 hover:bg-zinc-900/80 focus-visible:ring-2 focus-visible:ring-orange-400/70 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <SwitchCameraIcon />
+        <span className="text-xs font-semibold leading-none">Switch camera</span>
       </button>
 
       {open && options.length > 2 ? (
@@ -174,7 +174,7 @@ export default function ScanCameraSwitch({
           <button
             type="button"
             aria-label="Close camera list"
-            className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+            className="pointer-events-auto absolute inset-0 bg-black/45 backdrop-blur-[2px]"
             onClick={closeMenu}
           />
           <div
@@ -183,7 +183,7 @@ export default function ScanCameraSwitch({
             role="listbox"
             aria-labelledby={triggerId}
             tabIndex={-1}
-            className="absolute left-3 right-3 top-1/2 z-10 max-h-[min(220px,70%)] -translate-y-1/2 overflow-y-auto rounded-2xl border border-white/15 bg-zinc-950/92 p-1.5 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.85)] ring-1 ring-white/10 backdrop-blur-xl"
+            className="pointer-events-auto absolute left-3 right-3 top-1/2 z-10 max-h-[min(220px,70%)] -translate-y-1/2 overflow-y-auto rounded-2xl border border-white/15 bg-zinc-950/92 p-1.5 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.85)] ring-1 ring-white/10 backdrop-blur-xl"
           >
             <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
               Select camera
