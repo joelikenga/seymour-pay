@@ -5,6 +5,7 @@ import { toastRequestFailed } from '../../lib/apiErrors'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
+import ExportDropdown from '../../components/admin/ExportDropdown'
 import TableSearchInput from '../../components/admin/TableSearchInput'
 import TableToolbar from '../../components/admin/TableToolbar'
 import TransactionDateFilterDropdown from '../../components/admin/TransactionDateFilterDropdown'
@@ -21,7 +22,6 @@ import {
   describeDateSelectionForExportLog,
   labelForTransactionDateFilter,
   parseFilterValue,
-  transactionsToCsv,
   type DateFilterSelection,
 } from '../../lib/transactionDateFilter'
 import {
@@ -29,19 +29,16 @@ import {
   TRANSACTIONS_PAGE_SIZE,
   useTransactionsListQuery,
 } from '../../query/transactionsList'
-
-function downloadCsv(filename: string, content: string) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
-}
+import type { TransactionExportFormat } from '../../lib/exportTransactionsFormat'
+import {
+  adminModalBackdrop,
+  adminModalBody,
+  adminModalCloseBtn,
+  adminModalHeader,
+  adminModalPanel,
+  adminModalSubtitle,
+  adminModalTitle,
+} from '../../lib/adminModalStyles'
 
 export default function TransactionsPage() {
   const { appendLog } = useAdminData()
@@ -114,25 +111,31 @@ export default function TransactionsPage() {
     }
   }, [location.state, location.pathname, location.search, navigate])
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(async (exportFormat: TransactionExportFormat) => {
     if (exporting || totalItems === 0) return
     setExporting(true)
     try {
       const exported = await fetchTransactionsForExport(q, dateSelection)
-      const csv = transactionsToCsv(
-        exported.map((t) => ({
-          reference: t.reference,
-          customerName: t.customerName,
-          vehicleType: vehicleLabel[t.vehicleType],
-          channel: channelLabel[t.channel],
-          amount: t.amount,
-          status: t.status,
-          createdAt: t.createdAt,
-          notes: t.notes,
-        })),
-      )
+      const rows = exported.map((t) => ({
+        reference: t.reference,
+        customerName: t.customerName,
+        vehicleType: vehicleLabel[t.vehicleType],
+        channel: channelLabel[t.channel],
+        amount: t.amount,
+        status: t.status,
+        createdAt: t.createdAt,
+        notes: t.notes,
+      }))
       const stamp = new Date().toISOString().slice(0, 10)
-      downloadCsv(`transactions-export-${stamp}.csv`, csv)
+      const { downloadTransactionExport, labelForExportFormat } = await import(
+        '../../lib/exportTransactions'
+      )
+      const formatLabel = labelForExportFormat(exportFormat)
+      downloadTransactionExport(
+        rows,
+        exportFormat,
+        `transactions-export-${stamp}`,
+      )
       const who = getAuditActorLabel()
       const exportTotal = totalVolume(exported)
       const dateRangeLine = describeDateSelectionForExportLog(dateSelection)
@@ -143,10 +146,10 @@ export default function TransactionsPage() {
       appendLog({
         action: 'export',
         summary: `${who} exported transactions data`,
-        detail: `${who} exported CSV - ${filterDesc}; total amount ${formatMoney(exportTotal)} (${exported.length} row${exported.length === 1 ? '' : 's'}).`,
+        detail: `${who} exported ${formatLabel} - ${filterDesc}; total amount ${formatMoney(exportTotal)} (${exported.length} row${exported.length === 1 ? '' : 's'}).`,
       })
       toast.success('Export ready', {
-        description: `${exported.length} row${exported.length === 1 ? '' : 's'} downloaded as CSV.`,
+        description: `${exported.length} row${exported.length === 1 ? '' : 's'} downloaded as ${formatLabel}.`,
       })
     } catch (e) {
       toastRequestFailed('Export failed', e)
@@ -232,28 +235,15 @@ export default function TransactionsPage() {
                 onCustomStartChange={setCustomStart}
                 onCustomEndChange={setCustomEnd}
               />
-              <button
-                type="button"
-                onClick={() => void handleExport()}
+              <ExportDropdown
+                onExport={(format) => void handleExport(format)}
+                exporting={exporting}
                 disabled={
-                  exporting ||
                   listQuery.isPending ||
                   totalItems === 0 ||
                   customIncomplete
                 }
-                title={
-                  customIncomplete
-                    ? 'Set start and end date & time for a custom range'
-                    : totalItems === 0
-                      ? 'No rows match the current filters'
-                      : exporting
-                        ? 'Export in progress…'
-                        : `Export up to ${Math.min(totalItems, 5000)} row(s) as CSV`
-                }
-                className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-950 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {exporting ? 'Exporting…' : 'Export CSV'}
-              </button>
+              />
             </>
           }
           footer={
@@ -270,7 +260,7 @@ export default function TransactionsPage() {
             inputRef={searchInputRef}
             value={q}
             onChange={setQ}
-            placeholder="Search ticket ID, customer, notes…"
+            placeholder="Search ticket ID…"
             ariaLabel="Search transactions"
           />
         </TableToolbar>
@@ -317,7 +307,7 @@ export default function TransactionsPage() {
                     colSpan={6}
                     className="px-5 py-10 text-center text-sm text-zinc-500"
                   >
-                    No transactions match this search or date range.
+                    No transactions match this ticket ID or date range.
                   </td>
                 </tr>
               ) : (
@@ -374,63 +364,58 @@ export default function TransactionsPage() {
       </section>
 
       {activeTx ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
           <button
             type="button"
             aria-label="Close transaction details"
             onClick={() => setActiveTx(null)}
-            className="absolute inset-0 bg-zinc-950/55 backdrop-blur-[2px]"
+            className={adminModalBackdrop}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="transaction-details-title"
-            className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-zinc-200/90 bg-white shadow-[0_40px_120px_-30px_rgba(15,23,42,0.45)] ring-1 ring-zinc-950/5"
+            className={`${adminModalPanel} max-w-lg`}
           >
-            <div className="border-b border-zinc-100 bg-linear-to-br from-orange-50/95 via-white to-amber-50/60 px-6 py-5 sm:px-7">
-              <div className="flex items-start justify-between gap-4">
+            <div className={adminModalHeader}>
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-orange-700/90">
+                  <h2 id="transaction-details-title" className={adminModalTitle}>
                     Transaction details
-                  </p>
-                  <h2
-                    id="transaction-details-title"
-                    className="mt-1.5 truncate font-mono text-lg font-bold text-zinc-950"
-                    title={activeTx.reference}
-                  >
-                    {activeTx.reference}
                   </h2>
-                  <p className="mt-1 text-xs text-zinc-600">ID {activeTx.id}</p>
+                  <p className={`${adminModalSubtitle} truncate font-mono`} title={activeTx.reference}>
+                    {activeTx.reference}
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveTx(null)}
-                  className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50"
+                  className={adminModalCloseBtn}
                 >
                   Close
                 </button>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <span
-                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${statusPillClass[activeTx.status]}`}
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium uppercase ring-1 ring-inset ${statusPillClass[activeTx.status]}`}
                 >
                   {activeTx.status}
                 </span>
                 <span
-                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${channelPillClass[activeTx.channel]}`}
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium uppercase ring-1 ring-inset ${channelPillClass[activeTx.channel]}`}
                 >
                   {channelLabel[activeTx.channel]}
                 </span>
                 <span
-                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[activeTx.vehicleType]}`}
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium uppercase ring-1 ring-inset ${vehiclePillClass[activeTx.vehicleType]}`}
                 >
                   {vehicleLabel[activeTx.vehicleType]}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-4 px-6 py-5 sm:px-7">
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className={`${adminModalBody} space-y-4`}>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <DetailRow label="Customer" value={activeTx.customerName} />
                 <DetailRow label="Amount" value={formatMoney(activeTx.amount)} />
                 <DetailRow label="Date" value={formatDateShort(activeTx.createdAt)} />
@@ -450,11 +435,9 @@ export default function TransactionsPage() {
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 px-4 py-3">
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-semibold text-zinc-900">{value}</p>
+    <div className="rounded-lg border border-zinc-200 px-3 py-2.5">
+      <p className="text-xs text-zinc-500">{label}</p>
+      <p className="mt-0.5 text-sm font-medium text-zinc-900">{value}</p>
     </div>
   )
 }

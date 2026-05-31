@@ -1,13 +1,21 @@
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { payTicketCheckoutUrl, PAY_TICKET_ID_PARAM } from './payFlowShared'
+import {
+  payTicketPaymentUrl,
+  PAY_TICKET_ID_PARAM,
+  resolveLegacyPayQueryRedirect,
+} from './payFlowShared'
 
-/** Legacy `/pay/checkout` URLs redirect to `/pay?ticketID=…` (and `&pay=1` when paying). */
+/** Legacy `/pay/checkout?ticketID=…` redirects to `/pay/ticket/:id/payment`. */
 export default function PayCheckoutPage() {
   const [searchParams] = useSearchParams()
-  const ticketId = searchParams.get(PAY_TICKET_ID_PARAM)?.trim()
+  const legacyRedirect = resolveLegacyPayQueryRedirect(searchParams)
+  if (legacyRedirect) {
+    return <Navigate to={legacyRedirect} replace />
+  }
 
+  const ticketId = searchParams.get(PAY_TICKET_ID_PARAM)?.trim()
   if (ticketId) {
-    return <Navigate to={payTicketCheckoutUrl(ticketId)} replace />
+    return <Navigate to={payTicketPaymentUrl(ticketId)} replace />
   }
 
   return <Navigate to="/pay" replace />

@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { FormEvent } from 'react'
 import QRCode from 'react-qr-code'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   DEFAULT_TICKET_QR_URL,
-  payTicketUrl,
+  payTicketPreviewUrl,
   PAY_PAGE_INNER,
   PAY_PAGE_MAIN,
   PAY_MOBILE_TOP_BAR_OFFSET,
   PAY_MOBILE_NAV_CLEARANCE,
-  PAY_TICKET_ID_PARAM,
+  resolveLegacyPayQueryRedirect,
 } from './payFlowShared'
 import { payBtnPrimary } from './payUi'
 
@@ -73,17 +73,16 @@ export default function PayTicketPage() {
   const [searchParams] = useSearchParams()
   const [ticketInput, setTicketInput] = useState('')
 
-  const ticketIdParam = searchParams.get(PAY_TICKET_ID_PARAM)?.trim() ?? ''
-
-  useEffect(() => {
-    if (ticketIdParam) {
-      navigate(payTicketUrl(ticketIdParam), { replace: true })
-    }
-  }, [ticketIdParam, navigate])
+  const legacyRedirect = resolveLegacyPayQueryRedirect(searchParams)
+  if (legacyRedirect) {
+    return <Navigate to={legacyRedirect} replace />
+  }
 
   const trimmedInput = ticketInput.trim()
   const isCustomTicketQr = trimmedInput.length > 0
-  const qrValue = trimmedInput || DEFAULT_TICKET_QR_URL
+  const qrValue = trimmedInput
+    ? payTicketPreviewUrl(trimmedInput)
+    : DEFAULT_TICKET_QR_URL
   const desktopQrSize = 240
 
   const onSubmit = useCallback(
@@ -91,12 +90,10 @@ export default function PayTicketPage() {
       e.preventDefault()
       const id = trimmedInput
       if (!id) return
-      navigate(payTicketUrl(id))
+      navigate(payTicketPreviewUrl(id))
     },
     [navigate, trimmedInput],
   )
-
-  if (ticketIdParam) return null
 
   return (
     <div className={`${PAY_PAGE_MAIN} ${PAY_MOBILE_TOP_BAR_OFFSET} ${PAY_MOBILE_NAV_CLEARANCE}`}>

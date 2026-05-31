@@ -11,7 +11,7 @@ import {
 } from '../../lib/normalizeOverviewChannel'
 import {
   type DateFilterSelection,
-  dateSelectionToApiRange,
+  dateSelectionToAnalyticsApiRange,
   labelForTransactionDateFilter,
   parseFilterValue,
 } from '../../lib/transactionDateFilter'
@@ -54,7 +54,7 @@ export default function AnalyticsPage() {
   }, [filterValue, customStart, customEnd])
 
   const apiParams = useMemo(
-    () => dateSelectionToApiRange(dateSelection),
+    () => dateSelectionToAnalyticsApiRange(dateSelection),
     [dateSelection],
   )
 

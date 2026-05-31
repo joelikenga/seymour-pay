@@ -1,46 +1,40 @@
-import { useEffect, useState } from 'react'
-import { fetchPayTicketById } from '../../utils/api/services/ticketPayApi'
+import { useQuery } from '@tanstack/react-query'
+import {
+  fetchPayTicketById,
+  isPayTicketNotFoundError,
+} from '../../utils/api/services/ticketPayApi'
 import type { PayTicketDetails } from '../../types/ticketPay'
 
+/** Background refresh so amount due stays current while the user is on the page. */
+const FEE_PREVIEW_REFETCH_MS = 30_000
+
+export function ticketFeePreviewQueryKey(ticketId: string, extraPay = false) {
+  return [
+    'pay',
+    'ticket-fee-preview',
+    ticketId.trim(),
+    extraPay ? 'extra' : 'standard',
+  ] as const
+}
+
 export function usePayTicketLookup(ticketId: string, extraPay = false) {
-  const [ticket, setTicket] = useState<PayTicketDetails | null>(null)
-  const [error, setError] = useState<unknown>(null)
-  const [loading, setLoading] = useState(false)
+  const id = ticketId.trim()
 
-  useEffect(() => {
-    const id = ticketId.trim()
-    if (!id) {
-      setTicket(null)
-      setError(null)
-      setLoading(false)
-      return
-    }
+  const query = useQuery<PayTicketDetails>({
+    queryKey: ticketFeePreviewQueryKey(id, extraPay),
+    queryFn: ({ signal }) => fetchPayTicketById(id, { extra: extraPay, signal }),
+    enabled: id.length > 0,
+    refetchInterval: FEE_PREVIEW_REFETCH_MS,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    retry: (failureCount, error) =>
+      !isPayTicketNotFoundError(error) && failureCount < 1,
+  })
 
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-
-    void fetchPayTicketById(id, { extra: extraPay })
-      .then((details) => {
-        if (!cancelled) {
-          setTicket(details)
-          setError(null)
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setTicket(null)
-          setError(e)
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [ticketId, extraPay])
-
-  return { ticket, error, loading }
+  return {
+    ticket: query.data ?? null,
+    error: query.error ?? null,
+    /** True only on the first load — background refetches do not flash the skeleton. */
+    loading: query.isPending && query.data === undefined,
+  }
 }

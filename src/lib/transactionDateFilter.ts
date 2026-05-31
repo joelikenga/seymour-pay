@@ -143,8 +143,8 @@ export function labelForTransactionDateFilter(
 }
 
 /**
- * Inclusive range for admin APIs.
- * Custom ranges use ISO datetimes (`from` / `to` and `from_datetime` / `to_datetime`).
+ * Inclusive range for admin APIs that need precise custom datetimes
+ * (e.g. reconciliation cashier endpoints via `from_datetime` / `to_datetime`).
  * Presets and month tiles use calendar `YYYY-MM-DD` for `from` / `to`.
  */
 export function dateSelectionToApiRange(
@@ -154,11 +154,48 @@ export function dateSelectionToApiRange(
   const bounds = getFilterBounds(selection, now)
   if (!bounds) return {}
   if (selection.kind === 'custom') {
-    const from = bounds.start.toISOString()
-    const to = bounds.end.toISOString()
-    return { from, to, from_datetime: from, to_datetime: to }
+    const fromIso = bounds.start.toISOString()
+    const toIso = bounds.end.toISOString()
+    return {
+      from: toLocalYmd(bounds.start),
+      to: toLocalYmd(bounds.end),
+      from_datetime: fromIso,
+      to_datetime: toIso,
+    }
   }
   return { from: toLocalYmd(bounds.start), to: toLocalYmd(bounds.end) }
+}
+
+/**
+ * Calendar `from` / `to` (`YYYY-MM-DD`) for day-based admin APIs such as
+ * `GET /admin/analytics/overview` and `GET /admin/transactions`.
+ */
+export function dateSelectionToCalendarApiRange(
+  selection: DateFilterSelection,
+  now: Date = new Date(),
+): Pick<TransactionApiDateRange, 'from' | 'to'> {
+  const bounds = getFilterBounds(selection, now)
+  if (!bounds) return {}
+  return { from: toLocalYmd(bounds.start), to: toLocalYmd(bounds.end) }
+}
+
+/** @see dateSelectionToCalendarApiRange */
+export const dateSelectionToAnalyticsApiRange = dateSelectionToCalendarApiRange
+
+/**
+ * Inclusive ISO range for `GET /admin/transactions` — `from` / `to` datetimes
+ * (e.g. `2026-05-24T14:00:29.000Z`), matching the ledger API contract.
+ */
+export function dateSelectionToTransactionsApiRange(
+  selection: DateFilterSelection,
+  now: Date = new Date(),
+): Pick<TransactionApiDateRange, 'from' | 'to'> {
+  const bounds = getFilterBounds(selection, now)
+  if (!bounds) return {}
+  return {
+    from: bounds.start.toISOString(),
+    to: bounds.end.toISOString(),
+  }
 }
 
 /**

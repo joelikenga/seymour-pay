@@ -22,6 +22,16 @@ import { settlementTransactionsQueryKey } from '../../../query/settlement'
 import { queryClient } from '../../../query/queryClient'
 import { TransactionsApi } from '../../../utils'
 import { toastRequestFailed } from '../../../lib/apiErrors'
+import {
+  adminBtnDanger,
+  adminBtnSecondary,
+  adminModalBackdrop,
+  adminModalFooter,
+  adminModalHeader,
+  adminModalPanel,
+  adminModalSubtitle,
+  adminModalTitle,
+} from '../../../lib/adminModalStyles'
 
 export default function ReconciliationAlignTab() {
   const { appendLog } = useAdminData()
@@ -243,7 +253,7 @@ export default function ReconciliationAlignTab() {
           <TableSearchInput
             value={query}
             onChange={setQuery}
-            placeholder="Search ticket ID, notes…"
+            placeholder="Search ticket ID…"
             ariaLabel="Search transactions"
           />
         </TableToolbar>
@@ -545,41 +555,25 @@ function ConfirmDeleteDialog({
         aria-label="Close confirmation"
         disabled={deleting}
         onClick={onCancel}
-        className="absolute inset-0 bg-zinc-950/50 backdrop-blur-[2px] disabled:cursor-not-allowed"
+        className={adminModalBackdrop}
       />
-      <div className="relative w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl ring-1 ring-zinc-950/5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600 ring-1 ring-rose-100">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <h2
-              id="confirm-delete-title"
-              className="text-lg font-bold text-zinc-950"
-            >
-              Delete {count} transaction{count === 1 ? '' : 's'}?
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              This permanently deletes the selected row{count === 1 ? '' : 's'} on
-              the server and writes an entry to the activity log. You cannot undo
-              this.
-            </p>
-          </div>
+      <div className={`${adminModalPanel} max-w-md`}>
+        <div className={adminModalHeader}>
+          <h2 id="confirm-delete-title" className={adminModalTitle}>
+            Delete {count} transaction{count === 1 ? '' : 's'}?
+          </h2>
+          <p className={adminModalSubtitle}>
+            This permanently deletes the selected row{count === 1 ? '' : 's'} on
+            the server and writes an entry to the activity log. You cannot undo
+            this.
+          </p>
         </div>
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
+        <div className={adminModalFooter}>
           <button
             type="button"
             disabled={deleting}
             onClick={onCancel}
-            className="rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+            className={adminBtnSecondary}
           >
             Cancel
           </button>
@@ -587,17 +581,8 @@ function ConfirmDeleteDialog({
             type="button"
             disabled={deleting}
             onClick={onConfirm}
-            className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-rose-700 disabled:opacity-50"
+            className={adminBtnDanger}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
             {deleting ? 'Deleting…' : `Delete ${count}`}
           </button>
         </div>

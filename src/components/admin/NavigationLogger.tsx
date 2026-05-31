@@ -3,9 +3,22 @@ import { useLocation } from 'react-router-dom'
 import { useAdminData } from '../../context/AdminDataContext'
 import { getAuditActorLabel } from '../../lib/auditActorLabel'
 
+function payNavigationTitle(pathname: string): string {
+  if (pathname === '/pay/history') return 'Pay - History'
+  if (pathname === '/pay/ticket') return 'Pay - Enter ticket'
+  if (pathname === '/pay/checkout') return 'Pay - Checkout'
+  if (pathname === '/pay' || pathname === '/pay/scan') return 'Pay - Scan'
+  if (/\/extra\/payment$/.test(pathname)) return 'Pay - Extra payment'
+  if (/\/payment$/.test(pathname)) return 'Pay - Payment'
+  if (/\/extra$/.test(pathname)) return 'Pay - Extra preview'
+  if (pathname.startsWith('/pay/ticket/')) return 'Pay - Ticket preview'
+  return pathname
+}
+
 const titles: Record<string, string> = {
   '/login': 'Login',
   '/pay': 'Pay - Scan',
+  '/pay/scan': 'Pay - Scan',
   '/pay/ticket': 'Pay - Enter ticket',
   '/pay/history': 'Pay - History',
   '/pay/checkout': 'Pay - Checkout',
@@ -41,7 +54,7 @@ export default function NavigationLogger() {
       return
     }
 
-    const title = titles[location.pathname] ?? location.pathname
+    const title = titles[location.pathname] ?? payNavigationTitle(location.pathname)
     appendLog({
       action: 'navigation',
       summary: `Opened ${title}`,

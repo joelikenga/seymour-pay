@@ -17,9 +17,11 @@ import TransactionsPage from './pages/admin/TransactionsPage.tsx'
 import LoginPage from './pages/auth/LoginPage.tsx'
 import PayCheckoutPage from './pages/pay/PayCheckoutPage.tsx'
 import PayHistoryPage from './pages/pay/PayHistoryPage.tsx'
+import PayPaymentPage from './pages/pay/PayPaymentPage.tsx'
 import PayScanPage from './pages/pay/PayScanPage.tsx'
 import PayShell from './pages/pay/PayShell.tsx'
 import PayTicketPage from './pages/pay/PayTicketPage.tsx'
+import PayTicketPreviewPage from './pages/pay/PayTicketPreviewPage.tsx'
 
 const Dashboard = lazy(() => import('./pages/admin/Dashboard.tsx'))
 
@@ -37,7 +39,15 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/pay" element={<PayShell />}>
             <Route index element={<PayScanPage />} />
+            <Route path="scan" element={<PayScanPage />} />
             <Route path="ticket" element={<PayTicketPage />} />
+            <Route
+              path="ticket/:ticketId/extra/payment"
+              element={<PayPaymentPage />}
+            />
+            <Route path="ticket/:ticketId/extra" element={<PayTicketPreviewPage />} />
+            <Route path="ticket/:ticketId/payment" element={<PayPaymentPage />} />
+            <Route path="ticket/:ticketId" element={<PayTicketPreviewPage />} />
             <Route path="history" element={<PayHistoryPage />} />
             <Route path="checkout" element={<PayCheckoutPage />} />
           </Route>

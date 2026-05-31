@@ -74,77 +74,95 @@ export const SCAN_VIEWFINDER_RATIO = 0.72
 export const PAY_SCAN_VIEWFINDER_CLASS =
   'aspect-square w-[min(72vw,58vh)] max-w-[300px]'
 
+/** Query param kept for legacy QR / bookmark URLs — prefer path routes below. */
 export const PAY_TICKET_ID_PARAM = 'ticketID'
 
-/** When present, `/pay?ticketID=…&pay=1` shows the payment carousel */
+/** @deprecated Legacy checkout flag — use `/pay/ticket/:id/payment` instead. */
 export const PAY_STEP_PARAM = 'pay'
 
 export const PAY_STEP_CHECKOUT = '1'
 
-/** Ticket details: `/pay?ticketID=…` */
-export function payTicketUrl(ticketId: string): string {
-  return `/pay?${PAY_TICKET_ID_PARAM}=${encodeURIComponent(ticketId.trim())}`
-}
-
+/** @deprecated Legacy extra flag — use `/pay/ticket/:id/extra` instead. */
 export const PAY_EXTRA_PARAM = 'extra'
 
 export const PAY_EXTRA_VALUE = '1'
 
+function encodeTicketId(ticketId: string): string {
+  return encodeURIComponent(ticketId.trim())
+}
+
+/** Ticket fee preview: `/pay/ticket/:ticketId` */
+export function payTicketPreviewUrl(ticketId: string, extra?: boolean): string {
+  const id = encodeTicketId(ticketId)
+  return extra ? `/pay/ticket/${id}/extra` : `/pay/ticket/${id}`
+}
+
+/** Payment checkout: `/pay/ticket/:ticketId/payment` */
+export function payTicketPaymentUrl(ticketId: string, extra?: boolean): string {
+  const id = encodeTicketId(ticketId)
+  return extra ? `/pay/ticket/${id}/extra/payment` : `/pay/ticket/${id}/payment`
+}
+
+/** @deprecated Alias for {@link payTicketPreviewUrl}. */
+export function payTicketUrl(ticketId: string, extra?: boolean): string {
+  return payTicketPreviewUrl(ticketId, extra)
+}
+
+/** Overstay / extra parking preview: `/pay/ticket/:ticketId/extra` */
+export function payExtraTicketUrl(ticketId: string): string {
+  return payTicketPreviewUrl(ticketId, true)
+}
+
+/** Extra payment checkout: `/pay/ticket/:ticketId/extra/payment` */
+export function payExtraTicketCheckoutUrl(ticketId: string): string {
+  return payTicketPaymentUrl(ticketId, true)
+}
+
+/** @deprecated Alias for {@link payTicketPaymentUrl}. */
+export function payTicketCheckoutUrl(ticketId: string, extra?: boolean): string {
+  return payTicketPaymentUrl(ticketId, extra)
+}
+
 export function isPayExtraStep(searchParams: URLSearchParams): boolean {
   return searchParams.get(PAY_EXTRA_PARAM) === PAY_EXTRA_VALUE
-}
-
-/** Overstay / extra parking: `/pay?ticketID=…&extra=1` */
-export function payExtraTicketUrl(ticketId: string): string {
-  const q = new URLSearchParams({
-    [PAY_TICKET_ID_PARAM]: ticketId.trim(),
-    [PAY_EXTRA_PARAM]: PAY_EXTRA_VALUE,
-  })
-  return `/pay?${q.toString()}`
-}
-
-/** Extra checkout: `/pay?ticketID=…&extra=1&pay=1` */
-export function payExtraTicketCheckoutUrl(ticketId: string): string {
-  const q = new URLSearchParams({
-    [PAY_TICKET_ID_PARAM]: ticketId.trim(),
-    [PAY_EXTRA_PARAM]: PAY_EXTRA_VALUE,
-    [PAY_STEP_PARAM]: PAY_STEP_CHECKOUT,
-  })
-  return `/pay?${q.toString()}`
-}
-
-function payTicketSearchParams(
-  ticketId: string,
-  extra?: boolean,
-  checkout?: boolean,
-): URLSearchParams {
-  const q = new URLSearchParams({ [PAY_TICKET_ID_PARAM]: ticketId.trim() })
-  if (extra) q.set(PAY_EXTRA_PARAM, PAY_EXTRA_VALUE)
-  if (checkout) q.set(PAY_STEP_PARAM, PAY_STEP_CHECKOUT)
-  return q
-}
-
-/** Payment flow on the same route: `/pay?ticketID=…&pay=1` */
-export function payTicketCheckoutUrl(ticketId: string, extra?: boolean): string {
-  return `/pay?${payTicketSearchParams(ticketId, extra, true).toString()}`
 }
 
 export function isPayCheckoutStep(searchParams: URLSearchParams): boolean {
   return searchParams.get(PAY_STEP_PARAM) === PAY_STEP_CHECKOUT
 }
 
-/** `/pay?ticketID=…` details step (not scan, not payment carousel). */
-export function isPayTicketDetailsStep(searchParams: URLSearchParams): boolean {
-  return (
-    Boolean(searchParams.get(PAY_TICKET_ID_PARAM)?.trim()) &&
-    !isPayCheckoutStep(searchParams)
-  )
+/** Maps legacy `?ticketID=…&pay=1&extra=1` URLs to path routes. */
+export function resolveLegacyPayQueryRedirect(
+  searchParams: URLSearchParams,
+): string | null {
+  const ticketId = searchParams.get(PAY_TICKET_ID_PARAM)?.trim()
+  if (!ticketId) return null
+  const extra = isPayExtraStep(searchParams)
+  const checkout = isPayCheckoutStep(searchParams)
+  return checkout
+    ? payTicketPaymentUrl(ticketId, extra)
+    : payTicketPreviewUrl(ticketId, extra)
+}
+
+export function isPayExtraPath(pathname: string): boolean {
+  return /\/extra(?:\/|$)/.test(pathname)
+}
+
+export function decodePayTicketParam(raw: string | undefined): string {
+  if (!raw?.trim()) return ''
+  try {
+    return decodeURIComponent(raw.trim())
+  } catch {
+    return raw.trim()
+  }
 }
 
 const SEYMOUR_PAY_QR_URL =
-  /^https?:\/\/(?:www\.)?seymouraviation\.ng\/pay(?:\?|$)/i
+  /^https?:\/\/(?:www\.)?seymouraviation\.ng\/pay(?:\/|\?|$)/i
 
-const SEYMOUR_PAY_PATH = /seymouraviation\.ng\/pay(?:\?|$)/i
+const SEYMOUR_PAY_PATH = /seymouraviation\.ng\/pay(?:\/|\?|$)/i
+
+const SEYMOUR_PAY_TICKET_PATH = /\/pay\/ticket\/([^/?#]+)/i
 
 function normalizeScannedPayload(raw: string): string {
   const trimmed = raw.trim()
@@ -160,9 +178,19 @@ export function parseScannedTicketId(raw: string): string {
   const normalized = normalizeScannedPayload(raw)
   if (!normalized) return ''
 
+  const pathMatch = normalized.match(SEYMOUR_PAY_TICKET_PATH)
+  if (pathMatch?.[1]) {
+    try {
+      return decodeURIComponent(pathMatch[1]).trim()
+    } catch {
+      return pathMatch[1].trim()
+    }
+  }
+
   const isSeymourPay =
     SEYMOUR_PAY_QR_URL.test(normalized) ||
-    (SEYMOUR_PAY_PATH.test(normalized) && /[?&]ticketID=/i.test(normalized))
+    (SEYMOUR_PAY_PATH.test(normalized) &&
+      (/[?&]ticketID=/i.test(normalized) || SEYMOUR_PAY_TICKET_PATH.test(normalized)))
 
   if (!isSeymourPay) return normalized
 

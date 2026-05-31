@@ -16,21 +16,20 @@ import {
   type AdminPageKey,
   type AdminUserRecord,
 } from '../../types/adminUser'
+import {
+  adminBtnDanger,
+  adminBtnPrimary,
+  adminBtnSecondary,
+  adminModalBody,
+  adminModalFooter,
+  adminModalHeader,
+  adminModalPanel,
+  adminModalSubtitle,
+  adminModalTitle,
+} from '../../lib/adminModalStyles'
 
 const inputClass =
-  'h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 shadow-inner outline-none transition placeholder:text-zinc-400 focus:border-primary focus:ring-2 focus:ring-primary/20'
-
-const modalShell =
-  'w-full max-w-md rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-[0_24px_48px_-28px_rgba(15,23,42,0.22)] ring-1 ring-zinc-950/5'
-
-const btnSecondary =
-  'rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50'
-
-const btnAccent =
-  'rounded-xl bg-linear-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-500/20 transition hover:from-orange-600 hover:to-orange-700'
-
-const btnDanger =
-  'rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-800 transition hover:border-rose-300 hover:bg-rose-100'
+  'h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200'
 
 function PageAccessToggle({
   allowed,
@@ -82,7 +81,7 @@ function ModalBackdrop({
 }) {
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center bg-zinc-950/45 p-4 backdrop-blur-[2px] ${zClass}`}
+      className={`fixed inset-0 flex items-center justify-center bg-zinc-950/40 p-4 ${zClass}`}
     >
       {children}
     </div>
@@ -435,7 +434,7 @@ export default function SettingsPage() {
               type="button"
               onClick={openCreateModal}
               disabled={usersListAccessDenied}
-              className={`${btnAccent} shrink-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none`}
+              className={`${adminBtnPrimary} shrink-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40`}
             >
               Create user
             </button>
@@ -454,7 +453,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => void refreshAdminUsers()}
-                  className={`${btnSecondary} shrink-0 border-rose-200 bg-white text-rose-900 hover:bg-rose-50`}
+                  className={`${adminBtnSecondary} shrink-0 border-rose-200 text-rose-900 hover:bg-rose-50`}
                 >
                   Retry
                 </button>
@@ -537,63 +536,69 @@ export default function SettingsPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-user-title"
-            className={`${modalShell} max-w-lg`}
+            className={`${adminModalPanel} max-w-lg`}
           >
-            <h2 id="create-user-title" className="text-lg font-bold text-zinc-950">
-              Create user
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600">New users get a one-time password after you confirm.</p>
-            <form onSubmit={handleCreateSubmit} className="mt-5 space-y-4">
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-zinc-700">Email</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="off"
-                  className={inputClass}
-                />
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
+            <div className={adminModalHeader}>
+              <h2 id="create-user-title" className={adminModalTitle}>
+                Create user
+              </h2>
+              <p className={adminModalSubtitle}>
+                New users get a one-time password after you confirm.
+              </p>
+            </div>
+            <form onSubmit={handleCreateSubmit}>
+              <div className={`${adminModalBody} space-y-4`}>
                 <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-zinc-700">First name</span>
+                  <span className="text-sm font-medium text-zinc-700">Email</span>
                   <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
+                    autoComplete="off"
                     className={inputClass}
                   />
                 </label>
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-zinc-700">Last name</span>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-medium text-zinc-700">First name</span>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                      className={inputClass}
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-medium text-zinc-700">Last name</span>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                      className={inputClass}
+                    />
+                  </label>
+                </div>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 px-3 py-3">
                   <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                    className={inputClass}
+                    type="checkbox"
+                    checked={createAck}
+                    onChange={(e) => setCreateAck(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
                   />
+                  <span className="text-sm leading-snug text-zinc-700">
+                    I confirm this person should receive admin access.
+                  </span>
                 </label>
+                {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
               </div>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-3">
-                <input
-                  type="checkbox"
-                  checked={createAck}
-                  onChange={(e) => setCreateAck(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-orange-600 focus:ring-orange-500"
-                />
-                <span className="text-sm leading-snug text-zinc-700">
-                  I confirm this person should receive admin access.
-                </span>
-              </label>
-              {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-              <div className="flex justify-end gap-2 border-t border-zinc-100 pt-4">
-                <button type="button" onClick={closeCreateFlow} className={btnSecondary}>
+              <div className={adminModalFooter}>
+                <button type="button" onClick={closeCreateFlow} className={adminBtnSecondary}>
                   Cancel
                 </button>
-                <button type="submit" className={btnAccent}>
+                <button type="submit" className={adminBtnPrimary}>
                   Create account
                 </button>
               </div>
@@ -605,29 +610,35 @@ export default function SettingsPage() {
       {/* Create user - credentials */}
       {createOpen && createStep === 2 && lastCreated ? (
         <ModalBackdrop>
-          <div role="dialog" aria-modal="true" className={modalShell}>
-            <h2 className="text-lg font-bold text-zinc-950">Account created</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Share securely. They should reset their password after first sign-in.
-            </p>
-            <dl className="mt-4 space-y-3 rounded-xl border border-zinc-100 bg-zinc-50/90 p-4 text-sm ring-1 ring-zinc-100">
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Email</dt>
-                <dd className="mt-1 break-all font-mono text-sm font-medium text-zinc-900">{lastCreated.email}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Temporary password
-                </dt>
-                <dd className="mt-1 break-all font-mono text-sm font-medium text-zinc-900">{lastCreated.password}</dd>
-              </div>
-            </dl>
-            {copyError ? <p className="mt-3 text-sm text-red-600">{copyError}</p> : null}
-            <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-zinc-100 pt-4">
-              <button type="button" onClick={() => void copyCredentials()} className={btnSecondary}>
+          <div role="dialog" aria-modal="true" className={adminModalPanel}>
+            <div className={adminModalHeader}>
+              <h2 className={adminModalTitle}>Account created</h2>
+              <p className={adminModalSubtitle}>
+                Share securely. They should reset their password after first sign-in.
+              </p>
+            </div>
+            <div className={adminModalBody}>
+              <dl className="space-y-3 rounded-lg border border-zinc-200 px-3 py-3 text-sm">
+                <div>
+                  <dt className="text-xs text-zinc-500">Email</dt>
+                  <dd className="mt-1 break-all font-mono text-sm font-medium text-zinc-900">
+                    {lastCreated.email}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-zinc-500">Temporary password</dt>
+                  <dd className="mt-1 break-all font-mono text-sm font-medium text-zinc-900">
+                    {lastCreated.password}
+                  </dd>
+                </div>
+              </dl>
+              {copyError ? <p className="mt-3 text-sm text-red-600">{copyError}</p> : null}
+            </div>
+            <div className={adminModalFooter}>
+              <button type="button" onClick={() => void copyCredentials()} className={adminBtnSecondary}>
                 {copyDone ? 'Copied' : 'Copy email & password'}
               </button>
-              <button type="button" onClick={closeCreateFlow} className={btnAccent}>
+              <button type="button" onClick={closeCreateFlow} className={adminBtnPrimary}>
                 Done
               </button>
             </div>
@@ -638,27 +649,42 @@ export default function SettingsPage() {
       {/* Confirm save page access (per row) */}
       {accessSaveUserId && accessSaveTargetUser ? (
         <ModalBackdrop zClass="z-[60]">
-          <div role="dialog" aria-modal="true" aria-labelledby="save-access-title" className={modalShell}>
-            <h2 id="save-access-title" className="text-lg font-bold text-zinc-950">
-              Save access for this user?
-            </h2>
-            <p className="mt-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
-              <span className="font-semibold text-zinc-900">
-                {accessSaveTargetUser.firstName} {accessSaveTargetUser.lastName}
-              </span>
-              <span className="mt-0.5 block truncate text-zinc-500">{accessSaveTargetUser.email}</span>
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
-              This applies the page permissions shown in the row. You can edit them again anytime.
-            </p>
-            <div className="mt-5 flex justify-end gap-2 border-t border-zinc-100 pt-4">
-              <button type="button" onClick={() => setAccessSaveUserId(null)} className={btnSecondary}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-access-title"
+            className={adminModalPanel}
+          >
+            <div className={adminModalHeader}>
+              <h2 id="save-access-title" className={adminModalTitle}>
+                Save access for this user?
+              </h2>
+            </div>
+            <div className={adminModalBody}>
+              <p className="rounded-lg border border-zinc-200 px-3 py-2.5 text-sm text-zinc-700">
+                <span className="font-medium text-zinc-900">
+                  {accessSaveTargetUser.firstName} {accessSaveTargetUser.lastName}
+                </span>
+                <span className="mt-0.5 block truncate text-zinc-500">
+                  {accessSaveTargetUser.email}
+                </span>
+              </p>
+              <p className="mt-3 text-sm text-zinc-600">
+                This applies the page permissions shown in the row. You can edit them again anytime.
+              </p>
+            </div>
+            <div className={adminModalFooter}>
+              <button
+                type="button"
+                onClick={() => setAccessSaveUserId(null)}
+                className={adminBtnSecondary}
+              >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => void applyAccessForUser(accessSaveUserId)}
-                className={btnAccent}
+                className={adminBtnPrimary}
               >
                 Confirm save
               </button>
@@ -670,37 +696,46 @@ export default function SettingsPage() {
       {/* Remove user */}
       {userPendingRemove ? (
         <ModalBackdrop>
-          <div role="dialog" aria-modal="true" aria-labelledby="remove-user-title" className={modalShell}>
-            <h2 id="remove-user-title" className="text-lg font-bold text-zinc-950">
-              Remove user
-            </h2>
-            <p className="mt-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
-              <span className="font-semibold text-zinc-900">
-                {userPendingRemove.firstName} {userPendingRemove.lastName}
-              </span>
-              <span className="mt-0.5 block truncate text-zinc-500">{userPendingRemove.email}</span>
-            </p>
-            <div className="mt-4 space-y-4">
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-3">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-user-title"
+            className={adminModalPanel}
+          >
+            <div className={adminModalHeader}>
+              <h2 id="remove-user-title" className={adminModalTitle}>
+                Remove user
+              </h2>
+            </div>
+            <div className={adminModalBody}>
+              <p className="rounded-lg border border-zinc-200 px-3 py-2.5 text-sm text-zinc-700">
+                <span className="font-medium text-zinc-900">
+                  {userPendingRemove.firstName} {userPendingRemove.lastName}
+                </span>
+                <span className="mt-0.5 block truncate text-zinc-500">
+                  {userPendingRemove.email}
+                </span>
+              </p>
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 px-3 py-3">
                 <input
                   type="checkbox"
                   checked={removeAck}
                   onChange={(e) => setRemoveAck(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-orange-600 focus:ring-orange-500"
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
                 />
                 <span className="text-sm leading-snug text-zinc-700">
                   I understand this user will lose admin access.
                 </span>
               </label>
-              {removeError ? <p className="text-sm text-red-600">{removeError}</p> : null}
-              <div className="flex justify-end gap-2 border-t border-zinc-100 pt-4">
-                <button type="button" onClick={closeRemoveFlow} className={btnSecondary}>
-                  Cancel
-                </button>
-                <button type="button" onClick={() => void handleConfirmRemove()} className={btnDanger}>
-                  Remove user
-                </button>
-              </div>
+              {removeError ? <p className="mt-3 text-sm text-red-600">{removeError}</p> : null}
+            </div>
+            <div className={adminModalFooter}>
+              <button type="button" onClick={closeRemoveFlow} className={adminBtnSecondary}>
+                Cancel
+              </button>
+              <button type="button" onClick={() => void handleConfirmRemove()} className={adminBtnDanger}>
+                Remove user
+              </button>
             </div>
           </div>
         </ModalBackdrop>

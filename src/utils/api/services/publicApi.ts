@@ -239,3 +239,40 @@ export const RemoveAllSavedProperty = async () => {
     throw error;
   }
 };
+
+/** Public parking ticket fee preview (no auth). */
+export type TicketFeePreviewResponse = {
+  already_paid: number;
+  amount_due: number;
+  currency: string;
+  entry_time: string;
+  preview_at: string;
+  ticket_id: string;
+  vehicle_type: string;
+};
+
+function unwrapTicketFeePreviewBody(raw: unknown): unknown {
+  if (raw == null || typeof raw !== "object") return raw;
+  const o = raw as Record<string, unknown>;
+  const inner = o.data;
+  if (inner != null && typeof inner === "object" && !Array.isArray(inner)) {
+    return inner;
+  }
+  return raw;
+}
+
+export async function getTicketFeePreview(
+  ticketId: string,
+  signal?: AbortSignal,
+): Promise<TicketFeePreviewResponse> {
+  const id = ticketId.trim();
+  if (!id) {
+    throw new Error("Please enter a ticket ID.");
+  }
+
+  const raw = await axios$.get(
+    `/tickets/${encodeURIComponent(id)}/fee-preview`,
+    { signal },
+  );
+  return unwrapTicketFeePreviewBody(raw) as TicketFeePreviewResponse;
+}

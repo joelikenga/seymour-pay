@@ -1,24 +1,16 @@
 import type { Transaction } from '../types/transaction'
 
-/** Matches admin transaction search (ticket ID, customer, notes, internal id). */
+/** Matches admin transaction search by ticket ID (`reference`) only. */
 export function transactionMatchesSearch(
-  row: Pick<Transaction, 'reference' | 'customerName' | 'notes' | 'id'>,
+  row: Pick<Transaction, 'reference'>,
   search: string,
 ): boolean {
   const q = search.trim().toLowerCase()
   if (!q) return true
-  return (
-    row.reference.toLowerCase().includes(q) ||
-    row.customerName.toLowerCase().includes(q) ||
-    (row.notes ?? '').toLowerCase().includes(q) ||
-    row.id.toLowerCase().includes(q)
-  )
+  return row.reference.toLowerCase().includes(q)
 }
 
-export function filterTransactionsBySearch<T extends Pick<
-  Transaction,
-  'reference' | 'customerName' | 'notes' | 'id'
->>(
+export function filterTransactionsBySearch<T extends Pick<Transaction, 'reference'>>(
   rows: T[],
   search: string,
 ): T[] {

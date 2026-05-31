@@ -3,38 +3,46 @@ import { normalizeTransactionRow } from "../../../lib/normalizeTransaction";
 import type { Transaction } from "../../../types/transaction";
 
 export type AdminGetTransactionsListParams = {
+  /** 1-based page index (matches the ledger API). */
   page: number;
   page_size?: number;
-  search?: string;
-  /** Inclusive local `YYYY-MM-DD` - both sent when filtering by period. */
+  /** Inclusive ISO datetimes, e.g. `2026-05-24T14:00:29.000Z`. */
   from?: string;
   to?: string;
+  search?: string;
+  status?: "completed";
 };
+
+function compactListParams(
+  params: AdminGetTransactionsListParams,
+): Record<string, string | number> {
+  const out: Record<string, string | number> = {
+    page: params.page,
+    page_size: params.page_size ?? 12,
+  };
+  if (typeof params.from === "string" && params.from.trim() !== "") {
+    out.from = params.from.trim();
+  }
+  if (typeof params.to === "string" && params.to.trim() !== "") {
+    out.to = params.to.trim();
+  }
+  if (typeof params.search === "string" && params.search.trim() !== "") {
+    out.search = params.search.trim();
+  }
+  if (params.status) {
+    out.status = params.status;
+  }
+  return out;
+}
 
 /** Paginated ledger: `{ data, page, page_size, total, total_pages }`. */
 export const adminGetTransactionsList = async (
   params: AdminGetTransactionsListParams,
   signal?: AbortSignal,
 ): Promise<unknown> => {
-  const page_size = params.page_size ?? 12;
-  const hasRange =
-    typeof params.from === "string" &&
-    params.from.trim() !== "" &&
-    typeof params.to === "string" &&
-    params.to.trim() !== "";
-  const trimmedSearch = params.search?.trim() ?? "";
   const data = await axios$.get("/admin/transactions", {
     signal,
-    params: {
-      page: params.page,
-      page_size,
-      ...(trimmedSearch
-        ? { search: trimmedSearch, q: trimmedSearch }
-        : {}),
-      ...(hasRange
-        ? { from: params.from!.trim(), to: params.to!.trim() }
-        : {}),
-    },
+    params: compactListParams(params),
   });
   return data as unknown;
 };

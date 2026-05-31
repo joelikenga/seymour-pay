@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import SeymourLogo from '../../components/SeymourLogo'
 import PayMobileTopBar from './PayMobileLogo'
@@ -9,7 +9,6 @@ import {
   PAY_SHELL_INNER_DESKTOP,
   PAY_SHELL_OUTER,
   PAY_SHELL_OUTER_DESKTOP,
-  PAY_TICKET_ID_PARAM,
 } from './payFlowShared'
 
 const safeAreaPad = {
@@ -55,11 +54,13 @@ function MobilePayNavLink({ to, end, label, icon }: MobilePayNavLinkProps) {
 
 export default function PayShell() {
   const { pathname } = useLocation()
-  const [searchParams] = useSearchParams()
-  const isPayIndex = pathname === '/pay' || pathname === '/pay/'
-  const hasTicketId = Boolean(searchParams.get(PAY_TICKET_ID_PARAM)?.trim())
-  const isScanCamera = isPayIndex && !hasTicketId
-  const isTicketEntryPage = pathname === '/pay/ticket' || pathname === '/pay/ticket/'
+  const isScanPage =
+    pathname === '/pay' ||
+    pathname === '/pay/' ||
+    pathname === '/pay/scan' ||
+    pathname === '/pay/scan/'
+  const isTicketEntryPage =
+    pathname === '/pay/ticket' || pathname === '/pay/ticket/'
   const isHistoryPage = pathname === '/pay/history' || pathname === '/pay/history/'
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(DESKTOP_MEDIA).matches,
@@ -77,13 +78,13 @@ export default function PayShell() {
 
   const shellOuterClass = isDesktop
     ? PAY_SHELL_OUTER_DESKTOP
-    : isScanCamera
+    : isScanPage
       ? `${PAY_SHELL_OUTER} max-lg:items-stretch max-lg:bg-black max-lg:sm:p-0`
       : PAY_SHELL_OUTER
 
   const shellInnerClass = isDesktop
     ? PAY_SHELL_INNER_DESKTOP
-    : isScanCamera
+    : isScanPage
       ? 'relative flex h-screen max-h-screen min-h-dvh w-full max-w-none flex-col overflow-hidden bg-black max-lg:sm:h-screen max-lg:sm:max-h-screen max-lg:sm:rounded-none max-lg:sm:shadow-none max-lg:sm:ring-0'
       : `relative ${PAY_SHELL_INNER}`
 

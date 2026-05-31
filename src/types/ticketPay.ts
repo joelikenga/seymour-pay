@@ -4,14 +4,15 @@ export type PayChargeType = 'standard' | 'extra'
 export interface PayTicketDetails {
   ticketId: string
   vehicleClass: string
-  entryZone: string
   entryTime: string
   durationParked: string
   amountDue: number
-  currency: 'NGN'
+  currency: string
   chargeType?: PayChargeType
   extraHours?: number
   extraHourRate?: number
+  alreadyPaid?: number
+  previewAt?: string
 }
 
 export type PayMethod = 'card' | 'transfer'

@@ -19,15 +19,21 @@ import {
   checkAdminPasswordRequirements,
   isAdminPasswordPolicySatisfied,
 } from '../../lib/adminPasswordPolicy'
+import {
+  adminBtnPrimary,
+  adminBtnSecondary,
+  adminModalBackdrop,
+  adminModalBody,
+  adminModalCloseBtn,
+  adminModalFooter,
+  adminModalHeader,
+  adminModalPanel,
+  adminModalSubtitle,
+  adminModalTitle,
+} from '../../lib/adminModalStyles'
 
 const inputClass =
-  'h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 shadow-inner outline-none transition placeholder:text-zinc-400 focus:border-primary focus:ring-2 focus:ring-primary/20'
-
-const btnNeutral =
-  'rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50'
-
-const btnAccent =
-  'rounded-xl bg-linear-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-500/20 transition hover:from-orange-600 hover:to-orange-700 disabled:pointer-events-none disabled:opacity-60'
+  'h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200'
 
 export interface ChangePasswordModalProps {
   open: boolean
@@ -154,67 +160,47 @@ export default function ChangePasswordModal({
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-zinc-950/50 backdrop-blur-[3px] transition-opacity"
+        className={adminModalBackdrop}
         onClick={() => onOpenChange(false)}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={reqGroupId + '-title'}
-        className="relative z-10 flex max-h-[min(90vh,720px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-zinc-200/95 bg-white shadow-[0_32px_80px_-40px_rgba(15,23,42,0.55)] ring-1 ring-zinc-950/8"
+        className={`${adminModalPanel} z-10 flex max-h-[min(90vh,720px)] max-w-md flex-col`}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="border-b border-zinc-100 bg-linear-to-r from-zinc-50/95 via-white to-orange-50/40 px-5 py-4 sm:px-6">
+        <div className={adminModalHeader}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-orange-800/85">
-                Account security
-              </p>
-              <h2
-                id={`${reqGroupId}-title`}
-                className="mt-1 text-xl font-bold tracking-tight text-zinc-950"
-              >
+              <h2 id={`${reqGroupId}-title`} className={adminModalTitle}>
                 Change password
               </h2>
-              <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
+              <p className={adminModalSubtitle}>
                 Enter your current password, then choose a strong new one.
               </p>
             </div>
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-500 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-800"
+              className={adminModalCloseBtn}
               aria-label="Close"
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden
-              >
-                <path
-                  d="M6 18L18 6M6 6l12 12"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
+              Close
             </button>
           </div>
         </div>
 
         <form
           onSubmit={(e) => void handleSubmit(e)}
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-5 sm:px-6"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         >
-          {passwordChangeError ? (
-            <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-              {passwordChangeError}
-            </p>
-          ) : null}
-
-          <div className="grid flex-1 gap-4">
+          <div className={`${adminModalBody} flex-1 space-y-4`}>
+            {passwordChangeError ? (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+                {passwordChangeError}
+              </p>
+            ) : null}
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700">
                 Current password
@@ -292,10 +278,10 @@ export default function ChangePasswordModal({
             </label>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-zinc-100 pt-4">
+          <div className={adminModalFooter}>
             <button
               type="button"
-              className={btnNeutral}
+              className={adminBtnSecondary}
               onClick={() => onOpenChange(false)}
             >
               Cancel
@@ -305,7 +291,7 @@ export default function ChangePasswordModal({
               disabled={
                 passwordChangeBusy || !isAdminPasswordPolicySatisfied(newPassword)
               }
-              className={btnAccent}
+              className={adminBtnPrimary}
             >
               {passwordChangeBusy ? 'Saving…' : 'Save new password'}
             </button>

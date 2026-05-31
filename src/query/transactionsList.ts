@@ -1,8 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { normalizeTransactionRow } from '../lib/normalizeTransaction'
-import { filterTransactionsBySearch } from '../lib/transactionSearch'
 import {
-  dateSelectionToApiRange,
+  dateSelectionToTransactionsApiRange,
   dateSelectionToQueryKey,
   type DateFilterSelection,
 } from '../lib/transactionDateFilter'
@@ -19,23 +18,36 @@ export const TRANSACTIONS_PAGE_SIZE = 12
 export const RECONCILIATION_PAGE_SIZE = 10
 const RECENT_COUNT = 5
 
-const SEARCH_FETCH_CAP = 5000
+const EXPORT_FETCH_CAP = 5000
+
+function buildTransactionsListParams(
+  pageIndex: number,
+  pageSize: number,
+  search: string,
+  dateSelection: DateFilterSelection,
+) {
+  const range = dateSelectionToTransactionsApiRange(dateSelection)
+  const trimmedSearch = search.trim()
+  return {
+    page: pageIndex + 1,
+    page_size: pageSize,
+    status: 'completed' as const,
+    ...(trimmedSearch ? { search: trimmedSearch } : {}),
+    ...(range.from && range.to ? { from: range.from, to: range.to } : {}),
+  }
+}
 
 function parsePaginatedResponse(
   raw: unknown,
-  fallbackPage: number,
+  fallbackPageIndex: number,
   fallbackPageSize: number,
-  searchFilter?: string,
 ): PaginatedTransactionsResponse {
   const r = unwrapPaginatedListBody(raw)
-  let rows = Array.isArray(r.data)
+  const rows = Array.isArray(r.data)
     ? r.data
         .map((item) => normalizeTransactionRow(item))
         .filter((x): x is NonNullable<typeof x> => x != null)
     : []
-  if (searchFilter?.trim()) {
-    rows = filterTransactionsBySearch(rows, searchFilter)
-  }
   const pageSize =
     typeof r.page_size === 'number' ? r.page_size : fallbackPageSize
   const total = typeof r.total === 'number' ? r.total : rows.length
@@ -45,64 +57,11 @@ function parsePaginatedResponse(
       : total > 0 && pageSize > 0
         ? Math.ceil(total / pageSize)
         : 0
+  const apiPage =
+    typeof r.page === 'number' && r.page > 0 ? r.page - 1 : fallbackPageIndex
   return {
     data: rows,
-    page: typeof r.page === 'number' ? r.page : fallbackPage,
-    page_size: pageSize,
-    total,
-    total_pages,
-  }
-}
-
-/** Loads up to {@link SEARCH_FETCH_CAP} rows for a search term, then filters client-side. */
-async function fetchTransactionsMatchingSearch(
-  search: string,
-  dateSelection: DateFilterSelection,
-  signal?: AbortSignal,
-): Promise<Transaction[]> {
-  const trimmed = search.trim()
-  const range = dateSelectionToApiRange(dateSelection)
-  const rangeParams =
-    range.from && range.to ? { from: range.from, to: range.to } : {}
-
-  const first = await TransactionsApi.adminGetTransactionsList(
-    {
-      page: 0,
-      page_size: 1,
-      search: trimmed,
-      ...rangeParams,
-    },
-    signal,
-  )
-  const r0 = unwrapPaginatedListBody(first)
-  const reportedTotal = typeof r0.total === 'number' ? r0.total : 0
-  if (reportedTotal === 0) return []
-
-  const cap = Math.min(reportedTotal, SEARCH_FETCH_CAP)
-  const raw = await TransactionsApi.adminGetTransactionsList(
-    {
-      page: 0,
-      page_size: cap,
-      search: trimmed,
-      ...rangeParams,
-    },
-    signal,
-  )
-  const parsed = parsePaginatedResponse(raw, 0, cap, trimmed)
-  return parsed.data
-}
-
-function paginateRowsClientSide(
-  rows: Transaction[],
-  pageIndex: number,
-  pageSize: number,
-): PaginatedTransactionsResponse {
-  const total = rows.length
-  const total_pages = total > 0 ? Math.ceil(total / pageSize) : 0
-  const start = pageIndex * pageSize
-  return {
-    data: rows.slice(start, start + pageSize),
-    page: pageIndex,
+    page: apiPage,
     page_size: pageSize,
     total,
     total_pages,
@@ -115,7 +74,6 @@ export function useTransactionsListQuery(
   dateSelection: DateFilterSelection,
   pageSize: number = TRANSACTIONS_PAGE_SIZE,
 ): UseQueryResult<PaginatedTransactionsResponse, Error> {
-  const range = dateSelectionToApiRange(dateSelection)
   const rangeKey = dateSelectionToQueryKey(dateSelection)
   const trimmedSearch = search.trim()
 
@@ -128,24 +86,13 @@ export function useTransactionsListQuery(
       rangeKey,
     ],
     queryFn: async ({ signal }) => {
-      const rangeParams =
-        range.from && range.to ? { from: range.from, to: range.to } : {}
-
-      if (trimmedSearch) {
-        const matches = await fetchTransactionsMatchingSearch(
-          trimmedSearch,
-          dateSelection,
-          signal,
-        )
-        return paginateRowsClientSide(matches, pageIndex, pageSize)
-      }
-
       const raw = await TransactionsApi.adminGetTransactionsList(
-        {
-          page: pageIndex,
-          page_size: pageSize,
-          ...rangeParams,
-        },
+        buildTransactionsListParams(
+          pageIndex,
+          pageSize,
+          search,
+          dateSelection,
+        ),
         signal,
       )
       return parsePaginatedResponse(raw, pageIndex, pageSize)
@@ -164,8 +111,9 @@ export function useRecentTransactionsQuery(): UseQueryResult<
     queryKey: [...recentTransactionsQueryKey, RECENT_COUNT],
     queryFn: async () => {
       const raw = await TransactionsApi.adminGetTransactionsList({
-        page: 0,
+        page: 1,
         page_size: RECENT_COUNT,
+        status: 'completed',
       })
       return parsePaginatedResponse(raw, 0, RECENT_COUNT)
     },
@@ -174,31 +122,26 @@ export function useRecentTransactionsQuery(): UseQueryResult<
   })
 }
 
-/** Up to 5000 rows matching `search` and optional date range for CSV export. */
+/** Up to 5000 rows matching `search` and optional date range for export. */
 export async function fetchTransactionsForExport(
   search: string,
   dateSelection: DateFilterSelection,
 ): Promise<Transaction[]> {
-  const trimmed = search.trim()
-  if (trimmed) {
-    return fetchTransactionsMatchingSearch(trimmed, dateSelection)
-  }
-  const range = dateSelectionToApiRange(dateSelection)
-  const rangeParams =
-    range.from && range.to ? { from: range.from, to: range.to } : {}
+  const base = buildTransactionsListParams(0, 1, search, dateSelection)
   const first = await TransactionsApi.adminGetTransactionsList({
-    page: 0,
+    ...base,
+    page: 1,
     page_size: 1,
-    ...rangeParams,
   })
   const r0 = unwrapPaginatedListBody(first)
   const total = typeof r0.total === 'number' ? r0.total : 0
   if (total === 0) return []
-  const cap = Math.min(total, SEARCH_FETCH_CAP)
+
+  const cap = Math.min(total, EXPORT_FETCH_CAP)
   const raw = await TransactionsApi.adminGetTransactionsList({
-    page: 0,
+    ...base,
+    page: 1,
     page_size: cap,
-    ...rangeParams,
   })
   return parsePaginatedResponse(raw, 0, cap).data
 }

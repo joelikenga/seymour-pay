@@ -1,27 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { useCallback, useRef, useState } from 'react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import PayScannerCamera, {
   type PayScannerCameraHandle,
 } from '../../components/pay/PayScannerCamera'
-import ScanCameraDropdown from '../../components/pay/ScanCameraDropdown'
+import ScanCameraSwitch from '../../components/pay/ScanCameraSwitch'
 import {
   pickDefaultCameraId,
   type PayScannerCameraDevice,
 } from '../../lib/payScanner'
 import ScanViewfinderFrame from './ScanViewfinderFrame'
-import PayPaymentFlow from './PayPaymentFlow'
-import PayTicketDetailsStep from './PayTicketDetailsStep'
 import {
   isDesktopViewport,
-  isPayCheckoutStep,
-  isPayExtraStep,
   parseScannedTicketId,
-  PAY_EXTRA_PARAM,
-  PAY_EXTRA_VALUE,
+  payTicketPreviewUrl,
   PAY_SCAN_VIEWFINDER_CLASS,
-  PAY_STEP_PARAM,
-  PAY_STEP_CHECKOUT,
-  PAY_TICKET_ID_PARAM,
+  resolveLegacyPayQueryRedirect,
 } from './payFlowShared'
 
 function ScanCameraErrorBanner({ message }: { message: string }) {
@@ -54,7 +47,8 @@ function ScanCameraErrorBanner({ message }: { message: string }) {
 }
 
 export default function PayScanPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const cameraRef = useRef<PayScannerCameraHandle>(null)
   const scanLockRef = useRef(false)
 
@@ -64,39 +58,10 @@ export default function PayScanPage() {
     undefined,
   )
 
-  const ticketIdParam = searchParams.get(PAY_TICKET_ID_PARAM)?.trim() ?? ''
-  const isPaying = isPayCheckoutStep(searchParams)
-  const isExtraPay = isPayExtraStep(searchParams)
-
-  const ticketSearchParams = useCallback(
-    (checkout?: boolean) => {
-      const params: Record<string, string> = {
-        [PAY_TICKET_ID_PARAM]: ticketIdParam,
-      }
-      if (isExtraPay) params[PAY_EXTRA_PARAM] = PAY_EXTRA_VALUE
-      if (checkout) params[PAY_STEP_PARAM] = PAY_STEP_CHECKOUT
-      return params
-    },
-    [ticketIdParam, isExtraPay],
-  )
-
-  useEffect(() => {
-    if (!ticketIdParam) scanLockRef.current = false
-  }, [ticketIdParam])
-
-  const clearTicket = useCallback(() => {
-    scanLockRef.current = false
-    setScannerError(null)
-    setSearchParams({}, { replace: true })
-  }, [setSearchParams])
-
-  const showDetailsOnly = useCallback(() => {
-    setSearchParams(ticketSearchParams(), { replace: true })
-  }, [setSearchParams, ticketSearchParams])
-
-  const startPayment = useCallback(() => {
-    setSearchParams(ticketSearchParams(true), { replace: true })
-  }, [setSearchParams, ticketSearchParams])
+  const legacyRedirect = resolveLegacyPayQueryRedirect(searchParams)
+  if (legacyRedirect) {
+    return <Navigate to={legacyRedirect} replace />
+  }
 
   const onQrDecoded = useCallback(
     async (raw: string) => {
@@ -105,9 +70,9 @@ export default function PayScanPage() {
       scanLockRef.current = true
       setScannerError(null)
       await cameraRef.current?.stop()
-      setSearchParams({ [PAY_TICKET_ID_PARAM]: ticketId }, { replace: true })
+      navigate(payTicketPreviewUrl(ticketId), { replace: true })
     },
-    [setSearchParams],
+    [navigate],
   )
 
   const onScannerError = useCallback((message: string) => {
@@ -123,30 +88,8 @@ export default function PayScanPage() {
 
   const showCameraPicker = cameras.length > 1 && !scannerError
 
-  if (isDesktopViewport() && !ticketIdParam) {
+  if (isDesktopViewport()) {
     return <Navigate to="/pay/ticket" replace />
-  }
-
-  if (ticketIdParam && isPaying) {
-    return (
-      <PayPaymentFlow
-        ticketId={ticketIdParam}
-        extraPay={isExtraPay}
-        onBackToDetails={showDetailsOnly}
-      />
-    )
-  }
-
-  if (ticketIdParam) {
-    return (
-      <PayTicketDetailsStep
-        ticketId={ticketIdParam}
-        extraPay={isExtraPay}
-        onBack={clearTicket}
-        onContinueToPay={startPayment}
-        backLabel={isExtraPay ? 'Back to receipt' : 'Scan another ticket'}
-      />
-    )
   }
 
   return (
@@ -164,16 +107,14 @@ export default function PayScanPage() {
             onCamerasReady={onCamerasReady}
           />
           <ScanViewfinderFrame showScanLine={!scannerError} />
+          {showCameraPicker && activeDeviceId ? (
+            <ScanCameraSwitch
+              cameras={cameras}
+              value={activeDeviceId}
+              onChange={setSelectedDeviceId}
+            />
+          ) : null}
         </div>
-
-        {showCameraPicker && activeDeviceId ? (
-          <ScanCameraDropdown
-            className="relative z-20 mt-4 w-[min(72vw,58vh)] max-w-[300px]"
-            cameras={cameras}
-            value={activeDeviceId}
-            onChange={setSelectedDeviceId}
-          />
-        ) : null}
       </div>
 
       {scannerError ? <ScanCameraErrorBanner message={scannerError} /> : null}

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import PayExpandableQrCode from '../../components/pay/PayExpandableQrCode'
 import { formatDateTime, formatMoney } from '../../lib/formatters'
 import {
@@ -53,11 +54,19 @@ function PayHistoryItem({ item }: { item: PayTransactionRecord }) {
 }
 
 export default function PayHistoryPage() {
-  const [historyTick, setHistoryTick] = useState(0)
-  const historyItems = useMemo(
+  const { pathname } = useLocation()
+  const [historyItems, setHistoryItems] = useState<PayTransactionRecord[]>(
     () => loadPayTransactions(),
-    [historyTick],
   )
+
+  useEffect(() => {
+    setHistoryItems(loadPayTransactions())
+  }, [pathname])
+
+  const handleClearAll = useCallback(() => {
+    clearPayTransactions()
+    setHistoryItems([])
+  }, [])
 
   return (
     <div className={`${PAY_PAGE_MAIN} ${PAY_MOBILE_TOP_BAR_OFFSET} ${PAY_MOBILE_NAV_CLEARANCE}`}>
@@ -74,10 +83,7 @@ export default function PayHistoryPage() {
           {historyItems.length > 0 ? (
             <button
               type="button"
-              onClick={() => {
-                clearPayTransactions()
-                setHistoryTick((t) => t + 1)
-              }}
+              onClick={handleClearAll}
               className={`shrink-0 self-start text-xs sm:self-auto ${payBtnGhost}`}
             >
               Clear all

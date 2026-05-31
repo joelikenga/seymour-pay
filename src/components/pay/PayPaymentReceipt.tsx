@@ -89,8 +89,7 @@ export default function PayPaymentReceipt({
       </div>
 
       <div className="px-5 py-1 sm:px-6">
-        <Row label="Vehicle" value={ticket.vehicleClass} />
-        <Row label="Zone" value={ticket.entryZone} />
+        <Row label="Vehicle class" value={ticket.vehicleClass} />
         <Row label="Method" value={methodLabel(payMethod)} />
       </div>
 
