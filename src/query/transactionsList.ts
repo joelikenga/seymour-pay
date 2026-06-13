@@ -7,7 +7,6 @@ import {
 } from '../lib/transactionDateFilter'
 import { unwrapPaginatedListBody } from '../lib/unwrapPaginatedApi'
 import type { PaginatedTransactionsResponse } from '../types/paginatedTransactions'
-import type { Transaction } from '../types/transaction'
 import { TransactionsApi } from '../utils'
 
 export const transactionsListQueryKey = ['admin', 'transactions', 'list'] as const
@@ -17,8 +16,6 @@ export const TRANSACTIONS_PAGE_SIZE = 12
 /** Reconciliation table uses a smaller page size. */
 export const RECONCILIATION_PAGE_SIZE = 10
 const RECENT_COUNT = 5
-
-const EXPORT_FETCH_CAP = 5000
 
 function buildTransactionsListParams(
   pageIndex: number,
@@ -122,26 +119,3 @@ export function useRecentTransactionsQuery(): UseQueryResult<
   })
 }
 
-/** Up to 5000 rows matching `search` and optional date range for export. */
-export async function fetchTransactionsForExport(
-  search: string,
-  dateSelection: DateFilterSelection,
-): Promise<Transaction[]> {
-  const base = buildTransactionsListParams(0, 1, search, dateSelection)
-  const first = await TransactionsApi.adminGetTransactionsList({
-    ...base,
-    page: 1,
-    page_size: 1,
-  })
-  const r0 = unwrapPaginatedListBody(first)
-  const total = typeof r0.total === 'number' ? r0.total : 0
-  if (total === 0) return []
-
-  const cap = Math.min(total, EXPORT_FETCH_CAP)
-  const raw = await TransactionsApi.adminGetTransactionsList({
-    ...base,
-    page: 1,
-    page_size: cap,
-  })
-  return parsePaginatedResponse(raw, 0, cap).data
-}

@@ -89,6 +89,9 @@ function buildCashierTransactions(): CashierTransaction[] {
     rows.push({
       id: `ctx-${cashierId}-${seq}`,
       reference: ref,
+      ticketId: ref,
+      code: '',
+      isLostTicket: false,
       customerName: 'Walk-in customer',
       amount,
       channel,

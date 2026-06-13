@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   defaultTransactionFilterYear,
   monthOptionsForCalendarYear,
+  quarterOptionsForCalendarYear,
   TRANSACTION_FILTER_MIN_YEAR,
   transactionFilterYearChoices,
 } from '../../lib/transactionDateFilter'
@@ -46,13 +47,19 @@ export default function TransactionDateFilterDropdown({
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState(false)
   const [monthSectionOpen, setMonthSectionOpen] = useState(true)
+  const [quarterSectionOpen, setQuarterSectionOpen] = useState(true)
   const [yearMenuOpen, setYearMenuOpen] = useState(false)
   const [panelYear, setPanelYear] = useState(() => defaultTransactionFilterYear())
 
   const isMonthFilter = filterValue.startsWith('month:')
+  const isQuarterFilter = filterValue.startsWith('quarter:')
   const yearChoices = useMemo(() => transactionFilterYearChoices(), [])
   const monthsForYear = useMemo(
     () => monthOptionsForCalendarYear(panelYear),
+    [panelYear],
+  )
+  const quartersForYear = useMemo(
+    () => quarterOptionsForCalendarYear(panelYear),
     [panelYear],
   )
 
@@ -61,14 +68,18 @@ export default function TransactionDateFilterDropdown({
   }, [open, isMonthFilter])
 
   useEffect(() => {
+    if (open && isQuarterFilter) setQuarterSectionOpen(true)
+  }, [open, isQuarterFilter])
+
+  useEffect(() => {
     if (!open) setYearMenuOpen(false)
   }, [open])
 
   // When opening: focus month grid on the year of the active month filter, else current year.
   useEffect(() => {
     if (!open) return
-    if (filterValue.startsWith('month:')) {
-      const rest = filterValue.slice('month:'.length)
+    if (filterValue.startsWith('month:') || filterValue.startsWith('quarter:')) {
+      const rest = filterValue.slice(filterValue.indexOf(':') + 1)
       const [ys] = rest.split('-').map((x) => Number.parseInt(x, 10))
       if (Number.isFinite(ys) && ys >= TRANSACTION_FILTER_MIN_YEAR) {
         setPanelYear(ys)
@@ -389,6 +400,76 @@ export default function TransactionDateFilterDropdown({
                             }`}
                           >
                             {monthShort(m.monthIndex)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
+            {quartersForYear.length > 0 ? (
+              <>
+                <div className="my-2 h-px bg-zinc-100" />
+                <button
+                  type="button"
+                  onClick={() => setQuarterSectionOpen((s) => !s)}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left transition hover:bg-zinc-50"
+                  aria-expanded={quarterSectionOpen}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                    By quarter ({panelYear})
+                  </span>
+                  <span
+                    className={`text-zinc-400 transition ${quarterSectionOpen ? 'rotate-180' : ''}`}
+                    aria-hidden
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <path
+                        d="M6 9l6 6 6-6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </button>
+
+                {quarterSectionOpen ? (
+                  <div className="mt-1.5 px-1 pb-1">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {quartersForYear.map((q) => {
+                        const active = filterValue === q.value
+                        return (
+                          <button
+                            key={q.value}
+                            type="button"
+                            role="option"
+                            title={
+                              q.disabled
+                                ? `${q.label} — not complete yet`
+                                : q.label
+                            }
+                            aria-selected={active}
+                            aria-disabled={q.disabled}
+                            disabled={q.disabled}
+                            onClick={() => select(q.value)}
+                            className={`rounded-lg border py-1.5 text-center text-[11px] font-bold transition ${
+                              q.disabled
+                                ? 'cursor-not-allowed border-zinc-200/70 bg-zinc-100/60 text-zinc-300'
+                                : active
+                                  ? 'border-primary/50 bg-linear-to-b from-primary-soft/28 to-primary-soft/10 text-orange-900 shadow-sm ring-2 ring-primary-soft/30 active:scale-[0.98]'
+                                  : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-primary/30 hover:bg-white hover:text-zinc-900 active:scale-[0.98]'
+                            }`}
+                          >
+                            Q{q.quarter}
                           </button>
                         )
                       })}

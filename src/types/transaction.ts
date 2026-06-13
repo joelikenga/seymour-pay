@@ -22,7 +22,15 @@ export type TransactionStatus =
 
 export interface Transaction {
   id: string
+  /**
+   * Display identifier. Populated from API `reference` when present, otherwise
+   * falls back to `ticket_id` (the ledger API now sends an empty reference).
+   */
   reference: string
+  /** Raw `ticket_id` from the ledger API (e.g. `19082EB6DC47`). */
+  ticketId: string
+  /** Ledger entry code (e.g. `20260605105914441_31`). */
+  code: string
   customerName: string
   amount: number
   channel: PaymentChannel
@@ -31,4 +39,5 @@ export interface Transaction {
   status: TransactionStatus
   createdAt: string
   notes: string
+  isLostTicket: boolean
 }

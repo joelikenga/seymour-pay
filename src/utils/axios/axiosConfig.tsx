@@ -48,11 +48,33 @@ axiosInstance.interceptors.request.use(
   }
 );
 
+async function readApiErrorBody(
+  data: unknown,
+): Promise<{ message?: string; error?: string }> {
+  if (data instanceof Blob) {
+    try {
+      const text = (await data.text()).trim();
+      if (!text) return {};
+      try {
+        return JSON.parse(text) as { message?: string; error?: string };
+      } catch {
+        return { message: text.slice(0, 300) };
+      }
+    } catch {
+      return {};
+    }
+  }
+  if (data && typeof data === "object") {
+    return data as { message?: string; error?: string };
+  }
+  return {};
+}
+
 axiosInstance.interceptors.response.use(
   (response) => {
     return response.data;
   },
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     if (!error.response) {
       if (error.code === "ECONNABORTED") {
         setNetworkError?.(true);
@@ -70,7 +92,7 @@ axiosInstance.interceptors.response.use(
       }
     }
 
-    const errBody = error.response.data as { message?: string; error?: string }
+    const errBody = await readApiErrorBody(error.response.data)
 
     if (error.response.status === 401) {
       if (errBody.message === "Invalid email or password") {

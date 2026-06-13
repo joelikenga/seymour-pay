@@ -53,14 +53,25 @@ export function vehicleTypeToApiPayload(v: VehicleType): string {
   return m[v]
 }
 
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : ''
+}
+
 export function normalizeTransactionRow(raw: unknown): Transaction | null {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Record<string, unknown>
   const id = typeof o.id === 'string' ? o.id : ''
   if (!id) return null
+  const ticketId = str(o.ticket_id ?? o.ticketId).trim()
+  const code = str(o.code).trim()
+  const reference = str(o.reference).trim()
   return {
     id,
-    reference: typeof o.reference === 'string' ? o.reference : '',
+    // Ledger API now sends an empty `reference`; fall back to ticket_id (then
+    // code) so the UI's "Ticket ID" columns keep showing an identifier.
+    reference: reference || ticketId || code,
+    ticketId,
+    code,
     customerName: typeof o.customerName === 'string' ? o.customerName : '',
     amount: num(o.amount),
     channel: normalizePaymentChannel(o.channel),
@@ -73,5 +84,6 @@ export function normalizeTransactionRow(raw: unknown): Transaction | null {
           ? o.created_at
           : new Date().toISOString(),
     notes: typeof o.notes === 'string' ? o.notes : '',
+    isLostTicket: o.isLostTicket === true || o.is_lost_ticket === true,
   }
 }

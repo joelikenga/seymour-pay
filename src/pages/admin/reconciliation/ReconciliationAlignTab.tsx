@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import { useAdminListPage } from '../../../hooks/useAdminListPage'
 import { toast } from 'sonner'
 import EditTransactionModal from '../../../components/admin/EditTransactionModal'
 import AdminPagination from '../../../components/admin/AdminPagination'
@@ -40,7 +41,7 @@ export default function ReconciliationAlignTab() {
 
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300)
-  const [pageIndex, setPageIndex] = useState(0)
+  const { pageIndex, setPageIndex, uiPage } = useAdminListPage([debouncedQuery])
   /** Map row id → ticket reference for API bulk delete (`ids` = references). */
   const [selectedById, setSelectedById] = useState<Map<string, string>>(
     () => new Map(),
@@ -59,7 +60,6 @@ export default function ReconciliationAlignTab() {
   const total = payload?.total ?? 0
   const apiTotalPages = payload?.total_pages ?? 0
 
-  const uiPage = pageIndex + 1
   const totalPagesForUi = total > 0 ? Math.max(1, apiTotalPages) : 0
 
   const from = total > 0 ? pageIndex * RECONCILIATION_PAGE_SIZE + 1 : 0
@@ -69,8 +69,10 @@ export default function ReconciliationAlignTab() {
   )
 
   useEffect(() => {
-    setPageIndex(0)
-  }, [debouncedQuery])
+    if (totalPagesForUi > 0 && pageIndex >= totalPagesForUi) {
+      setPageIndex(totalPagesForUi - 1)
+    }
+  }, [pageIndex, setPageIndex, totalPagesForUi])
 
   const visibleIds = useMemo(() => paginated.map((t) => t.id), [paginated])
   const visibleSelectedCount = useMemo(
@@ -81,8 +83,16 @@ export default function ReconciliationAlignTab() {
     visibleIds.length > 0 && visibleSelectedCount === visibleIds.length
   const someVisibleSelected =
     visibleSelectedCount > 0 && !allVisibleSelected
+  const selectionCount = selectedById.size
+  const hasSelectionsOnOtherPages =
+    selectionCount > visibleSelectedCount
+  const headerIndeterminate =
+    someVisibleSelected ||
+    (hasSelectionsOnOtherPages && !allVisibleSelected)
 
   const ticketRef = useCallback((t: Transaction) => {
+    const ticket = t.ticketId.trim()
+    if (ticket) return ticket
     const r = t.reference.trim()
     return r || t.id
   }, [])
@@ -101,14 +111,16 @@ export default function ReconciliationAlignTab() {
   const togglePage = useCallback(() => {
     setSelectedById((prev) => {
       const next = new Map(prev)
-      if (allVisibleSelected) {
+      const allSelected =
+        visibleIds.length > 0 && visibleIds.every((id) => prev.has(id))
+      if (allSelected) {
         for (const id of visibleIds) next.delete(id)
       } else {
         for (const t of paginated) next.set(t.id, ticketRef(t))
       }
       return next
     })
-  }, [allVisibleSelected, paginated, ticketRef, visibleIds])
+  }, [paginated, ticketRef, visibleIds])
 
   const clearSelection = useCallback(() => {
     setSelectedById(new Map())
@@ -202,8 +214,6 @@ export default function ReconciliationAlignTab() {
     }
   }, [appendLog, deleting, selectedById])
 
-  const selectionCount = selectedById.size
-
   return (
     <>
       <div className="min-w-0">
@@ -266,7 +276,7 @@ export default function ReconciliationAlignTab() {
             <p className="text-sm font-semibold text-orange-900">
               {selectionCount} transaction{selectionCount === 1 ? '' : 's'} selected
               <span className="ml-2 text-xs font-medium text-orange-800/80">
-                Selections persist while you search.
+                Selections persist across pages.
               </span>
             </p>
             <button
@@ -306,7 +316,7 @@ export default function ReconciliationAlignTab() {
                 <th className="w-10 whitespace-nowrap px-4 py-3.5">
                   <SelectAllCheckbox
                     checked={allVisibleSelected}
-                    indeterminate={someVisibleSelected}
+                    indeterminate={headerIndeterminate}
                     onChange={togglePage}
                     disabled={visibleIds.length === 0 || listQuery.isPending}
                     label="Select all visible rows"

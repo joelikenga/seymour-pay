@@ -1,6 +1,7 @@
 import { axios$ } from "../..";
 import { normalizeTransactionRow } from "../../../lib/normalizeTransaction";
 import type { Transaction } from "../../../types/transaction";
+import { getAdminToken, getToken } from "../../cookies";
 
 export type AdminGetTransactionsListParams = {
   /** 1-based page index (matches the ledger API). */
@@ -33,6 +34,96 @@ function compactListParams(
     out.status = params.status;
   }
   return out;
+}
+
+export type AdminExportTransactionsType = "pdf" | "xls" | "csv";
+
+const EXPORT_ACCEPT: Record<AdminExportTransactionsType, string> = {
+  pdf: "application/pdf",
+  xls: "application/vnd.ms-excel",
+  csv: "text/csv",
+};
+
+export type AdminExportTransactionsParams = {
+  type: AdminExportTransactionsType;
+  status?: "completed";
+  /** Calendar dates `YYYY-MM-DD` (inclusive). */
+  from?: string;
+  to?: string;
+};
+
+async function messageFromResponseBlob(blob: Blob): Promise<string> {
+  const text = (await blob.text()).trim();
+  if (!text) return "Export failed.";
+  try {
+    const body = JSON.parse(text) as { message?: string; error?: string };
+    return body.message?.trim() || body.error?.trim() || text.slice(0, 300);
+  } catch {
+    return text.slice(0, 300);
+  }
+}
+
+function isErrorPayloadBlob(blob: Blob): boolean {
+  const mime = blob.type.toLowerCase();
+  return mime.includes("json") || mime.includes("text/html");
+}
+
+/**
+ * `GET /admin/transactions/export` — server-rendered export file.
+ * Uses `fetch` (not the shared axios client) so binary responses are not
+ * mangled by the JSON response interceptor or opaque blob error bodies.
+ */
+export const adminExportTransactions = async (
+  params: AdminExportTransactionsParams,
+): Promise<Blob> => {
+  const base = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!base?.trim()) {
+    throw new Error("API base URL is not configured.");
+  }
+
+  const qs = new URLSearchParams({ type: params.type });
+  if (params.status) qs.set("status", params.status);
+  if (params.from) qs.set("from", params.from);
+  if (params.to) qs.set("to", params.to);
+
+  const token = getAdminToken() || getToken();
+  const res = await fetch(`${base.replace(/\/$/, "")}/admin/transactions/export?${qs}`, {
+    method: "GET",
+    headers: {
+      Accept: EXPORT_ACCEPT[params.type],
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  const blob = await res.blob();
+
+  if (!res.ok) {
+    throw new Error(await messageFromResponseBlob(blob));
+  }
+
+  if (blob.size === 0) {
+    throw new Error("Export returned an empty file.");
+  }
+
+  if (isErrorPayloadBlob(blob)) {
+    throw new Error(await messageFromResponseBlob(blob));
+  }
+
+  const mime = blob.type || EXPORT_ACCEPT[params.type];
+  return blob.type ? blob : new Blob([await blob.arrayBuffer()], { type: mime });
+};
+
+/** Trigger a browser download for an export blob. */
+export function downloadTransactionExportFile(filename: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 /** Paginated ledger: `{ data, page, page_size, total, total_pages }`. */

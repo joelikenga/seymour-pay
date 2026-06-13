@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useAdminListPage } from '../../hooks/useAdminListPage'
 import { toast } from 'sonner'
 import { toastRequestFailed } from '../../lib/apiErrors'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
 import ExportDropdown from '../../components/admin/ExportDropdown'
@@ -10,26 +11,31 @@ import TableSearchInput from '../../components/admin/TableSearchInput'
 import TableToolbar from '../../components/admin/TableToolbar'
 import TransactionDateFilterDropdown from '../../components/admin/TransactionDateFilterDropdown'
 import { useAdminData } from '../../context/AdminDataContext'
-import { useAdminPageAccess } from '../../hooks/useAdminPageAccess'
 import { getAuditActorLabel } from '../../lib/auditActorLabel'
-import { totalVolume } from '../../lib/dashboardStats'
 import { channelLabel, channelPillClass } from '../../lib/channelStyles'
 import { vehicleLabel, vehiclePillClass } from '../../lib/vehicleStyles'
 import { formatDateShort, formatMoney } from '../../lib/formatters'
 import { statusPillClass } from '../../lib/statusStyles'
 import type { Transaction } from '../../types/transaction'
 import {
+  dateSelectionToQueryKey,
+  dateSelectionToTransactionsApiRange,
   describeDateSelectionForExportLog,
   labelForTransactionDateFilter,
   parseFilterValue,
+  toLocalYmd,
+  TRANSACTION_FILTER_MIN_YEAR,
   type DateFilterSelection,
 } from '../../lib/transactionDateFilter'
 import {
-  fetchTransactionsForExport,
   TRANSACTIONS_PAGE_SIZE,
   useTransactionsListQuery,
 } from '../../query/transactionsList'
-import type { TransactionExportFormat } from '../../lib/exportTransactionsFormat'
+import {
+  labelForExportFormat,
+  type TransactionExportFormat,
+} from '../../lib/exportTransactionsFormat'
+import { TransactionsApi } from '../../utils'
 import {
   adminModalBackdrop,
   adminModalBody,
@@ -42,14 +48,12 @@ import {
 
 export default function TransactionsPage() {
   const { appendLog } = useAdminData()
-  const { canAccess } = useAdminPageAccess()
   const navigate = useNavigate()
   const location = useLocation()
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const [q, setQ] = useState('')
   const debouncedQ = useDebouncedValue(q, 300)
-  const [pageIndex, setPageIndex] = useState(0)
   const [activeTx, setActiveTx] = useState<Transaction | null>(null)
   const [exporting, setExporting] = useState(false)
   const [filterValue, setFilterValue] = useState<string>('all')
@@ -73,21 +77,25 @@ export default function TransactionsPage() {
     filterValue === 'custom' &&
     (!customStart.trim() || !customEnd.trim())
 
+  const { pageIndex, setPageIndex, uiPage } = useAdminListPage([
+    debouncedQ,
+    dateSelectionToQueryKey(dateSelection),
+  ])
+
   const listQuery = useTransactionsListQuery(pageIndex, debouncedQ, dateSelection)
   const payload = listQuery.data
   const rows = payload?.data ?? []
   const totalItems = payload?.total ?? 0
   const apiTotalPages = payload?.total_pages ?? 0
 
-  const uiPage = pageIndex + 1
   const totalPagesForUi =
     totalItems > 0 ? Math.max(1, apiTotalPages) : 0
 
-  const grand = useMemo(() => totalVolume(rows), [rows])
-
   useEffect(() => {
-    setPageIndex(0)
-  }, [debouncedQ, dateSelection])
+    if (totalPagesForUi > 0 && pageIndex >= totalPagesForUi) {
+      setPageIndex(totalPagesForUi - 1)
+    }
+  }, [pageIndex, setPageIndex, totalPagesForUi])
 
   useEffect(() => {
     const st = location.state as { focusSearch?: boolean } | null
@@ -112,51 +120,39 @@ export default function TransactionsPage() {
   }, [location.state, location.pathname, location.search, navigate])
 
   const handleExport = useCallback(async (exportFormat: TransactionExportFormat) => {
-    if (exporting || totalItems === 0) return
+    if (exporting || customIncomplete) return
     setExporting(true)
     try {
-      const exported = await fetchTransactionsForExport(q, dateSelection)
-      const rows = exported.map((t) => ({
-        reference: t.reference,
-        customerName: t.customerName,
-        vehicleType: vehicleLabel[t.vehicleType],
-        channel: channelLabel[t.channel],
-        amount: t.amount,
-        status: t.status,
-        createdAt: t.createdAt,
-        notes: t.notes,
-      }))
-      const stamp = new Date().toISOString().slice(0, 10)
-      const { downloadTransactionExport, labelForExportFormat } = await import(
-        '../../lib/exportTransactions'
-      )
+      const range = dateSelectionToTransactionsApiRange(dateSelection)
+      // `from` / `to` always follow the date filter; "All time" spans the
+      // earliest filter year through today.
+      const from = range.from ?? `${TRANSACTION_FILTER_MIN_YEAR}-01-01`
+      const to = range.to ?? toLocalYmd(new Date())
+      const blob = await TransactionsApi.adminExportTransactions({
+        type: exportFormat,
+        status: 'completed',
+        from,
+        to,
+      })
+      const filename = `${exportFilenameBase(dateSelection, range)}.${exportFormat}`
+      TransactionsApi.downloadTransactionExportFile(filename, blob)
       const formatLabel = labelForExportFormat(exportFormat)
-      downloadTransactionExport(
-        rows,
-        exportFormat,
-        `transactions-export-${stamp}`,
-      )
       const who = getAuditActorLabel()
-      const exportTotal = totalVolume(exported)
       const dateRangeLine = describeDateSelectionForExportLog(dateSelection)
-      const filterDesc = [
-        dateRangeLine,
-        q.trim() ? `search "${q.trim()}"` : 'no search',
-      ].join('; ')
       appendLog({
         action: 'export',
         summary: `${who} exported transactions data`,
-        detail: `${who} exported ${formatLabel} - ${filterDesc}; total amount ${formatMoney(exportTotal)} (${exported.length} row${exported.length === 1 ? '' : 's'}).`,
+        detail: `${who} exported ${formatLabel} (${filename}) - ${dateRangeLine}.`,
       })
       toast.success('Export ready', {
-        description: `${exported.length} row${exported.length === 1 ? '' : 's'} downloaded as ${formatLabel}.`,
+        description: `Downloaded ${filename}.`,
       })
     } catch (e) {
       toastRequestFailed('Export failed', e)
     } finally {
       setExporting(false)
     }
-  }, [appendLog, dateSelection, exporting, q, totalItems])
+  }, [appendLog, customIncomplete, dateSelection, exporting])
 
   useEffect(() => {
     if (!activeTx) return
@@ -183,37 +179,16 @@ export default function TransactionsPage() {
           className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-orange-400/20 blur-3xl"
           aria-hidden
         />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-700/90">
-              Ledger
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-950">
-              Transactions
-            </h1>
-            <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">
-              Full history across every payment type.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                {dateSelection.kind === 'all' ? 'This page volume' : 'This page (filtered)'}
-              </p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-zinc-950">
-                {formatMoney(grand)}
-              </p>
-
-            </div>
-            {canAccess('settlement') ? (
-              <Link
-                to="/admin/settlement"
-                className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-5 py-3 text-sm font-semibold text-sky-950 shadow-sm transition hover:border-sky-300 hover:bg-sky-100/90"
-              >
-                Settlement →
-              </Link>
-            ) : null}
-          </div>
+        <div className="relative">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-700/90">
+            Ledger
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-950">
+            Transactions
+          </h1>
+          <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">
+            Full history across every payment type.
+          </p>
         </div>
       </header>
 
@@ -238,11 +213,7 @@ export default function TransactionsPage() {
               <ExportDropdown
                 onExport={(format) => void handleExport(format)}
                 exporting={exporting}
-                disabled={
-                  listQuery.isPending ||
-                  totalItems === 0 ||
-                  customIncomplete
-                }
+                disabled={listQuery.isPending || customIncomplete}
               />
             </>
           }
@@ -431,6 +402,39 @@ export default function TransactionsPage() {
       ) : null}
     </div>
   )
+}
+
+/**
+ * Download filename base from the selected date range, e.g.
+ * "quarter 1 transactions", "june 2026 transactions", "all time transactions".
+ */
+function exportFilenameBase(
+  selection: DateFilterSelection,
+  range: { from?: string; to?: string },
+): string {
+  switch (selection.kind) {
+    case 'today':
+      return 'today transactions'
+    case '7d':
+      return 'last 7 days transactions'
+    case '30d':
+      return 'last 30 days transactions'
+    case 'month': {
+      const label = new Date(selection.year, selection.monthIndex, 15)
+        .toLocaleString(undefined, { month: 'long', year: 'numeric' })
+        .toLowerCase()
+      return `${label} transactions`
+    }
+    case 'quarter':
+      return `quarter ${selection.quarter} transactions`
+    case 'custom':
+      if (range.from && range.to) {
+        return `${range.from} to ${range.to} transactions`
+      }
+      return 'custom range transactions'
+    default:
+      return 'all time transactions'
+  }
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {

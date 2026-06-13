@@ -121,6 +121,9 @@ export function createSeedTransactions(): Transaction[] {
       out.push({
         id: `tx-${1000 + out.length}`,
         reference: `REF-${yyyymmdd}-${refSeq}`,
+        ticketId: `REF-${yyyymmdd}-${refSeq}`,
+        code: '',
+        isLostTicket: false,
         amount,
         channel: ch,
         vehicleType,

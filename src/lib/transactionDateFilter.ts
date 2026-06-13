@@ -54,12 +54,54 @@ export function labelForMonthFilterValue(value: string): string | null {
   return d.toLocaleString(undefined, { month: 'long', year: 'numeric' })
 }
 
+/** First (0-based) month index of a 1-based quarter: Q1→0, Q2→3, Q3→6, Q4→9. */
+export function quarterStartMonthIndex(quarter: number): number {
+  return (quarter - 1) * 3
+}
+
+/** 1-based quarter (1–4) containing a 0-based month index. */
+export function quarterForMonthIndex(monthIndex: number): number {
+  return Math.floor(monthIndex / 3) + 1
+}
+
+/**
+ * All four quarter tiles for one calendar year. A quarter is `disabled` until
+ * its full span has elapsed (i.e. the current quarter and any future quarter
+ * are incomplete and cannot be selected).
+ */
+export function quarterOptionsForCalendarYear(
+  year: number,
+  now: Date = new Date(),
+): QuarterOption[] {
+  const y = Math.max(TRANSACTION_FILTER_MIN_YEAR, year)
+  const out: QuarterOption[] = []
+  for (let q = 1; q <= 4; q++) {
+    const startMonth = quarterStartMonthIndex(q)
+    const end = new Date(y, startMonth + 3, 0, 23, 59, 59, 999)
+    const disabled = end.getTime() > now.getTime()
+    out.push({ year: y, quarter: q, value: `quarter:${y}-${q}`, label: `Q${q} ${y}`, disabled })
+  }
+  return out
+}
+
+/** Label for a `quarter:YYYY-Q` filter value (trigger / summaries). */
+export function labelForQuarterFilterValue(value: string): string | null {
+  if (!value.startsWith('quarter:')) return null
+  const rest = value.slice('quarter:'.length)
+  const [ys, qs] = rest.split('-').map((x) => Number.parseInt(x, 10))
+  if (!Number.isFinite(ys) || !Number.isFinite(qs)) return null
+  if (ys < TRANSACTION_FILTER_MIN_YEAR) return null
+  if (qs < 1 || qs > 4) return null
+  return `Q${qs} ${ys}`
+}
+
 export type DateFilterSelection =
   | { kind: 'all' }
   | { kind: 'today' }
   | { kind: '7d' }
   | { kind: '30d' }
   | { kind: 'month'; year: number; monthIndex: number }
+  | { kind: 'quarter'; year: number; quarter: number }
   | { kind: 'custom'; start: string; end: string }
 
 export function startOfLocalDay(d: Date): Date {
@@ -139,6 +181,9 @@ export function labelForTransactionDateFilter(
   if (filterValue.startsWith('month:')) {
     return labelForMonthFilterValue(filterValue) ?? 'Month'
   }
+  if (filterValue.startsWith('quarter:')) {
+    return labelForQuarterFilterValue(filterValue) ?? 'Quarter'
+  }
   return 'Month'
 }
 
@@ -179,12 +224,18 @@ export function dateSelectionToCalendarApiRange(
   return { from: toLocalYmd(bounds.start), to: toLocalYmd(bounds.end) }
 }
 
-/** @see dateSelectionToCalendarApiRange */
-export const dateSelectionToAnalyticsApiRange = dateSelectionToCalendarApiRange
+/**
+ * Inclusive date-only range for `GET /admin/analytics/overview` — local `from` /
+ * `to` calendar dates (e.g. `2026-01-01` … `2026-03-31`), so month / quarter /
+ * preset filters keep the picked calendar date.
+ * @see dateSelectionToTransactionsApiRange
+ */
+export const dateSelectionToAnalyticsApiRange = dateSelectionToTransactionsApiRange
 
 /**
- * Inclusive ISO range for `GET /admin/transactions` — `from` / `to` datetimes
- * (e.g. `2026-05-24T14:00:29.000Z`), matching the ledger API contract.
+ * Inclusive date-only range for `GET /admin/transactions` — local `from` / `to`
+ * calendar dates (e.g. `2026-01-01` … `2026-01-31`), so a month / quarter /
+ * preset keeps the picked calendar date instead of shifting to UTC.
  */
 export function dateSelectionToTransactionsApiRange(
   selection: DateFilterSelection,
@@ -193,8 +244,8 @@ export function dateSelectionToTransactionsApiRange(
   const bounds = getFilterBounds(selection, now)
   if (!bounds) return {}
   return {
-    from: bounds.start.toISOString(),
-    to: bounds.end.toISOString(),
+    from: toLocalYmd(bounds.start),
+    to: toLocalYmd(bounds.end),
   }
 }
 
@@ -277,6 +328,20 @@ export function getFilterBounds(
     )
     return { start, end }
   }
+  if (selection.kind === 'quarter') {
+    const startMonth = quarterStartMonthIndex(selection.quarter)
+    const start = new Date(selection.year, startMonth, 1, 0, 0, 0, 0)
+    const end = new Date(
+      selection.year,
+      startMonth + 3,
+      0,
+      23,
+      59,
+      59,
+      999,
+    )
+    return { start, end }
+  }
   if (selection.kind === 'custom') {
     const start = parseCustomRangeBound(selection.start, 'start')
     const end = parseCustomRangeBound(selection.end, 'end')
@@ -310,6 +375,16 @@ export interface MonthOption {
   monthIndex: number
   value: string
   label: string
+}
+
+export interface QuarterOption {
+  year: number
+  /** 1-based quarter (1–4). */
+  quarter: number
+  value: string
+  label: string
+  /** True until the quarter's full span has elapsed (current/future quarters). */
+  disabled: boolean
 }
 
 /**
@@ -372,39 +447,13 @@ export function parseFilterValue(
     if (!Number.isFinite(ys) || !Number.isFinite(ms)) return { kind: 'all' }
     return { kind: 'month', year: ys, monthIndex: ms - 1 }
   }
+  if (value.startsWith('quarter:')) {
+    const rest = value.slice('quarter:'.length)
+    const [ys, qs] = rest.split('-').map((x) => Number.parseInt(x, 10))
+    if (!Number.isFinite(ys) || !Number.isFinite(qs)) return { kind: 'all' }
+    if (qs < 1 || qs > 4) return { kind: 'all' }
+    return { kind: 'quarter', year: ys, quarter: qs }
+  }
   return { kind: 'all' }
 }
 
-export function escapeCsvCell(s: string): string {
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-  return s
-}
-
-export function transactionsToCsv(
-  rows: Array<{
-    reference: string
-    customerName: string
-    vehicleType: string
-    channel: string
-    amount: number
-    status: string
-    createdAt: string
-    notes: string
-  }>,
-): string {
-  const header =
-    'reference,customer,vehicle_type,payment_type,amount,status,date,notes'
-  const lines = rows.map((t) =>
-    [
-      escapeCsvCell(t.reference),
-      escapeCsvCell(t.customerName),
-      escapeCsvCell(t.vehicleType),
-      escapeCsvCell(t.channel),
-      String(t.amount),
-      escapeCsvCell(t.status),
-      escapeCsvCell(t.createdAt),
-      escapeCsvCell(t.notes ?? ''),
-    ].join(','),
-  )
-  return '\uFEFF' + header + '\n' + lines.join('\n')
-}

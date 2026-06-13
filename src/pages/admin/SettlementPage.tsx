@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import EditTransactionModal from '../../components/admin/EditTransactionModal'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
+import TableSearchInput from '../../components/admin/TableSearchInput'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useAdminListPage } from '../../hooks/useAdminListPage'
 import fidelityLogo from '../../assets/Fidelity_Bank_Plc_Main_Logo.svg'
 import { useAdminData } from '../../context/AdminDataContext'
 import {
@@ -27,19 +30,26 @@ const STATUS_EMPHASIS: TransactionStatus[] = ['completed', 'pending', 'failed']
 
 export default function SettlementPage() {
   const { appendLog } = useAdminData()
-  const [pageIndex, setPageIndex] = useState(0)
   const [modalTx, setModalTx] = useState<Transaction | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const debouncedQ = useDebouncedValue(q, 300)
+  const { pageIndex, setPageIndex, uiPage } = useAdminListPage([debouncedQ])
 
-  const settlementQuery = useSettlementTransactionsQuery(pageIndex)
+  const settlementQuery = useSettlementTransactionsQuery(pageIndex, debouncedQ)
   const payload = settlementQuery.data
   const rows = payload?.data ?? []
   const totalItems = payload?.total ?? 0
   const apiTotalPages = payload?.total_pages ?? 0
 
-  const uiPage = pageIndex + 1
   const totalPagesForUi =
     totalItems > 0 ? Math.max(1, apiTotalPages) : 0
+
+  useEffect(() => {
+    if (totalPagesForUi > 0 && pageIndex >= totalPagesForUi) {
+      setPageIndex(totalPagesForUi - 1)
+    }
+  }, [pageIndex, setPageIndex, totalPagesForUi])
 
   const statusStats = useMemo(() => {
     const m = new Map<TransactionStatus, { count: number; volume: number }>()
@@ -159,8 +169,14 @@ export default function SettlementPage() {
         className="overflow-hidden rounded-3xl border border-zinc-200/90 bg-white shadow-[0_8px_40px_-28px_rgba(15,23,42,0.12)] ring-1 ring-zinc-950/5"
         aria-label="Fidelity settlement transactions"
       >
-        <div className="border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/90 px-5 py-4">
-          <p className="text-sm font-medium text-zinc-700">
+        <div className="flex flex-col gap-3 border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/90 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <TableSearchInput
+            value={q}
+            onChange={setQ}
+            placeholder="Search ticket ID…"
+            ariaLabel="Search settlement"
+          />
+          <p className="shrink-0 text-sm font-medium text-zinc-700">
             <span className="tabular-nums font-bold text-zinc-950">{totalItems}</span>{' '}
             settlement row{totalItems === 1 ? '' : 's'} · newest first ·{' '}
             {SETTLEMENT_PAGE_SIZE} per page
@@ -266,7 +282,9 @@ export default function SettlementPage() {
 
         {!settlementQuery.isPending && totalItems === 0 && !settlementQuery.isError ? (
           <p className="px-5 py-12 text-center text-sm text-zinc-500">
-            No settlement rows returned from the server.
+            {debouncedQ.trim()
+              ? 'No settlement rows match this search.'
+              : 'No settlement rows returned from the server.'}
           </p>
         ) : null}
 

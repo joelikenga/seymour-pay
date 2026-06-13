@@ -17,13 +17,21 @@ interface RawSettlementResponse {
 
 export function useSettlementTransactionsQuery(
   page: number,
+  search = '',
 ): UseQueryResult<PaginatedTransactionsResponse, Error> {
+  const trimmedSearch = search.trim()
   return useQuery({
-    queryKey: [...settlementTransactionsQueryKey, page, SETTLEMENT_PAGE_SIZE],
+    queryKey: [
+      ...settlementTransactionsQueryKey,
+      page,
+      SETTLEMENT_PAGE_SIZE,
+      trimmedSearch,
+    ],
     queryFn: async () => {
       const raw = (await SettlementApi.adminGetSettlement({
         page,
         page_size: SETTLEMENT_PAGE_SIZE,
+        ...(trimmedSearch ? { search: trimmedSearch } : {}),
       })) as RawSettlementResponse
       const rows = Array.isArray(raw.data)
         ? raw.data
