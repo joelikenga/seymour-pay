@@ -57,7 +57,7 @@ export default function EditTransactionModal({
 
   useEffect(() => {
     if (!tx) return
-    setReference(tx.reference)
+    setReference(tx.ticketId || tx.reference)
     setAmount(String(tx.amount))
     setChannel(tx.channel)
     setVehicleType(tx.vehicleType)
@@ -127,8 +127,8 @@ export default function EditTransactionModal({
               <h2 id="edit-tx-title" className={adminModalTitle}>
                 Edit transaction
               </h2>
-              <p className={`${adminModalSubtitle} truncate font-mono`} title={tx.reference}>
-                {tx.reference}
+              <p className={`${adminModalSubtitle} truncate font-mono`} title={tx.ticketId || tx.reference}>
+                {tx.ticketId || tx.reference}
               </p>
             </div>
             <button

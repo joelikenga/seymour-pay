@@ -52,7 +52,31 @@ export type AdminExportTransactionsParams = {
   to?: string;
 };
 
-async function messageFromResponseBlob(blob: Blob): Promise<string> {
+const EXPORT_TIMEOUT_MS = 180_000
+const EXPORT_MAX_ATTEMPTS = 3
+const EXPORT_RETRY_STATUS = new Set([502, 503, 504])
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function exportHttpError(status: number): string {
+  if (status === 502) {
+    return (
+      "Export server timed out (502 Bad Gateway). The PDF may be too large for " +
+      "the server — try a shorter date range, or wait a few seconds and retry."
+    )
+  }
+  if (status === 503 || status === 504) {
+    return `Export server unavailable (HTTP ${status}). Please try again shortly.`
+  }
+  if (status === 401 || status === 403) {
+    return "Not authorized to export. Sign in again and retry."
+  }
+  return `Export failed (HTTP ${status}).`
+}
+
+async function messageFromBlob(blob: Blob): Promise<string> {
   const text = (await blob.text()).trim();
   if (!text) return "Export failed.";
   try {
@@ -63,15 +87,28 @@ async function messageFromResponseBlob(blob: Blob): Promise<string> {
   }
 }
 
-function isErrorPayloadBlob(blob: Blob): boolean {
-  const mime = blob.type.toLowerCase();
-  return mime.includes("json") || mime.includes("text/html");
+async function looksLikeJsonBlob(blob: Blob): Promise<boolean> {
+  const head = (await blob.slice(0, 256).text()).trimStart();
+  return head.startsWith("{") || head.startsWith("[");
+}
+
+function withExportMime(blob: Blob, mime: string): Blob {
+  if (blob.type && blob.type !== "application/octet-stream") return blob;
+  return new Blob([blob], { type: mime });
+}
+
+function exportMimeFromResponse(
+  res: Response,
+  type: AdminExportTransactionsType,
+): string {
+  const raw = res.headers.get("content-type")?.split(";")[0]?.trim();
+  if (raw) return raw;
+  return EXPORT_ACCEPT[type];
 }
 
 /**
  * `GET /admin/transactions/export` — server-rendered export file.
- * Uses `fetch` (not the shared axios client) so binary responses are not
- * mangled by the JSON response interceptor or opaque blob error bodies.
+ * Retries transient gateway errors (502/503/504).
  */
 export const adminExportTransactions = async (
   params: AdminExportTransactionsParams,
@@ -81,36 +118,104 @@ export const adminExportTransactions = async (
     throw new Error("API base URL is not configured.");
   }
 
-  const qs = new URLSearchParams({ type: params.type });
+  const from = params.from?.trim();
+  const to = params.to?.trim();
+  if (!from || !to) {
+    throw new Error(
+      "Pick a date range before exporting. The server requires from and to dates (YYYY-MM-DD).",
+    );
+  }
+
+  const qs = new URLSearchParams({ type: params.type, from, to });
   if (params.status) qs.set("status", params.status);
-  if (params.from) qs.set("from", params.from);
-  if (params.to) qs.set("to", params.to);
 
   const token = getAdminToken() || getToken();
-  const res = await fetch(`${base.replace(/\/$/, "")}/admin/transactions/export?${qs}`, {
-    method: "GET",
-    headers: {
-      Accept: EXPORT_ACCEPT[params.type],
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  const url = `${base.replace(/\/$/, "")}/admin/transactions/export?${qs}`;
 
-  const blob = await res.blob();
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
-    throw new Error(await messageFromResponseBlob(blob));
+  for (let attempt = 1; attempt <= EXPORT_MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      EXPORT_TIMEOUT_MS,
+    );
+
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: EXPORT_ACCEPT[params.type],
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal: controller.signal,
+        cache: "no-store",
+      });
+
+      const blob = await res.blob();
+
+      if (!res.ok) {
+        const detail =
+          blob.size > 0
+            ? await messageFromBlob(blob)
+            : exportHttpError(res.status);
+        lastError = new Error(detail);
+        if (EXPORT_RETRY_STATUS.has(res.status) && attempt < EXPORT_MAX_ATTEMPTS) {
+          await sleep(2000 * attempt);
+          continue;
+        }
+        throw lastError;
+      }
+
+      if (blob.size === 0) {
+        throw new Error("Export returned an empty file.");
+      }
+
+      if (await looksLikeJsonBlob(blob)) {
+        throw new Error(await messageFromBlob(blob));
+      }
+
+      if (params.type === "pdf") {
+        const sig = await blob.slice(0, 5).text();
+        if (!sig.startsWith("%PDF")) {
+          throw new Error(
+            (await messageFromBlob(blob)) ||
+              "Export did not return a valid PDF file.",
+          );
+        }
+      }
+
+      const mime = exportMimeFromResponse(res, params.type);
+      return withExportMime(blob, mime);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        lastError = new Error(
+          "Export timed out while waiting for the server. Try a shorter date range.",
+        );
+        if (attempt < EXPORT_MAX_ATTEMPTS) {
+          await sleep(2000 * attempt);
+          continue;
+        }
+        throw lastError;
+      }
+      if (err instanceof TypeError) {
+        lastError = new Error(
+          "Could not reach the export server. Check your connection and try again.",
+        );
+        if (attempt < EXPORT_MAX_ATTEMPTS) {
+          await sleep(2000 * attempt);
+          continue;
+        }
+        throw lastError;
+      }
+      if (err instanceof Error) throw err;
+      throw new Error("Export failed.");
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
   }
 
-  if (blob.size === 0) {
-    throw new Error("Export returned an empty file.");
-  }
-
-  if (isErrorPayloadBlob(blob)) {
-    throw new Error(await messageFromResponseBlob(blob));
-  }
-
-  const mime = blob.type || EXPORT_ACCEPT[params.type];
-  return blob.type ? blob : new Blob([await blob.arrayBuffer()], { type: mime });
+  throw lastError ?? new Error("Export failed.");
 };
 
 /** Trigger a browser download for an export blob. */
@@ -120,10 +225,14 @@ export function downloadTransactionExportFile(filename: string, blob: Blob) {
   a.href = url;
   a.download = filename;
   a.rel = "noopener";
+  a.style.display = "none";
   document.body.appendChild(a);
   a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  // Keep the anchor and blob URL alive until the browser finishes the download.
+  window.setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 60_000);
 }
 
 /** Paginated ledger: `{ data, page, page_size, total, total_pages }`. */

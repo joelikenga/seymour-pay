@@ -2,11 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useAdminListPage } from '../../hooks/useAdminListPage'
 import { toast } from 'sonner'
-import { toastRequestFailed } from '../../lib/apiErrors'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
-import ExportDropdown from '../../components/admin/ExportDropdown'
 import TableSearchInput from '../../components/admin/TableSearchInput'
 import TableToolbar from '../../components/admin/TableToolbar'
 import TransactionDateFilterDropdown from '../../components/admin/TransactionDateFilterDropdown'
@@ -20,21 +18,17 @@ import type { Transaction } from '../../types/transaction'
 import {
   dateSelectionToQueryKey,
   dateSelectionToTransactionsApiRange,
+  defaultTransactionFilterYear,
   describeDateSelectionForExportLog,
   labelForTransactionDateFilter,
   parseFilterValue,
-  toLocalYmd,
-  TRANSACTION_FILTER_MIN_YEAR,
   type DateFilterSelection,
 } from '../../lib/transactionDateFilter'
 import {
   TRANSACTIONS_PAGE_SIZE,
   useTransactionsListQuery,
 } from '../../query/transactionsList'
-import {
-  labelForExportFormat,
-  type TransactionExportFormat,
-} from '../../lib/exportTransactionsFormat'
+import { labelForExportFormat } from '../../lib/exportTransactionsFormat'
 import { TransactionsApi } from '../../utils'
 import {
   adminModalBackdrop,
@@ -56,7 +50,12 @@ export default function TransactionsPage() {
   const debouncedQ = useDebouncedValue(q, 300)
   const [activeTx, setActiveTx] = useState<Transaction | null>(null)
   const [exporting, setExporting] = useState(false)
-  const [filterValue, setFilterValue] = useState<string>('all')
+  const [filterValue, setFilterValue] = useState<string>(() => {
+    const now = new Date()
+    const year = defaultTransactionFilterYear(now)
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    return `month:${year}-${month}`
+  })
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
 
@@ -72,10 +71,6 @@ export default function TransactionsPage() {
     () => labelForTransactionDateFilter(filterValue, customStart, customEnd),
     [filterValue, customStart, customEnd],
   )
-
-  const customIncomplete =
-    filterValue === 'custom' &&
-    (!customStart.trim() || !customEnd.trim())
 
   const { pageIndex, setPageIndex, uiPage } = useAdminListPage([
     debouncedQ,
@@ -119,20 +114,22 @@ export default function TransactionsPage() {
     }
   }, [location.state, location.pathname, location.search, navigate])
 
-  const handleExport = useCallback(async (exportFormat: TransactionExportFormat) => {
-    if (exporting || customIncomplete) return
+  const handleExport = useCallback(async () => {
+    if (exporting) return
+    const exportFormat = 'csv' as const
     setExporting(true)
     try {
       const range = dateSelectionToTransactionsApiRange(dateSelection)
-      // `from` / `to` always follow the date filter; "All time" spans the
-      // earliest filter year through today.
-      const from = range.from ?? `${TRANSACTION_FILTER_MIN_YEAR}-01-01`
-      const to = range.to ?? toLocalYmd(new Date())
+      if (!range.from || !range.to) {
+        throw new Error(
+          'Pick a date range before exporting. All-time exports are too large for the server.',
+        )
+      }
       const blob = await TransactionsApi.adminExportTransactions({
         type: exportFormat,
         status: 'completed',
-        from,
-        to,
+        from: range.from,
+        to: range.to,
       })
       const filename = `${exportFilenameBase(dateSelection, range)}.${exportFormat}`
       TransactionsApi.downloadTransactionExportFile(filename, blob)
@@ -148,11 +145,15 @@ export default function TransactionsPage() {
         description: `Downloaded ${filename}.`,
       })
     } catch (e) {
-      toastRequestFailed('Export failed', e)
+      const message =
+        e instanceof Error && e.message.trim()
+          ? e.message.trim()
+          : 'Something went wrong. Please try again.'
+      toast.error('Export failed', { description: message })
     } finally {
       setExporting(false)
     }
-  }, [appendLog, customIncomplete, dateSelection, exporting])
+  }, [appendLog, dateSelection, exporting])
 
   useEffect(() => {
     if (!activeTx) return
@@ -209,22 +210,34 @@ export default function TransactionsPage() {
                 customEnd={customEnd}
                 onCustomStartChange={setCustomStart}
                 onCustomEndChange={setCustomEnd}
+                mode="monthQuarter"
               />
-              <ExportDropdown
-                onExport={(format) => void handleExport(format)}
-                exporting={exporting}
-                disabled={listQuery.isPending || customIncomplete}
-              />
+              <button
+                type="button"
+                onClick={() => void handleExport()}
+                disabled={listQuery.isPending || exporting}
+                aria-label="Export transactions as CSV"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-950 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="shrink-0 opacity-90"
+                  aria-hidden
+                >
+                  <path
+                    d="M12 3v10m0 0l4-4m-4 4l-4-4M5 21h14"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {exporting ? 'Exporting…' : 'Export'}
+              </button>
             </>
-          }
-          footer={
-            customIncomplete ? (
-              <p className="text-sm text-amber-800">
-                Open <strong>Date range</strong>, pick{' '}
-                <strong>Custom range</strong>, set start and end date &amp; time, then press{' '}
-                <strong>Done</strong>.
-              </p>
-            ) : null
           }
         >
           <TableSearchInput
@@ -235,15 +248,6 @@ export default function TransactionsPage() {
             ariaLabel="Search transactions"
           />
         </TableToolbar>
-
-        {listQuery.isError ? (
-          <p className="px-5 py-6 text-sm text-rose-700">
-            Could not load transactions.{' '}
-            {listQuery.error instanceof Error
-              ? listQuery.error.message
-              : 'Please try again.'}
-          </p>
-        ) : null}
 
         <div
           className="overflow-x-auto"
@@ -285,7 +289,7 @@ export default function TransactionsPage() {
                 rows.map((t) => (
                   <tr key={t.id} className="transition hover:bg-orange-50/50">
                     <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
-                      {t.reference}
+                      {t.ticketId || t.reference}
                     </td>
                     <td className="whitespace-nowrap px-5 py-3.5">
                       <span
@@ -354,8 +358,8 @@ export default function TransactionsPage() {
                   <h2 id="transaction-details-title" className={adminModalTitle}>
                     Transaction details
                   </h2>
-                  <p className={`${adminModalSubtitle} truncate font-mono`} title={activeTx.reference}>
-                    {activeTx.reference}
+                  <p className={`${adminModalSubtitle} truncate font-mono`} title={activeTx.ticketId || activeTx.reference}>
+                    {activeTx.ticketId || activeTx.reference}
                   </p>
                 </div>
                 <button

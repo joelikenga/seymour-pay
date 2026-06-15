@@ -42,7 +42,7 @@ export default function ReconciliationAlignTab() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300)
   const { pageIndex, setPageIndex, uiPage } = useAdminListPage([debouncedQuery])
-  /** Map row id → ticket reference for API bulk delete (`ids` = references). */
+  /** Map row id → ticket id for API bulk delete (`ids` = ticket references). */
   const [selectedById, setSelectedById] = useState<Map<string, string>>(
     () => new Map(),
   )
@@ -143,7 +143,7 @@ export default function ReconciliationAlignTab() {
           patch.vehicleType ?? prev.vehicleType,
         ),
       } as Parameters<typeof TransactionsApi.adminUpdateTransactionById>[1])
-      const ticket = prev.reference?.trim() || id
+      const ticket = ticketRef(prev)
       appendLog({
         action: 'reconciliation',
         summary: `Updated ${ticket}`,
@@ -164,7 +164,7 @@ export default function ReconciliationAlignTab() {
     } catch (e) {
       appendLog({
         action: 'settings',
-        summary: `Save failed for ${prev.reference ?? id}`,
+        summary: `Save failed for ${ticketRef(prev)}`,
         detail: 'Could not update transaction on the server.',
       })
       toastRequestFailed('Could not save transaction', e)
@@ -183,7 +183,7 @@ export default function ReconciliationAlignTab() {
       appendLog({
         action: 'reconciliation',
         summary: `Deleted ${ticketIds.length} transaction${ticketIds.length === 1 ? '' : 's'}`,
-        detail: `Bulk deleted on server - ticket refs: ${preview}${more}`,
+        detail: `Bulk deleted on server - ticket IDs: ${preview}${more}`,
       })
       void queryClient.invalidateQueries({ queryKey: ['admin', 'transactions'] })
       void queryClient.invalidateQueries({
@@ -360,6 +360,7 @@ export default function ReconciliationAlignTab() {
               ) : (
                 paginated.map((t) => {
                   const isSelected = selectedById.has(t.id)
+                  const ticketLabel = ticketRef(t)
                   return (
                     <tr
                       key={t.id}
@@ -373,11 +374,11 @@ export default function ReconciliationAlignTab() {
                         <RowCheckbox
                           checked={isSelected}
                           onChange={() => toggleRow(t)}
-                          label={`Select transaction ${t.reference}`}
+                          label={`Select transaction ${ticketLabel}`}
                         />
                       </td>
                       <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
-                        {t.reference}
+                        {ticketLabel}
                       </td>
                       <td className="whitespace-nowrap px-5 py-3.5">
                         <span

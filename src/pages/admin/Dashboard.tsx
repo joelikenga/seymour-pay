@@ -608,7 +608,7 @@ export default function Dashboard() {
                     className="transition hover:bg-orange-50/50"
                   >
                     <td className="whitespace-nowrap px-6 py-4 font-mono text-[13px] text-zinc-900 md:px-8">
-                      {row.reference}
+                      {row.ticketId || row.reference}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 md:px-8">
                       <span

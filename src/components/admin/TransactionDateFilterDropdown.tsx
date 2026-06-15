@@ -30,6 +30,8 @@ interface TransactionDateFilterDropdownProps {
   onCustomEndChange: (v: string) => void
   /** Optional accessible label override for the trigger button. */
   ariaLabel?: string
+  /** When `monthQuarter`, only the By month and By quarter sections are shown. */
+  mode?: 'full' | 'monthQuarter'
 }
 
 export default function TransactionDateFilterDropdown({
@@ -41,7 +43,9 @@ export default function TransactionDateFilterDropdown({
   onCustomStartChange,
   onCustomEndChange,
   ariaLabel = 'Date range',
+  mode = 'full',
 }: TransactionDateFilterDropdownProps) {
+  const monthQuarterOnly = mode === 'monthQuarter'
   const titleId = useId()
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -224,7 +228,7 @@ export default function TransactionDateFilterDropdown({
               </p>
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              {filterValue !== 'all' ? (
+              {!monthQuarterOnly && filterValue !== 'all' ? (
                 <button
                   type="button"
                   onClick={() => select('all')}
@@ -307,49 +311,51 @@ export default function TransactionDateFilterDropdown({
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:block sm:flex-none">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:max-h-[min(28rem,70vh)] sm:flex-none">
-            <div className="space-y-0.5">
-              {PRESETS.map((p) => {
-                const active = filterValue === p.value
-                return (
-                  <button
-                    key={p.value}
-                    type="button"
-                    role="option"
-                    aria-selected={active}
-                    onClick={() => select(p.value)}
-                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                      active
-                        ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
-                        : 'text-zinc-800 hover:bg-zinc-50'
-                    }`}
-                  >
-                    {p.label}
-                    {active ? (
-                      <span className="text-link" aria-hidden>
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <path
-                            d="M5 12.5l4.5 4.5L19 6.5"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
+            {!monthQuarterOnly ? (
+              <div className="space-y-0.5">
+                {PRESETS.map((p) => {
+                  const active = filterValue === p.value
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      onClick={() => select(p.value)}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
+                        active
+                          ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
+                          : 'text-zinc-800 hover:bg-zinc-50'
+                      }`}
+                    >
+                      {p.label}
+                      {active ? (
+                        <span className="text-link" aria-hidden>
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M5 12.5l4.5 4.5L19 6.5"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
 
             {monthsForYear.length > 0 ? (
               <>
-                <div className="my-2 h-px bg-zinc-100" />
+                {!monthQuarterOnly ? <div className="my-2 h-px bg-zinc-100" /> : null}
                 <button
                   type="button"
                   onClick={() => setMonthSectionOpen((s) => !s)}
@@ -479,38 +485,42 @@ export default function TransactionDateFilterDropdown({
               </>
             ) : null}
 
-            <div className="my-2 h-px bg-zinc-100" />
+            {!monthQuarterOnly ? (
+              <>
+                <div className="my-2 h-px bg-zinc-100" />
 
-            <button
-              type="button"
-              role="option"
-              aria-selected={filterValue === 'custom'}
-              onClick={() => onFilterChange('custom')}
-              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                filterValue === 'custom'
-                  ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
-                  : 'text-zinc-800 hover:bg-zinc-50'
-              }`}
-            >
-              Custom range…
-              {filterValue === 'custom' ? (
-                <span className="text-link" aria-hidden>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M5 12.5l4.5 4.5L19 6.5"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-              ) : null}
-            </button>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={filterValue === 'custom'}
+                  onClick={() => onFilterChange('custom')}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
+                    filterValue === 'custom'
+                      ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
+                      : 'text-zinc-800 hover:bg-zinc-50'
+                  }`}
+                >
+                  Custom range…
+                  {filterValue === 'custom' ? (
+                    <span className="text-link" aria-hidden>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M5 12.5l4.5 4.5L19 6.5"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  ) : null}
+                </button>
+              </>
+            ) : null}
           </div>
           </div>
 
-          {filterValue === 'custom' ? (
+          {!monthQuarterOnly && filterValue === 'custom' ? (
             <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
               <p className="mb-2 text-[10px] font-medium leading-snug text-zinc-500">
                 Pick start and end date &amp; time (local).
