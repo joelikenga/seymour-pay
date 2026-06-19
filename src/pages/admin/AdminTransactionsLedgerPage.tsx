@@ -163,7 +163,7 @@ export default function AdminTransactionsLedgerPage({
     cashiersApiRange,
     showCashierFilter,
   )
-  const cashierNames =
+  const cashierNames: string[] =
     cashiersRangeKey && cashiersQuery.data ? cashiersQuery.data : []
 
   useEffect(() => {

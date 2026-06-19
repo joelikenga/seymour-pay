@@ -104,6 +104,10 @@ function buildCashierTransactions(): CashierTransaction[] {
       shift: shiftFromIso(createdAt),
       cashpointId,
       cashpointName: cashpointName(cashpointId),
+      carfeeId: ref,
+      createdBy: cashierName,
+      entryTime: null,
+      exitTime: null,
     })
   }
 

@@ -22,7 +22,7 @@ export function useTransactionCashiersQuery(
   const to = range.to?.trim() ?? ''
   const hasRange = Boolean(from && to)
 
-  return useQuery({
+  return useQuery<string[], Error>({
     queryKey: transactionCashiersQueryKey(from, to),
     queryFn: async ({ signal }) => {
       const names = await TransactionsApi.adminGetTransactionCashiers(
