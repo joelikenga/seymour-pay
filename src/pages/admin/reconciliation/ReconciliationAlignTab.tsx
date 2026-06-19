@@ -12,7 +12,7 @@ import { channelLabel, channelPillClass } from '../../../lib/channelStyles'
 import { vehicleTypeToApiPayload } from '../../../lib/normalizeTransaction'
 import { vehicleLabel, vehiclePillClass } from '../../../lib/vehicleStyles'
 import { describeTransactionPatchForLog } from '../../../lib/describeTransactionPatchForLog'
-import { formatDateShort, formatMoney } from '../../../lib/formatters'
+import { formatMoney, formatTransactionLedgerTime, displayTransactionField } from '../../../lib/formatters'
 import type { Transaction } from '../../../types/transaction'
 import {
   RECONCILIATION_PAGE_SIZE,
@@ -304,7 +304,7 @@ export default function ReconciliationAlignTab() {
           aria-busy={listQuery.isPending}
         >
           <table
-            className="w-full min-w-[920px] border-collapse text-left text-sm"
+            className="w-full min-w-[1500px] border-collapse text-left text-sm"
             aria-label={
               listQuery.isPending
                 ? 'Loading reconciliation rows'
@@ -323,10 +323,14 @@ export default function ReconciliationAlignTab() {
                   />
                 </th>
                 <th className="whitespace-nowrap px-5 py-3.5">Ticket ID</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Pay ID</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Cashier</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Vehicle</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Payment type</th>
                 <th className="whitespace-nowrap px-5 py-3.5 text-right">Amount</th>
-                <th className="whitespace-nowrap px-5 py-3.5">Date</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Entry time</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Exit time</th>
+                <th className="whitespace-nowrap px-5 py-3.5">Pay time</th>
                 <th className="whitespace-nowrap px-5 py-3.5 text-right"> </th>
               </tr>
             </thead>
@@ -334,14 +338,14 @@ export default function ReconciliationAlignTab() {
               {listQuery.isPending ? (
                 <AdminTableSkeletonBody
                   rows={RECONCILIATION_PAGE_SIZE}
-                  columns={6}
+                  columns={10}
                   checkboxColumn
-                  rightAlignIndices={[3, 5]}
+                  rightAlignIndices={[5, 9]}
                 />
               ) : listQuery.isError ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={11}
                     className="px-5 py-10 text-center text-sm text-rose-700"
                   >
                     Could not load transactions. Try again later.
@@ -350,7 +354,7 @@ export default function ReconciliationAlignTab() {
               ) : paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={11}
                     className="px-5 py-10 text-center text-sm text-zinc-500"
                   >
                     No transactions match
@@ -380,6 +384,12 @@ export default function ReconciliationAlignTab() {
                       <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
                         {ticketLabel}
                       </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-700">
+                        {displayTransactionField(t.carfeeId)}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 text-zinc-700">
+                        {displayTransactionField(t.createdBy)}
+                      </td>
                       <td className="whitespace-nowrap px-5 py-3.5">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[t.vehicleType]}`}
@@ -397,8 +407,14 @@ export default function ReconciliationAlignTab() {
                       <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
                         {formatMoney(t.amount)}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-3.5 tabular-nums text-zinc-600">
-                        {formatDateShort(t.createdAt)}
+                      <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
+                        {formatTransactionLedgerTime(t.entryTime)}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
+                        {formatTransactionLedgerTime(t.exitTime)}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
+                        {formatTransactionLedgerTime(t.createdAt)}
                       </td>
                       <td className="whitespace-nowrap px-5 py-3.5 text-right">
                         <button

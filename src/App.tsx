@@ -14,6 +14,7 @@ import ReconciliationPage from './pages/admin/ReconciliationPage.tsx'
 import SettingsPage from './pages/admin/SettingsPage.tsx'
 import SettlementPage from './pages/admin/SettlementPage.tsx'
 import TransactionsPage from './pages/admin/TransactionsPage.tsx'
+import LostTicketsPage from './pages/admin/LostTicketsPage.tsx'
 import LoginPage from './pages/auth/LoginPage.tsx'
 import PayCheckoutPage from './pages/pay/PayCheckoutPage.tsx'
 import PayHistoryPage from './pages/pay/PayHistoryPage.tsx'
@@ -65,6 +66,7 @@ export default function App() {
               }
             />
             <Route path="transactions" element={<TransactionsPage />} />
+            <Route path="lost-tickets" element={<LostTicketsPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="logs" element={<LogsPage />} />
             <Route path="settlement" element={<SettlementPage />} />

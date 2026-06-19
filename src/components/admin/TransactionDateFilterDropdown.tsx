@@ -30,8 +30,8 @@ interface TransactionDateFilterDropdownProps {
   onCustomEndChange: (v: string) => void
   /** Optional accessible label override for the trigger button. */
   ariaLabel?: string
-  /** When `monthQuarter`, only the By month and By quarter sections are shown. */
-  mode?: 'full' | 'monthQuarter'
+  /** When `monthQuarter`, only By month and By quarter. `monthQuarterCustom` adds From/To datetimes. */
+  mode?: 'full' | 'monthQuarter' | 'monthQuarterCustom'
 }
 
 export default function TransactionDateFilterDropdown({
@@ -45,7 +45,8 @@ export default function TransactionDateFilterDropdown({
   ariaLabel = 'Date range',
   mode = 'full',
 }: TransactionDateFilterDropdownProps) {
-  const monthQuarterOnly = mode === 'monthQuarter'
+  const monthQuarterOnly = mode === 'monthQuarter' || mode === 'monthQuarterCustom'
+  const showCustomDateFooter = mode === 'monthQuarterCustom'
   const titleId = useId()
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -519,6 +520,50 @@ export default function TransactionDateFilterDropdown({
             ) : null}
           </div>
           </div>
+
+          {showCustomDateFooter ? (
+            <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
+              <p className="mb-2 text-[10px] font-medium leading-snug text-zinc-500">
+                Optional: narrow the month or quarter with a custom From / To date
+                &amp; time.
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
+                <label className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    From
+                  </span>
+                  <input
+                    type="datetime-local"
+                    step={1}
+                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
+                    value={customStart}
+                    onChange={(e) => onCustomStartChange(e.target.value)}
+                    className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
+                  />
+                </label>
+                <label className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    To
+                  </span>
+                  <input
+                    type="datetime-local"
+                    step={1}
+                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
+                    value={customEnd}
+                    onChange={(e) => onCustomEndChange(e.target.value)}
+                    className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={closeMenu}
+                className="mt-3 w-full rounded-xl bg-zinc-950 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-zinc-800"
+              >
+                Done
+              </button>
+            </div>
+          ) : null}
 
           {!monthQuarterOnly && filterValue === 'custom' ? (
             <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">

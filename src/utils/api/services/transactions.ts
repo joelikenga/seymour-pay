@@ -7,11 +7,15 @@ export type AdminGetTransactionsListParams = {
   /** 1-based page index (matches the ledger API). */
   page: number;
   page_size?: number;
-  /** Inclusive ISO datetimes, e.g. `2026-05-24T14:00:29.000Z`. */
+  /** `YYYY-MM-DD` (month/quarter) or `YYYY-MM-DDTHH:MM:SS` (custom From/To). */
   from?: string;
   to?: string;
   search?: string;
   status?: "completed";
+  /** When true, return lost-ticket rows only. When false, exclude them. */
+  is_lost_ticket?: boolean;
+  /** Cashier username (`created_by`). */
+  created_by?: string;
 };
 
 function compactListParams(
@@ -33,6 +37,14 @@ function compactListParams(
   if (params.status) {
     out.status = params.status;
   }
+  if (params.is_lost_ticket === true) {
+    out.is_lost_ticket = "true";
+  } else if (params.is_lost_ticket === false) {
+    out.is_lost_ticket = "false";
+  }
+  if (typeof params.created_by === "string" && params.created_by.trim() !== "") {
+    out.created_by = params.created_by.trim();
+  }
   return out;
 }
 
@@ -47,9 +59,15 @@ const EXPORT_ACCEPT: Record<AdminExportTransactionsType, string> = {
 export type AdminExportTransactionsParams = {
   type: AdminExportTransactionsType;
   status?: "completed";
-  /** Calendar dates `YYYY-MM-DD` (inclusive). */
-  from?: string;
-  to?: string;
+  /** `YYYY-MM-DD` (month/quarter) or `YYYY-MM-DDTHH:MM:SS` (custom From/To). */
+  from: string;
+  to: string;
+  /** `true` on Lost tickets export; `false` on Transactions export. */
+  is_lost_ticket: boolean;
+  /** Cashier username (`created_by`). */
+  created_by?: string;
+  /** Ticket ID search (same as ledger list). */
+  search?: string;
 };
 
 const EXPORT_TIMEOUT_MS = 180_000
@@ -122,12 +140,19 @@ export const adminExportTransactions = async (
   const to = params.to?.trim();
   if (!from || !to) {
     throw new Error(
-      "Pick a date range before exporting. The server requires from and to dates (YYYY-MM-DD).",
+      "Pick a date range before exporting. The server requires from and to values.",
     );
   }
 
-  const qs = new URLSearchParams({ type: params.type, from, to });
-  if (params.status) qs.set("status", params.status);
+  const qs = new URLSearchParams({
+    type: params.type,
+    from,
+    to,
+    status: params.status ?? "completed",
+    is_lost_ticket: params.is_lost_ticket ? "true" : "false",
+  });
+  if (params.search?.trim()) qs.set("search", params.search.trim());
+  if (params.created_by?.trim()) qs.set("created_by", params.created_by.trim());
 
   const token = getAdminToken() || getToken();
   const url = `${base.replace(/\/$/, "")}/admin/transactions/export?${qs}`;
@@ -246,6 +271,66 @@ export const adminGetTransactionsList = async (
   });
   return data as unknown;
 };
+
+function dedupeCashierNames(names: string[]): string[] {
+  const byKey = new Map<string, string>()
+  for (const raw of names) {
+    const trimmed = raw.trim()
+    if (!trimmed) continue
+    const key = trimmed.toLowerCase()
+    if (!byKey.has(key)) byKey.set(key, trimmed)
+  }
+  return [...byKey.values()].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' }),
+  )
+}
+
+function normalizeCashierNameList(raw: unknown): string[] {
+  const names = new Set<string>()
+  const add = (v: unknown) => {
+    if (typeof v !== "string") return;
+    const s = v.trim();
+    if (s) names.add(s);
+  };
+
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === "string") add(item);
+      else if (item && typeof item === "object") {
+        const o = item as Record<string, unknown>;
+        add(o.name);
+        add(o.username);
+        add(o.created_by);
+        add(o.createdBy);
+      }
+    }
+  } else if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    const list = o.data ?? o.names ?? o.cashiers;
+    if (Array.isArray(list)) return normalizeCashierNameList(list);
+  }
+
+  return dedupeCashierNames([...names]);
+}
+
+export type AdminGetCashiersParams = {
+  /** Inclusive start, e.g. `2026-01-01` or `2026-02-28T00:00:00`. */
+  from: string;
+  /** Inclusive end, e.g. `2026-06-07` or `2026-02-28T23:59:59`. */
+  to: string;
+};
+
+/** Cashier usernames for ledger filters (`GET /admin/cashiers`). */
+export async function adminGetTransactionCashiers(
+  params: AdminGetCashiersParams,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const raw = await axios$.get("/admin/cashiers", {
+    signal,
+    params: { from: params.from, to: params.to },
+  });
+  return normalizeCashierNameList(raw);
+}
 
 /**
  * `GET /admin/transactions/:id` - one ledger row.

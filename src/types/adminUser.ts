@@ -1,6 +1,7 @@
 export const ADMIN_PAGE_KEYS = [
   'dashboard',
   'transactions',
+  'lostTickets',
   'settlement',
   'analytics',
   'logs',
@@ -13,6 +14,7 @@ export type AdminPageKey = (typeof ADMIN_PAGE_KEYS)[number]
 export const ADMIN_PAGE_LABELS: Record<AdminPageKey, string> = {
   dashboard: 'Dashboard',
   transactions: 'Transactions',
+  lostTickets: 'Lost tickets',
   settlement: 'Settlement',
   analytics: 'Analytics',
   logs: 'Logs',
@@ -33,6 +35,7 @@ export function defaultPageAccess(): Record<AdminPageKey, boolean> {
   return {
     dashboard: true,
     transactions: true,
+    lostTickets: true,
     settlement: true,
     analytics: true,
     logs: true,
@@ -48,7 +51,7 @@ export function defaultPageAccess(): Record<AdminPageKey, boolean> {
 export function initialAdminAccountPageAccess(): Record<AdminPageKey, boolean> {
   const out = {} as Record<AdminPageKey, boolean>
   for (const k of ADMIN_PAGE_KEYS) {
-    out[k] = k === 'dashboard' || k === 'transactions'
+    out[k] = k === 'dashboard' || k === 'transactions' || k === 'lostTickets'
   }
   return out
 }
@@ -60,6 +63,9 @@ export function pageAccessFromApi(
   const out = {} as Record<AdminPageKey, boolean>
   for (const k of ADMIN_PAGE_KEYS) {
     out[k] = Boolean(raw?.[k])
+  }
+  if (out.transactions && raw?.lostTickets == null) {
+    out.lostTickets = true
   }
   return out
 }

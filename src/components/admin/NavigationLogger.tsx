@@ -24,6 +24,7 @@ const titles: Record<string, string> = {
   '/pay/checkout': 'Pay - Checkout',
   '/admin': 'Dashboard',
   '/admin/transactions': 'Transactions',
+  '/admin/lost-tickets': 'Lost tickets',
   '/admin/analytics': 'Analytics',
   '/admin/logs': 'Activity log',
   '/admin/settlement': 'Settlement',

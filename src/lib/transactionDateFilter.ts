@@ -121,6 +121,42 @@ export function toLocalYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/** Local `Date` → API datetime `YYYY-MM-DDTHH:MM:SS`. */
+export function dateToLocalApiDatetime(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const s = String(d.getSeconds()).padStart(2, '0')
+  return `${y}-${m}-${day}T${h}:${min}:${s}`
+}
+
+/** `datetime-local` value or `YYYY-MM-DD` → calendar date for month / quarter APIs. */
+export function filterBoundCalendarDate(value: string): string {
+  const t = value.trim()
+  if (!t) return ''
+  return t.includes('T') ? t.slice(0, 10) : t
+}
+
+/** `datetime-local` or `YYYY-MM-DD` → API `from` / `to` datetime string. */
+export function filterBoundToApiDatetime(
+  value: string,
+  which: 'start' | 'end',
+): string {
+  const t = value.trim()
+  if (!t) return ''
+  if (t.includes('T')) {
+    const [datePart, timePart = ''] = t.split('T')
+    const parts = timePart.split(':')
+    const hh = (parts[0] ?? '00').padStart(2, '0')
+    const mm = (parts[1] ?? '00').padStart(2, '0')
+    const ss = (parts[2] ?? '00').padStart(2, '0')
+    return `${datePart}T${hh}:${mm}:${ss}`
+  }
+  return which === 'start' ? `${t}T00:00:00` : `${t}T23:59:59`
+}
+
 export type TransactionApiDateRange = {
   from?: string
   to?: string
@@ -233,9 +269,8 @@ export function dateSelectionToCalendarApiRange(
 export const dateSelectionToAnalyticsApiRange = dateSelectionToTransactionsApiRange
 
 /**
- * Inclusive date-only range for `GET /admin/transactions` — local `from` / `to`
- * calendar dates (e.g. `2026-01-01` … `2026-01-31`), so a month / quarter /
- * preset keeps the picked calendar date instead of shifting to UTC.
+ * Inclusive date-only range (`YYYY-MM-DD`) for analytics and other day-based
+ * admin APIs — month / quarter presets keep calendar dates, not datetimes.
  */
 export function dateSelectionToTransactionsApiRange(
   selection: DateFilterSelection,

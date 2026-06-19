@@ -57,6 +57,12 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
 
+function optionalIso(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const s = v.trim()
+  return s || null
+}
+
 export function normalizeTransactionRow(raw: unknown): Transaction | null {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Record<string, unknown>
@@ -85,5 +91,9 @@ export function normalizeTransactionRow(raw: unknown): Transaction | null {
           : new Date().toISOString(),
     notes: typeof o.notes === 'string' ? o.notes : '',
     isLostTicket: o.isLostTicket === true || o.is_lost_ticket === true,
+    carfeeId: str(o.carfee_id ?? o.carfeeId).trim(),
+    createdBy: str(o.created_by ?? o.createdBy).trim(),
+    entryTime: optionalIso(o.entryTime ?? o.entry_time),
+    exitTime: optionalIso(o.exitTime ?? o.exit_time),
   }
 }

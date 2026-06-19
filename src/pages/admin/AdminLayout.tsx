@@ -28,6 +28,15 @@ const NAV_ICONS: Record<AdminPageKey, React.ReactNode> = {
       strokeLinecap="round"
     />
   ),
+  lostTickets: (
+    <path
+      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
   settlement: (
     <path
       d="M3 8h18v10a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm0 0V6a1 1 0 011-1h16a1 1 0 011 1v2M12 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"

@@ -136,6 +136,10 @@ export function createSeedTransactions(): Transaction[] {
             : rand() < 0.06
               ? 'Customer dispute pending'
               : '',
+        carfeeId: '',
+        createdBy: '',
+        entryTime: null,
+        exitTime: null,
       })
     }
   }

@@ -2,9 +2,15 @@ import { ADMIN_PAGE_KEYS, type AdminPageKey } from '../types/adminUser'
 
 const KEY_SET = new Set<string>(ADMIN_PAGE_KEYS)
 
+/** URL segment under `/admin/` when it differs from {@link AdminPageKey}. */
+const ROUTE_SEGMENT_ALIASES: Record<string, AdminPageKey> = {
+  'lost-tickets': 'lostTickets',
+}
+
 export const ADMIN_APP_NAV = [
   { to: '/admin', label: 'Dashboard', end: true as const, page: 'dashboard' as const },
   { to: '/admin/transactions', label: 'Transactions', page: 'transactions' as const },
+  { to: '/admin/lost-tickets', label: 'Lost tickets', page: 'lostTickets' as const },
   { to: '/admin/settlement', label: 'Settlement', page: 'settlement' as const },
   { to: '/admin/analytics', label: 'Analytics', page: 'analytics' as const },
   { to: '/admin/logs', label: 'Logs', page: 'logs' as const },
@@ -21,5 +27,6 @@ export function pathnameToAdminPageKey(pathname: string): AdminPageKey | null {
   if (!n.startsWith('/admin')) return null
   const seg = n.slice('/admin'.length).replace(/^\//, '').split('/')[0]
   if (!seg) return 'dashboard'
+  if (ROUTE_SEGMENT_ALIASES[seg]) return ROUTE_SEGMENT_ALIASES[seg]
   return KEY_SET.has(seg) ? (seg as AdminPageKey) : null
 }

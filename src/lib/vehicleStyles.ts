@@ -38,5 +38,5 @@ export const vehicleParkingRates: Record<
   small_suv: { defaultRate: 2000, extraHourRate: 600 },
   big_suv: { defaultRate: 2500, extraHourRate: 800 },
   bus: { defaultRate: 3500, extraHourRate: 1000 },
-  coaster: { defaultRate: 4500, extraHourRate: 1200 },
+  coaster: { defaultRate: 8000, extraHourRate: 2000 },
 }

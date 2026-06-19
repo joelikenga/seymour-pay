@@ -40,4 +40,10 @@ export interface Transaction {
   createdAt: string
   notes: string
   isLostTicket: boolean
+  /** `carfee_id` from the ledger API — Pay ID. */
+  carfeeId: string
+  /** `created_by` from the ledger API — cashier username. */
+  createdBy: string
+  entryTime: string | null
+  exitTime: string | null
 }

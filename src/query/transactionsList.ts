@@ -1,15 +1,17 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { normalizeTransactionRow } from '../lib/normalizeTransaction'
+import type { DateFilterSelection } from '../lib/transactionDateFilter'
 import {
-  dateSelectionToTransactionsApiRange,
-  dateSelectionToQueryKey,
-  type DateFilterSelection,
-} from '../lib/transactionDateFilter'
+  resolveTransactionsListApiDatetimeRange,
+  type TransactionCustomDateBounds,
+  transactionsListFiltersQueryKey,
+} from '../lib/transactionLedgerFilters'
 import { unwrapPaginatedListBody } from '../lib/unwrapPaginatedApi'
 import type { PaginatedTransactionsResponse } from '../types/paginatedTransactions'
 import { TransactionsApi } from '../utils'
 
 export const transactionsListQueryKey = ['admin', 'transactions', 'list'] as const
+export const lostTicketsListQueryKey = ['admin', 'lost-tickets', 'list'] as const
 export const recentTransactionsQueryKey = ['admin', 'transactions', 'recent'] as const
 
 export const TRANSACTIONS_PAGE_SIZE = 12
@@ -17,20 +19,35 @@ export const TRANSACTIONS_PAGE_SIZE = 12
 export const RECONCILIATION_PAGE_SIZE = 10
 const RECENT_COUNT = 5
 
+export type TransactionListFilterOptions = {
+  /** Return only lost-ticket ledger rows (`is_lost_ticket=true`). */
+  lostTicketOnly?: boolean
+  cashier?: string
+  customDates?: TransactionCustomDateBounds
+}
+
 function buildTransactionsListParams(
   pageIndex: number,
   pageSize: number,
   search: string,
   dateSelection: DateFilterSelection,
+  options?: TransactionListFilterOptions,
 ) {
-  const range = dateSelectionToTransactionsApiRange(dateSelection)
+  const range = resolveTransactionsListApiDatetimeRange(
+    dateSelection,
+    options?.customDates ?? { from: '', to: '' },
+  )
   const trimmedSearch = search.trim()
+  const cashier = options?.cashier?.trim()
+  const lostTicketOnly = options?.lostTicketOnly === true
   return {
     page: pageIndex + 1,
     page_size: pageSize,
     status: 'completed' as const,
     ...(trimmedSearch ? { search: trimmedSearch } : {}),
     ...(range.from && range.to ? { from: range.from, to: range.to } : {}),
+    is_lost_ticket: lostTicketOnly,
+    ...(cashier && cashier !== 'all' ? { created_by: cashier } : {}),
   }
 }
 
@@ -70,17 +87,26 @@ export function useTransactionsListQuery(
   search: string,
   dateSelection: DateFilterSelection,
   pageSize: number = TRANSACTIONS_PAGE_SIZE,
+  options?: TransactionListFilterOptions,
 ): UseQueryResult<PaginatedTransactionsResponse, Error> {
-  const rangeKey = dateSelectionToQueryKey(dateSelection)
+  const lostTicketOnly = options?.lostTicketOnly === true
+  const customDates = options?.customDates ?? { from: '', to: '' }
+  const cashier = options?.cashier ?? ''
+  const filtersKey = transactionsListFiltersQueryKey(
+    dateSelection,
+    customDates,
+    cashier,
+  )
   const trimmedSearch = search.trim()
+  const baseKey = lostTicketOnly ? lostTicketsListQueryKey : transactionsListQueryKey
 
   return useQuery({
     queryKey: [
-      ...transactionsListQueryKey,
+      ...baseKey,
       pageIndex,
       pageSize,
       trimmedSearch,
-      rangeKey,
+      filtersKey,
     ],
     queryFn: async ({ signal }) => {
       const raw = await TransactionsApi.adminGetTransactionsList(
@@ -89,6 +115,7 @@ export function useTransactionsListQuery(
           pageSize,
           search,
           dateSelection,
+          options,
         ),
         signal,
       )
@@ -111,6 +138,7 @@ export function useRecentTransactionsQuery(): UseQueryResult<
         page: 1,
         page_size: RECENT_COUNT,
         status: 'completed',
+        is_lost_ticket: false,
       })
       return parsePaginatedResponse(raw, 0, RECENT_COUNT)
     },

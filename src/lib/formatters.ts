@@ -80,6 +80,43 @@ export function formatUsd(n: number) {
   }).format(n)
 }
 
+/** Placeholder when a ledger timestamp is missing. */
+export const TRANSACTION_LEDGER_TIME_EMPTY = '--/--/---- --:--:--' as const
+
+/**
+ * Ledger table timestamps: `DD/MM/YYYY HH:MM:SS` (24-hour, Lagos).
+ * Returns {@link TRANSACTION_LEDGER_TIME_EMPTY} when the value is null or invalid.
+ */
+export function formatTransactionLedgerTime(
+  iso: string | null | undefined,
+): string {
+  if (!iso?.trim()) return TRANSACTION_LEDGER_TIME_EMPTY
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return TRANSACTION_LEDGER_TIME_EMPTY
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: DISPLAY_TIMEZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(d)
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? ''
+
+  return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')}:${get('second')}`
+}
+
+/** Non-empty ledger text fields; em dash when blank. */
+export function displayTransactionField(value: string | null | undefined): string {
+  const v = value?.trim()
+  return v ? v : '—'
+}
+
 export function formatDateTime(iso: string) {
   const d = new Date(iso)
   return d.toLocaleString('en-NG', {
