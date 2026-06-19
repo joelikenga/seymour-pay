@@ -34,7 +34,7 @@ export function usePayTicketLookup(ticketId: string, extraPay = false) {
   return {
     ticket: query.data ?? null,
     error: query.error ?? null,
-    /** True only on the first load — background refetches do not flash the skeleton. */
+    /** True only on the first load - background refetches do not flash the skeleton. */
     loading: query.isPending && query.data === undefined,
   }
 }

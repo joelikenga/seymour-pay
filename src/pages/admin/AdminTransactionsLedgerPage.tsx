@@ -68,7 +68,7 @@ const LEDGER_PAGE_COPY: Record<
   lostTickets: {
     eyebrow: 'Ledger',
     title: 'Lost tickets',
-    subtitle: 'Lost-ticket payments only — separate from the main Transactions ledger.',
+    subtitle: 'Lost-ticket payments only - separate from the main Transactions ledger.',
     exportAriaLabel: 'Export lost tickets as CSV',
     exportLogSummary: 'exported lost ticket data',
     searchAriaLabel: 'Search lost tickets',

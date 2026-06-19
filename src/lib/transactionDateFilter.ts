@@ -261,7 +261,7 @@ export function dateSelectionToCalendarApiRange(
 }
 
 /**
- * Inclusive date-only range for `GET /admin/analytics/overview` — local `from` /
+ * Inclusive date-only range for `GET /admin/analytics/overview` - local `from` /
  * `to` calendar dates (e.g. `2026-01-01` … `2026-03-31`), so month / quarter /
  * preset filters keep the picked calendar date.
  * @see dateSelectionToTransactionsApiRange
@@ -270,7 +270,7 @@ export const dateSelectionToAnalyticsApiRange = dateSelectionToTransactionsApiRa
 
 /**
  * Inclusive date-only range (`YYYY-MM-DD`) for analytics and other day-based
- * admin APIs — month / quarter presets keep calendar dates, not datetimes.
+ * admin APIs - month / quarter presets keep calendar dates, not datetimes.
  */
 export function dateSelectionToTransactionsApiRange(
   selection: DateFilterSelection,

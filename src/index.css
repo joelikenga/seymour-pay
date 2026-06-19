@@ -3,6 +3,8 @@
 @theme {
   --font-sans:
     'Inter', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display:
+    'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
 
   /**
    * Brand: map `orange-*` utilities to logo-adjacent yellow / gold
@@ -252,6 +254,68 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .pay-overlay-panel {
+    animation: none;
+  }
+}
+
+/* ── Marketing site ─────────────────────────────────────────────── */
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.marketing-hero-overlay {
+  background: rgba(19, 47, 76, 0.84);
+}
+
+.marketing-fade-up {
+  animation: marketing-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.marketing-pulse-dot {
+  animation: marketing-pulse-dot 2s ease-in-out infinite;
+}
+
+.marketing-mobile-menu {
+  animation: marketing-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes marketing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes marketing-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes marketing-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-fade-up,
+  .marketing-mobile-menu,
+  .marketing-pulse-dot {
     animation: none;
   }
 }

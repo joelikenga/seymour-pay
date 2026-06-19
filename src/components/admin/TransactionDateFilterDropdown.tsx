@@ -480,7 +480,7 @@ export default function TransactionDateFilterDropdown({
                             role="option"
                             title={
                               q.disabled
-                                ? `${q.label} — not complete yet`
+                                ? `${q.label} - not complete yet`
                                 : q.label
                             }
                             aria-selected={active}

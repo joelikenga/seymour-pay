@@ -74,15 +74,15 @@ export const SCAN_VIEWFINDER_RATIO = 0.72
 export const PAY_SCAN_VIEWFINDER_CLASS =
   'aspect-square w-[min(72vw,58vh)] max-w-[300px]'
 
-/** Query param kept for legacy QR / bookmark URLs — prefer path routes below. */
+/** Query param kept for legacy QR / bookmark URLs - prefer path routes below. */
 export const PAY_TICKET_ID_PARAM = 'ticketID'
 
-/** @deprecated Legacy checkout flag — use `/pay/ticket/:id/payment` instead. */
+/** @deprecated Legacy checkout flag - use `/pay/ticket/:id/payment` instead. */
 export const PAY_STEP_PARAM = 'pay'
 
 export const PAY_STEP_CHECKOUT = '1'
 
-/** @deprecated Legacy extra flag — use `/pay/ticket/:id/extra` instead. */
+/** @deprecated Legacy extra flag - use `/pay/ticket/:id/extra` instead. */
 export const PAY_EXTRA_PARAM = 'extra'
 
 export const PAY_EXTRA_VALUE = '1'

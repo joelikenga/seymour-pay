@@ -11,7 +11,7 @@ export function formatParkingDuration(entryTime: string, previewAt: string): str
   const start = new Date(entryTime).getTime()
   const end = new Date(previewAt).getTime()
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-    return '—'
+    return '-'
   }
 
   let remaining = Math.floor((end - start) / 60_000)

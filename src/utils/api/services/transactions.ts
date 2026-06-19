@@ -82,7 +82,7 @@ function exportHttpError(status: number): string {
   if (status === 502) {
     return (
       "Export server timed out (502 Bad Gateway). The PDF may be too large for " +
-      "the server — try a shorter date range, or wait a few seconds and retry."
+      "the server - try a shorter date range, or wait a few seconds and retry."
     )
   }
   if (status === 503 || status === 504) {
@@ -125,7 +125,7 @@ function exportMimeFromResponse(
 }
 
 /**
- * `GET /admin/transactions/export` — server-rendered export file.
+ * `GET /admin/transactions/export` - server-rendered export file.
  * Retries transient gateway errors (502/503/504).
  */
 export const adminExportTransactions = async (

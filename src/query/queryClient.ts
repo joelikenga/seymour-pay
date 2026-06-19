@@ -23,7 +23,7 @@ queryClient.setQueryDefaults(['admin'], {
   refetchOnReconnect: true,
 })
 
-/** Pay flow ticket preview — keep amount fresh without UI flicker on refetch. */
+/** Pay flow ticket preview - keep amount fresh without UI flicker on refetch. */
 queryClient.setQueryDefaults(['pay', 'ticket-fee-preview'], {
   staleTime: 15_000,
   refetchOnWindowFocus: true,

@@ -90,7 +90,7 @@ export function isMainRearCameraLabel(label: string): boolean {
   return REAR_CAMERA.test(label)
 }
 
-/** Prefer the standard rear lens — not ultra-wide (0.5×) or telephoto. */
+/** Prefer the standard rear lens - not ultra-wide (0.5×) or telephoto. */
 export function pickDefaultCameraId(
   cameras: ReadonlyArray<PayScannerCameraDevice>,
 ): string | undefined {

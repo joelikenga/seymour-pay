@@ -23,6 +23,12 @@ import PayScanPage from './pages/pay/PayScanPage.tsx'
 import PayShell from './pages/pay/PayShell.tsx'
 import PayTicketPage from './pages/pay/PayTicketPage.tsx'
 import PayTicketPreviewPage from './pages/pay/PayTicketPreviewPage.tsx'
+import AboutPage from './pages/marketing/AboutPage.tsx'
+import ContactPage from './pages/marketing/ContactPage.tsx'
+import GalleryPage from './pages/marketing/GalleryPage.tsx'
+import HomePage from './pages/marketing/HomePage.tsx'
+import MarketingLayout from './pages/marketing/MarketingLayout.tsx'
+import PayInfoPage from './pages/marketing/PayInfoPage.tsx'
 
 const Dashboard = lazy(() => import('./pages/admin/Dashboard.tsx'))
 
@@ -36,7 +42,13 @@ export default function App() {
         <SessionLoginLogger />
         <NavigationLogger />
         <Routes>
-          <Route path="/" element={<Navigate to="/pay" replace />} />
+          <Route element={<MarketingLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="about" element={<AboutPage />} />
+            <Route path="contact" element={<ContactPage />} />
+            <Route path="gallery" element={<GalleryPage />} />
+            <Route path="pay-info" element={<PayInfoPage />} />
+          </Route>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/pay" element={<PayShell />}>
             <Route index element={<PayScanPage />} />
@@ -73,7 +85,7 @@ export default function App() {
             <Route path="reconciliation" element={<ReconciliationPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AdminDataProvider>

@@ -56,6 +56,35 @@ function trafficYearFromMonthly(
   return Number.isFinite(y) ? y : new Date().getFullYear()
 }
 
+/** Vehicle types panel - API `vehicle_breakdown` plus static Coaster tariffs. */
+export function mapOverviewVehicleBreakdown(
+  vehicle_breakdown: DashboardOverviewResponse['vehicle_breakdown'],
+): OverviewDashboardStats['vehicleBreakdown'] {
+  const coasterTariff = vehicleParkingRates.coaster
+  const coasterFromApi = vehicle_breakdown.find((r) => r.vehicle_type === 'coaster')
+  return [
+    ...vehicle_breakdown
+      .filter((row) => row.vehicle_type !== 'coaster')
+      .map((row) => ({
+        vehicleType: row.vehicle_type,
+        count: num(row.count),
+        volume: num(row.volume),
+        amount: num(row.amount),
+        extraCharge: num(row.extra_charge),
+      })),
+    {
+      vehicleType: 'coaster' as const,
+      count: num(coasterFromApi?.count),
+      volume: num(coasterFromApi?.volume),
+      amount: coasterTariff.defaultRate,
+      extraCharge: coasterTariff.extraHourRate,
+    },
+  ].sort(
+    (a, b) =>
+      VEHICLE_TYPES.indexOf(a.vehicleType) - VEHICLE_TYPES.indexOf(b.vehicleType),
+  )
+}
+
 /** Maps `/admin/analytics/dashboard` JSON into {@link OverviewDashboardStats}. */
 export function mapOverviewToDashboardStats(
   raw: DashboardOverviewResponse,
@@ -158,30 +187,7 @@ export function mapOverviewToDashboardStats(
       : emptyOverviewDashboardStats().customerTraffic
   const trafficTotal = customerTraffic.reduce((a, r) => a + r.count, 0)
 
-  /** Vehicle types panel — API `vehicle_breakdown` plus static Coaster tariffs. */
-  const coasterTariff = vehicleParkingRates.coaster
-  const coasterFromApi = vehicle_breakdown.find((r) => r.vehicle_type === 'coaster')
-  const vehicleBreakdown = [
-    ...vehicle_breakdown
-      .filter((row) => row.vehicle_type !== 'coaster')
-      .map((row) => ({
-        vehicleType: row.vehicle_type,
-        count: num(row.count),
-        volume: num(row.volume),
-        amount: num(row.amount),
-        extraCharge: num(row.extra_charge),
-      })),
-    {
-      vehicleType: 'coaster' as const,
-      count: num(coasterFromApi?.count),
-      volume: num(coasterFromApi?.volume),
-      amount: coasterTariff.defaultRate,
-      extraCharge: coasterTariff.extraHourRate,
-    },
-  ].sort(
-    (a, b) =>
-      VEHICLE_TYPES.indexOf(a.vehicleType) - VEHICLE_TYPES.indexOf(b.vehicleType),
-  )
+  const vehicleBreakdown = mapOverviewVehicleBreakdown(vehicle_breakdown)
 
   const grand = total_volume
   const computedAvgTicket =

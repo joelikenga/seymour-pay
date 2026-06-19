@@ -111,10 +111,10 @@ export function formatTransactionLedgerTime(
   return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')}:${get('second')}`
 }
 
-/** Non-empty ledger text fields; em dash when blank. */
+/** Non-empty ledger text fields; hyphen when blank. */
 export function displayTransactionField(value: string | null | undefined): string {
   const v = value?.trim()
-  return v ? v : '—'
+  return v ? v : '-'
 }
 
 export function formatDateTime(iso: string) {
