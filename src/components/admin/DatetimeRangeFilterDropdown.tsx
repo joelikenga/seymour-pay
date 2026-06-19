@@ -33,12 +33,22 @@ export default function DatetimeRangeFilterDropdown({
   const titleId = useId()
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [open, setOpen] = useState(false)
+  const [draftCustomStart, setDraftCustomStart] = useState(customStart)
+  const [draftCustomEnd, setDraftCustomEnd] = useState(customEnd)
+  const [customPanelOpen, setCustomPanelOpen] = useState(false)
 
   const label =
     triggerLabel ??
     labelForDatetimeFilter(filterValue, customStart, customEnd)
 
   const close = useCallback(() => setOpen(false), [])
+
+  useEffect(() => {
+    if (!open) return
+    setDraftCustomStart(customStart)
+    setDraftCustomEnd(customEnd)
+    setCustomPanelOpen(filterValue === 'custom')
+  }, [open, customStart, customEnd, filterValue])
 
   useEffect(() => {
     if (!open) return
@@ -55,6 +65,13 @@ export default function DatetimeRangeFilterDropdown({
       document.removeEventListener('keydown', onKey)
     }
   }, [open, close])
+
+  function applyCustomFilter() {
+    onFilterChange('custom')
+    onCustomStartChange(draftCustomStart)
+    onCustomEndChange(draftCustomEnd)
+    close()
+  }
 
   return (
     <div ref={wrapperRef} className="relative shrink-0">
@@ -89,11 +106,16 @@ export default function DatetimeRangeFilterDropdown({
                 <button
                   type="button"
                   onClick={() => {
-                    onFilterChange(p.value)
-                    if (p.value !== 'custom') close()
+                    if (p.value !== 'custom') {
+                      onFilterChange(p.value)
+                      close()
+                    } else {
+                      setCustomPanelOpen(true)
+                    }
                   }}
                   className={`flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                    filterValue === p.value
+                    filterValue === p.value ||
+                    (p.value === 'custom' && customPanelOpen)
                       ? 'bg-orange-50 text-orange-900 ring-1 ring-orange-200/80'
                       : 'text-zinc-700 hover:bg-zinc-50'
                   }`}
@@ -104,15 +126,15 @@ export default function DatetimeRangeFilterDropdown({
             ))}
           </ul>
 
-          {filterValue === 'custom' ? (
+          {customPanelOpen ? (
             <div className="mt-4 space-y-3 border-t border-zinc-100 pt-4">
               <label className="block text-xs font-medium text-zinc-600">
                 From
                 <input
                   type="datetime-local"
                   step={1}
-                  value={customStart}
-                  onChange={(e) => onCustomStartChange(e.target.value)}
+                  value={draftCustomStart}
+                  onChange={(e) => setDraftCustomStart(e.target.value)}
                   className="mt-1 block w-full rounded-lg border border-zinc-200 px-2.5 py-2 text-sm text-zinc-900"
                 />
               </label>
@@ -121,17 +143,17 @@ export default function DatetimeRangeFilterDropdown({
                 <input
                   type="datetime-local"
                   step={1}
-                  value={customEnd}
-                  onChange={(e) => onCustomEndChange(e.target.value)}
+                  value={draftCustomEnd}
+                  onChange={(e) => setDraftCustomEnd(e.target.value)}
                   className="mt-1 block w-full rounded-lg border border-zinc-200 px-2.5 py-2 text-sm text-zinc-900"
                 />
               </label>
               <button
                 type="button"
-                onClick={close}
+                onClick={applyCustomFilter}
                 className="w-full rounded-xl bg-zinc-950 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                Done
+                Filter
               </button>
             </div>
           ) : null}

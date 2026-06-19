@@ -55,6 +55,9 @@ export default function TransactionDateFilterDropdown({
   const [quarterSectionOpen, setQuarterSectionOpen] = useState(true)
   const [yearMenuOpen, setYearMenuOpen] = useState(false)
   const [panelYear, setPanelYear] = useState(() => defaultTransactionFilterYear())
+  const [draftCustomStart, setDraftCustomStart] = useState(customStart)
+  const [draftCustomEnd, setDraftCustomEnd] = useState(customEnd)
+  const [customPanelOpen, setCustomPanelOpen] = useState(false)
 
   const isMonthFilter = filterValue.startsWith('month:')
   const isQuarterFilter = filterValue.startsWith('quarter:')
@@ -67,6 +70,13 @@ export default function TransactionDateFilterDropdown({
     () => quarterOptionsForCalendarYear(panelYear),
     [panelYear],
   )
+
+  useEffect(() => {
+    if (!open) return
+    setDraftCustomStart(customStart)
+    setDraftCustomEnd(customEnd)
+    setCustomPanelOpen(filterValue === 'custom')
+  }, [open, customStart, customEnd, filterValue])
 
   useEffect(() => {
     if (open && isMonthFilter) setMonthSectionOpen(true)
@@ -149,6 +159,15 @@ export default function TransactionDateFilterDropdown({
   function select(value: string) {
     onFilterChange(value)
     if (value !== 'custom') closeMenu()
+  }
+
+  function applyCustomDateFilter() {
+    if (!monthQuarterOnly) {
+      onFilterChange('custom')
+    }
+    onCustomStartChange(draftCustomStart)
+    onCustomEndChange(draftCustomEnd)
+    closeMenu()
   }
 
   return (
@@ -493,16 +512,16 @@ export default function TransactionDateFilterDropdown({
                 <button
                   type="button"
                   role="option"
-                  aria-selected={filterValue === 'custom'}
-                  onClick={() => onFilterChange('custom')}
+                  aria-selected={filterValue === 'custom' || customPanelOpen}
+                  onClick={() => setCustomPanelOpen(true)}
                   className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                    filterValue === 'custom'
+                    filterValue === 'custom' || customPanelOpen
                       ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
                       : 'text-zinc-800 hover:bg-zinc-50'
                   }`}
                 >
                   Custom range…
-                  {filterValue === 'custom' ? (
+                  {filterValue === 'custom' || customPanelOpen ? (
                     <span className="text-link" aria-hidden>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                         <path
@@ -523,10 +542,6 @@ export default function TransactionDateFilterDropdown({
 
           {showCustomDateFooter ? (
             <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
-              <p className="mb-2 text-[10px] font-medium leading-snug text-zinc-500">
-                Optional: narrow the month or quarter with a custom From / To date
-                &amp; time.
-              </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
                 <label className="flex min-w-0 flex-col gap-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
@@ -536,8 +551,8 @@ export default function TransactionDateFilterDropdown({
                     type="datetime-local"
                     step={1}
                     min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
-                    value={customStart}
-                    onChange={(e) => onCustomStartChange(e.target.value)}
+                    value={draftCustomStart}
+                    onChange={(e) => setDraftCustomStart(e.target.value)}
                     className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   />
                 </label>
@@ -549,23 +564,23 @@ export default function TransactionDateFilterDropdown({
                     type="datetime-local"
                     step={1}
                     min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
-                    value={customEnd}
-                    onChange={(e) => onCustomEndChange(e.target.value)}
+                    value={draftCustomEnd}
+                    onChange={(e) => setDraftCustomEnd(e.target.value)}
                     className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   />
                 </label>
               </div>
               <button
                 type="button"
-                onClick={closeMenu}
+                onClick={applyCustomDateFilter}
                 className="mt-3 w-full rounded-xl bg-zinc-950 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-zinc-800"
               >
-                Done
+                Filter
               </button>
             </div>
           ) : null}
 
-          {!monthQuarterOnly && filterValue === 'custom' ? (
+          {!monthQuarterOnly && customPanelOpen ? (
             <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
               <p className="mb-2 text-[10px] font-medium leading-snug text-zinc-500">
                 Pick start and end date &amp; time (local).
@@ -579,8 +594,8 @@ export default function TransactionDateFilterDropdown({
                     type="datetime-local"
                     step={1}
                     min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
-                    value={customStart}
-                    onChange={(e) => onCustomStartChange(e.target.value)}
+                    value={draftCustomStart}
+                    onChange={(e) => setDraftCustomStart(e.target.value)}
                     className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   />
                 </label>
@@ -592,18 +607,18 @@ export default function TransactionDateFilterDropdown({
                     type="datetime-local"
                     step={1}
                     min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
-                    value={customEnd}
-                    onChange={(e) => onCustomEndChange(e.target.value)}
+                    value={draftCustomEnd}
+                    onChange={(e) => setDraftCustomEnd(e.target.value)}
                     className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   />
                 </label>
               </div>
               <button
                 type="button"
-                onClick={closeMenu}
+                onClick={applyCustomDateFilter}
                 className="mt-3 w-full rounded-xl bg-zinc-950 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-zinc-800"
               >
-                Done
+                Filter
               </button>
             </div>
           ) : null}

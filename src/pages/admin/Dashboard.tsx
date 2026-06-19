@@ -19,6 +19,7 @@ import DashboardOverviewSkeleton, {
   CustomerTrafficChartSkeleton,
 } from '../../components/admin/DashboardOverviewSkeleton'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
+import AdminTableEmptyState from '../../components/admin/AdminTableEmptyState'
 import OverviewMonthCalendar from '../../components/admin/OverviewMonthCalendar'
 import OverviewCarousel from '../../components/admin/OverviewCarousel'
 import ChangePasswordModal from '../../components/admin/ChangePasswordModal'
@@ -601,6 +602,8 @@ export default function Dashboard() {
                     Could not load latest transactions.
                   </td>
                 </tr>
+              ) : recentRows.length === 0 ? (
+                <AdminTableEmptyState colSpan={5} />
               ) : (
                 recentRows.map((row) => (
                   <tr

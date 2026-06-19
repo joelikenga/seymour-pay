@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from 'react'
 import { toast } from 'sonner'
+import AdminTableEmptyState from '../../components/admin/AdminTableEmptyState'
+import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
 import { adminUsersListShowsAccessDenied, toastRequestFailed } from '../../lib/apiErrors'
 import { useAdminData } from '../../context/AdminDataContext'
 import { useAdminProfileQuery } from '../../query/adminProfile'
@@ -87,6 +89,8 @@ function ModalBackdrop({
     </div>
   )
 }
+
+const USER_TABLE_COL_COUNT = 2 + ADMIN_PAGE_KEYS.length + 1
 
 export default function SettingsPage() {
   const {
@@ -460,33 +464,13 @@ export default function SettingsPage() {
               </div>
             </div>
           )
-        ) : adminUsersLoading && adminUsers.length === 0 ? (
-          <div className="space-y-3 px-6 py-8 sm:px-8" aria-busy="true" aria-label="Loading users">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div
-                key={i}
-                className="flex animate-pulse gap-4 rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-4"
-              >
-                <div className="h-10 w-10 shrink-0 rounded-full bg-zinc-200/90" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="h-4 w-40 rounded bg-zinc-200/90" />
-                  <div className="h-3 w-56 max-w-full rounded bg-zinc-100" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : adminUsers.length === 0 ? (
-          <div className="px-6 py-14 text-center sm:px-8">
-            <div className="mx-auto max-w-md rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-8 py-12">
-              <p className="text-base font-semibold text-zinc-800">No users yet</p>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                Add someone with <span className="font-semibold text-zinc-800">Create user</span> and share their one-time credentials.
-              </p>
-            </div>
-          </div>
         ) : (
           <div className="overflow-x-auto [scrollbar-gutter:stable]">
-            <table className="w-full min-w-[800px] border-collapse text-left text-sm">
+            <table
+              className="w-full min-w-[800px] border-collapse text-left text-sm"
+              aria-busy={adminUsersLoading && adminUsers.length === 0}
+              aria-label="Admin users"
+            >
               <thead>
                 <tr className="border-b border-zinc-100 bg-linear-to-b from-zinc-50 to-zinc-50/40">
                   <th className="whitespace-nowrap px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
@@ -512,17 +496,23 @@ export default function SettingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {sortedAdminUsers.map((user) => (
-                  <UserRow
-                    key={user.id}
-                    user={user}
-                    pageAccess={effectivePageAccess(user)}
-                    pendingEdits={Boolean(pageAccessDraft[user.id])}
-                    onToggle={(page, allowed) => handleDraftToggle(user, page, allowed)}
-                    onSave={() => setAccessSaveUserId(user.id)}
-                    onRemove={() => openRemoveFlow(user.id)}
-                  />
-                ))}
+                {adminUsersLoading && adminUsers.length === 0 ? (
+                  <AdminTableSkeletonBody rows={4} columns={USER_TABLE_COL_COUNT} />
+                ) : adminUsers.length === 0 ? (
+                  <AdminTableEmptyState colSpan={USER_TABLE_COL_COUNT} />
+                ) : (
+                  sortedAdminUsers.map((user) => (
+                    <UserRow
+                      key={user.id}
+                      user={user}
+                      pageAccess={effectivePageAccess(user)}
+                      pendingEdits={Boolean(pageAccessDraft[user.id])}
+                      onToggle={(page, allowed) => handleDraftToggle(user, page, allowed)}
+                      onSave={() => setAccessSaveUserId(user.id)}
+                      onRemove={() => openRemoveFlow(user.id)}
+                    />
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -700,7 +690,7 @@ export default function SettingsPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="remove-user-title"
-            className={adminModalPanel}
+            className={`${adminModalPanel} max-w-lg`}
           >
             <div className={adminModalHeader}>
               <h2 id="remove-user-title" className={adminModalTitle}>

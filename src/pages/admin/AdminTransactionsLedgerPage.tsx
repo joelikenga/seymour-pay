@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
+import AdminTableEmptyState from '../../components/admin/AdminTableEmptyState'
 import TableSearchInput from '../../components/admin/TableSearchInput'
 import TableToolbar from '../../components/admin/TableToolbar'
 import TransactionDateFilterDropdown from '../../components/admin/TransactionDateFilterDropdown'
@@ -47,7 +48,6 @@ const LEDGER_PAGE_COPY: Record<
     eyebrow: string
     title: string
     subtitle: string
-    emptyMessage: string
     exportAriaLabel: string
     exportLogSummary: string
     searchAriaLabel: string
@@ -59,7 +59,6 @@ const LEDGER_PAGE_COPY: Record<
     eyebrow: 'Ledger',
     title: 'Transactions',
     subtitle: 'Full history across every payment type.',
-    emptyMessage: 'No transactions match this ticket ID or date range.',
     exportAriaLabel: 'Export transactions as CSV',
     exportLogSummary: 'exported transactions data',
     searchAriaLabel: 'Search transactions',
@@ -70,7 +69,6 @@ const LEDGER_PAGE_COPY: Record<
     eyebrow: 'Ledger',
     title: 'Lost tickets',
     subtitle: 'Lost-ticket payments only — separate from the main Transactions ledger.',
-    emptyMessage: 'No lost tickets match this ticket ID or date range.',
     exportAriaLabel: 'Export lost tickets as CSV',
     exportLogSummary: 'exported lost ticket data',
     searchAriaLabel: 'Search lost tickets',
@@ -412,8 +410,8 @@ export default function AdminTransactionsLedgerPage({
         </TableToolbar>
         {customDatePartial ? (
           <p className="border-b border-zinc-100 px-5 pb-4 text-sm text-amber-800">
-            Open <strong>Date range</strong> and set both <strong>From</strong> and{' '}
-            <strong>To</strong> date &amp; time to narrow the month or quarter.
+            Open <strong>Date range</strong>, set both <strong>From</strong> and{' '}
+            <strong>To</strong> date &amp; time, then click <strong>Filter</strong>.
           </p>
         ) : null}
 
@@ -450,14 +448,7 @@ export default function AdminTransactionsLedgerPage({
                   rightAlignIndices={[5]}
                 />
               ) : rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="px-5 py-10 text-center text-sm text-zinc-500"
-                  >
-                    {copy.emptyMessage}
-                  </td>
-                </tr>
+                <AdminTableEmptyState colSpan={9} />
               ) : (
                 rows.map((t) => (
                   <tr key={t.id} className="transition hover:bg-orange-50/50">

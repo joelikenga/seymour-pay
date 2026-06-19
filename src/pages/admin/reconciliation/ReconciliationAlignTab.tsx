@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import EditTransactionModal from '../../../components/admin/EditTransactionModal'
 import AdminPagination from '../../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../../components/admin/AdminTableSkeletonBody'
+import AdminTableEmptyState from '../../../components/admin/AdminTableEmptyState'
 import TableSearchInput from '../../../components/admin/TableSearchInput'
 import TableToolbar from '../../../components/admin/TableToolbar'
 import { useAdminData } from '../../../context/AdminDataContext'
@@ -352,15 +353,7 @@ export default function ReconciliationAlignTab() {
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={11}
-                    className="px-5 py-10 text-center text-sm text-zinc-500"
-                  >
-                    No transactions match
-                    {query.trim() ? ` "${query.trim()}"` : ' your search'}.
-                  </td>
-                </tr>
+                <AdminTableEmptyState colSpan={11} />
               ) : (
                 paginated.map((t) => {
                   const isSelected = selectedById.has(t.id)

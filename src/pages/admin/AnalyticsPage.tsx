@@ -224,7 +224,7 @@ export default function AnalyticsPage() {
         <p className="text-sm text-amber-800">
           Open <strong>Date range</strong> in the chart panel, choose{' '}
           <strong>Custom range</strong>, set start and end date &amp; time, then{' '}
-          <strong>Done</strong>.
+          <strong>Filter</strong>.
         </p>
       ) : null}
 

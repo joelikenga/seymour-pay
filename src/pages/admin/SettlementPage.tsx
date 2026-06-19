@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EditTransactionModal from '../../components/admin/EditTransactionModal'
 import AdminPagination from '../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
+import AdminTableEmptyState from '../../components/admin/AdminTableEmptyState'
 import TableSearchInput from '../../components/admin/TableSearchInput'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useAdminListPage } from '../../hooks/useAdminListPage'
@@ -221,6 +222,8 @@ export default function SettlementPage() {
                   columns={7}
                   rightAlignIndices={[4]}
                 />
+              ) : rows.length === 0 ? (
+                <AdminTableEmptyState colSpan={7} />
               ) : (
                 rows.map((t) => (
                     <tr
@@ -279,14 +282,6 @@ export default function SettlementPage() {
             </tbody>
           </table>
         </div>
-
-        {!settlementQuery.isPending && totalItems === 0 && !settlementQuery.isError ? (
-          <p className="px-5 py-12 text-center text-sm text-zinc-500">
-            {debouncedQ.trim()
-              ? 'No settlement rows match this search.'
-              : 'No settlement rows returned from the server.'}
-          </p>
-        ) : null}
 
         <div className="border-t border-zinc-100 px-5 pb-5 pt-2">
           <AdminPagination
