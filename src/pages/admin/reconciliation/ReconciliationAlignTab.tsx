@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useAdminListPage } from '../../../hooks/useAdminListPage'
 import { toast } from 'sonner'
-import EditTransactionModal from '../../../components/admin/EditTransactionModal'
 import AdminPagination from '../../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../../components/admin/AdminTableSkeletonBody'
 import AdminTableEmptyState from '../../../components/admin/AdminTableEmptyState'
@@ -10,9 +9,7 @@ import TableSearchInput from '../../../components/admin/TableSearchInput'
 import TableToolbar from '../../../components/admin/TableToolbar'
 import { useAdminData } from '../../../context/AdminDataContext'
 import { channelLabel, channelPillClass } from '../../../lib/channelStyles'
-import { vehicleTypeToApiPayload } from '../../../lib/normalizeTransaction'
 import { vehicleLabel, vehiclePillClass } from '../../../lib/vehicleStyles'
-import { describeTransactionPatchForLog } from '../../../lib/describeTransactionPatchForLog'
 import { formatMoney, formatTransactionLedgerTime, displayTransactionField } from '../../../lib/formatters'
 import type { Transaction } from '../../../types/transaction'
 import {
@@ -37,8 +34,6 @@ import {
 
 export default function ReconciliationAlignTab() {
   const { appendLog } = useAdminData()
-  const [modalTx, setModalTx] = useState<Transaction | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
 
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300)
@@ -126,51 +121,6 @@ export default function ReconciliationAlignTab() {
   const clearSelection = useCallback(() => {
     setSelectedById(new Map())
   }, [])
-
-  const openEdit = (t: Transaction) => {
-    setModalTx(t)
-    setModalOpen(true)
-  }
-
-  const handleSave = async (id: string, patch: Partial<Transaction>) => {
-    const prev = paginated.find((t) => t.id === id)
-    if (!prev) return
-    try {
-      const updated = await TransactionsApi.adminUpdateTransactionById(id, {
-        amount: patch.amount ?? prev.amount,
-        channel: prev.channel,
-        createdAt: prev.createdAt,
-        vehicleType: vehicleTypeToApiPayload(
-          patch.vehicleType ?? prev.vehicleType,
-        ),
-      } as Parameters<typeof TransactionsApi.adminUpdateTransactionById>[1])
-      const ticket = ticketRef(prev)
-      appendLog({
-        action: 'reconciliation',
-        summary: `Updated ${ticket}`,
-        detail: `Ticket ${ticket}. ${describeTransactionPatchForLog(prev, patch, updated)}`,
-      })
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'transactions'] })
-      void queryClient.invalidateQueries({
-        queryKey: dashboardOverviewQueryKey,
-      })
-      void queryClient.invalidateQueries({
-        queryKey: settlementTransactionsQueryKey,
-      })
-      setModalOpen(false)
-      setModalTx(null)
-      toast.success('Transaction updated', {
-        description: `Ticket ${ticket} saved.`,
-      })
-    } catch (e) {
-      appendLog({
-        action: 'settings',
-        summary: `Save failed for ${ticketRef(prev)}`,
-        detail: 'Could not update transaction on the server.',
-      })
-      toastRequestFailed('Could not save transaction', e)
-    }
-  }
 
   const handleConfirmDelete = useCallback(async () => {
     if (selectedById.size === 0 || deleting) return
@@ -412,8 +362,8 @@ export default function ReconciliationAlignTab() {
                       <td className="whitespace-nowrap px-5 py-3.5 text-right">
                         <button
                           type="button"
-                          onClick={() => openEdit(t)}
-                          className="rounded-xl bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-700"
+                          disabled
+                          className="rounded-xl bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Edit
                         </button>
@@ -436,16 +386,6 @@ export default function ReconciliationAlignTab() {
           />
         </div>
       </div>
-
-      <EditTransactionModal
-        tx={modalTx}
-        open={modalOpen}
-        onClose={() => {
-          setModalOpen(false)
-          setModalTx(null)
-        }}
-        onSave={handleSave}
-      />
 
       {confirmOpen ? (
         <ConfirmDeleteDialog

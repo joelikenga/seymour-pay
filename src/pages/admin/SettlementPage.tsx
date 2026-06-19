@@ -76,7 +76,7 @@ export default function SettlementPage() {
           patch.vehicleType ?? prev.vehicleType,
         ),
       } as Parameters<typeof TransactionsApi.adminUpdateTransactionById>[1])
-      const ticket = prev.reference?.trim() || id
+      const ticket = prev.ticketId?.trim() || prev.reference?.trim() || id
       appendLog({
         action: 'reconciliation',
         summary: `Updated ${ticket}`,
@@ -244,7 +244,7 @@ export default function SettlementPage() {
                       }}
                     >
                       <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
-                        {t.reference}
+                        {t.ticketId || t.reference}
                       </td>
                       <td className="whitespace-nowrap px-5 py-3.5 font-medium text-zinc-800">
                         {t.customerName}
