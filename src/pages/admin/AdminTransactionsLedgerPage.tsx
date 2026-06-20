@@ -420,23 +420,31 @@ export default function AdminTransactionsLedgerPage({
           aria-busy={listQuery.isPending}
         >
           <table
-            className="w-full min-w-[1400px] border-collapse text-left text-sm"
+            className={`w-full border-collapse text-left text-sm ${lostTicketOnly ? 'min-w-[720px]' : 'min-w-[1400px]'}`}
             aria-label={
               listQuery.isPending ? copy.tableAriaBusy : copy.tableAriaReady
             }
           >
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50/95 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                <th className="whitespace-nowrap px-5 py-3.5">Ticket ID</th>
-                <th className="whitespace-nowrap px-5 py-3.5">Pay ID</th>
+                <th className="whitespace-nowrap px-5 py-3.5">
+                  {lostTicketOnly ? 'Code' : 'Ticket ID'}
+                </th>
+                {!lostTicketOnly ? (
+                  <th className="whitespace-nowrap px-5 py-3.5">Pay ID</th>
+                ) : null}
                 <th className="whitespace-nowrap px-5 py-3.5">Cashier</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Vehicle</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Payment type</th>
                 <th className="whitespace-nowrap px-5 py-3.5 text-right">
                   Amount
                 </th>
-                <th className="whitespace-nowrap px-5 py-3.5">Entry time</th>
-                <th className="whitespace-nowrap px-5 py-3.5">Exit time</th>
+                {!lostTicketOnly ? (
+                  <>
+                    <th className="whitespace-nowrap px-5 py-3.5">Entry time</th>
+                    <th className="whitespace-nowrap px-5 py-3.5">Exit time</th>
+                  </>
+                ) : null}
                 <th className="whitespace-nowrap px-5 py-3.5">Pay time</th>
               </tr>
             </thead>
@@ -444,20 +452,24 @@ export default function AdminTransactionsLedgerPage({
               {listQuery.isPending ? (
                 <AdminTableSkeletonBody
                   rows={TRANSACTIONS_PAGE_SIZE}
-                  columns={9}
-                  rightAlignIndices={[5]}
+                  columns={lostTicketOnly ? 6 : 9}
+                  rightAlignIndices={[lostTicketOnly ? 4 : 5]}
                 />
               ) : rows.length === 0 ? (
-                <AdminTableEmptyState colSpan={9} />
+                <AdminTableEmptyState colSpan={lostTicketOnly ? 6 : 9} />
               ) : (
                 rows.map((t) => (
                   <tr key={t.id} className="transition hover:bg-orange-50/50">
                     <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-900">
-                      {t.ticketId || t.reference}
+                      {lostTicketOnly
+                        ? displayTransactionField(t.code)
+                        : t.ticketId || t.reference}
                     </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-700">
-                      {displayTransactionField(t.carfeeId)}
-                    </td>
+                    {!lostTicketOnly ? (
+                      <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[13px] text-zinc-700">
+                        {displayTransactionField(t.carfeeId)}
+                      </td>
+                    ) : null}
                     <td className="whitespace-nowrap px-5 py-3.5 text-zinc-700">
                       {displayTransactionField(t.createdBy)}
                     </td>
@@ -478,12 +490,16 @@ export default function AdminTransactionsLedgerPage({
                     <td className="whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums text-zinc-950">
                       {formatMoney(t.amount)}
                     </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
-                      {formatTransactionLedgerTime(t.entryTime)}
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
-                      {formatTransactionLedgerTime(t.exitTime)}
-                    </td>
+                    {!lostTicketOnly ? (
+                      <>
+                        <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
+                          {formatTransactionLedgerTime(t.entryTime)}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
+                          {formatTransactionLedgerTime(t.exitTime)}
+                        </td>
+                      </>
+                    ) : null}
                     <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
                       {formatTransactionLedgerTime(t.createdAt)}
                     </td>

@@ -66,11 +66,13 @@ function optionalIso(v: unknown): string | null {
 export function normalizeTransactionRow(raw: unknown): Transaction | null {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Record<string, unknown>
-  const id = typeof o.id === 'string' ? o.id : ''
-  if (!id) return null
   const ticketId = str(o.ticket_id ?? o.ticketId).trim()
   const code = str(o.code).trim()
   const reference = str(o.reference).trim()
+  const apiId = typeof o.id === 'string' ? o.id.trim() : ''
+  // Lost-ticket rows often omit `id` and `ticket_id`; fall back to code/reference.
+  const id = apiId || ticketId || code || reference
+  if (!id) return null
   return {
     id,
     // Ledger API now sends an empty `reference`; fall back to ticket_id (then
