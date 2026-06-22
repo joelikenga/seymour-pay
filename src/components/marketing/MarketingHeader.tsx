@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
+import PwaInstallButton from '../PwaInstallButton'
 import SeymourLogo from '../SeymourLogo'
 import { marketingBtnPrimary, marketingContainer } from '../../lib/marketingUi'
 
@@ -67,6 +68,7 @@ export default function MarketingHeader() {
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
+            <PwaInstallButton variant="header" />
             <Link to="/pay/scan" className={`${marketingBtnPrimary} !px-5 !py-2.5 !text-xs sm:!text-sm`}>
               Pay now
             </Link>
@@ -133,6 +135,7 @@ export default function MarketingHeader() {
                 </NavLink>
               ))}
             </nav>
+            <PwaInstallButton variant="header" className="mt-6 w-full justify-center" />
             <Link
               to="/pay/scan"
               onClick={() => setMenuOpen(false)}

@@ -177,7 +177,7 @@ function FeaturesSection() {
 }
 
 function PricingSection() {
-  const { data, isFetching, isError } = useMarketingPricingQuery()
+  const { data, isLoading, isError } = useMarketingPricingQuery()
 
   return (
     <section className={marketingSection}>
@@ -198,7 +198,7 @@ function PricingSection() {
         <PricingShowcase
           rows={data?.rows ?? []}
           currency={data?.currency}
-          loading={isFetching && !data}
+          loading={isLoading}
         />
       </div>
     </section>

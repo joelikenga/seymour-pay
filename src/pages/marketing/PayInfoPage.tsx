@@ -31,7 +31,7 @@ const PAY_STEPS = [
 ] as const
 
 export default function PayInfoPage() {
-  const { data, isFetching, isError, error } = useMarketingPricingQuery()
+  const { data, isLoading, isError, error } = useMarketingPricingQuery()
 
   return (
     <>
@@ -65,7 +65,7 @@ export default function PayInfoPage() {
           <PricingShowcase
             rows={data?.rows ?? []}
             currency={data?.currency}
-            loading={isFetching && !data}
+            loading={isLoading}
           />
         </div>
       </section>

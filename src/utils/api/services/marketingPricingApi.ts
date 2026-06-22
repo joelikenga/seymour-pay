@@ -1,7 +1,4 @@
-import {
-  normalizeMarketingVehicleRates,
-  staticMarketingPricingFallback,
-} from '../../../lib/normalizeMarketingPricing'
+import { normalizeMarketingVehicleRates } from '../../../lib/normalizeMarketingPricing'
 import type { MarketingPricingResponse } from '../../../types/marketingPricing'
 import { axios$ } from '../..'
 
@@ -12,10 +9,6 @@ import { axios$ } from '../..'
 export async function getMarketingVehicleRates(
   signal?: AbortSignal,
 ): Promise<MarketingPricingResponse> {
-  try {
-    const raw = await axios$.get('/vehicle-rates', { signal })
-    return normalizeMarketingVehicleRates(raw)
-  } catch {
-    return staticMarketingPricingFallback()
-  }
+  const raw = await axios$.get('/vehicle-rates', { signal })
+  return normalizeMarketingVehicleRates(raw)
 }

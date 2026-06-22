@@ -22,16 +22,16 @@ export default defineConfig({
         'pwa-512.svg',
       ],
       manifest: {
+        id: '/pay/',
         name: 'Seymour Aviation Pay',
         short_name: 'Seymour Pay',
-        description:
-          'Seymour E-payment System',
+        description: 'Scan, pay, and exit — MMIA car park checkout.',
         theme_color: '#ca8a04',
         background_color: '#f9fafb',
         display: 'standalone',
         orientation: 'portrait-primary',
-        start_url: '/pay',
-        scope: '/',
+        start_url: '/pay/scan',
+        scope: '/pay/',
         icons: [
           {
             src: 'pwa-192.svg',
@@ -56,6 +56,16 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: '/index.html',
+        navigateFallbackAllowlist: [/^\/pay(\/|$)/],
+        navigateFallbackDenylist: [
+          /^\/admin(\/|$)/,
+          /^\/login(\/|$)/,
+          /^\/about(\/|$)/,
+          /^\/contact(\/|$)/,
+          /^\/gallery(\/|$)/,
+          /^\/pay-info(\/|$)/,
+          /\/[^/?]+\.[^/]+$/,
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

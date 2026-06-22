@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import PwaInstallButton from '../../components/PwaInstallButton'
 import SeymourLogo from '../../components/SeymourLogo'
 import PayMobileTopBar from './PayMobileLogo'
 import {
@@ -112,12 +113,18 @@ export default function PayShell() {
                   History
                 </NavLink>
               </nav>
+              <PwaInstallButton variant="header" />
             </div>
           </header>
         ) : null}
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {showMobileTopBar ? <PayMobileTopBar /> : null}
+          {!isDesktop && isScanPage ? (
+            <div className="pointer-events-none absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-40">
+              <PwaInstallButton variant="compact" className="pointer-events-auto" />
+            </div>
+          ) : null}
           <Outlet />
         </div>
 
