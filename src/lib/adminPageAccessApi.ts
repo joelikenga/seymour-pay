@@ -26,7 +26,7 @@ const API_KEY_TO_PAGE: Record<string, AdminPageKey> = {
 
 /**
  * Keys the server accepts on `POST /admin/users` today.
- * Omit others (e.g. `lost_tickets`) until the backend enum includes them.
+ * New accounts only get dashboard + transactions; grant other pages via Settings.
  */
 const CREATE_USER_API_PAGE_KEYS: AdminPageKey[] = ['dashboard', 'transactions']
 
@@ -39,13 +39,12 @@ export function newUserPageAccessApiPayload(): Record<string, boolean> {
   return out
 }
 
-/** `PATCH …/page-access` — map app keys to API wire names. */
+/** `PATCH …/page-access` — map app keys to API wire names (`lostTickets` → `lost_tickets`). */
 export function pageAccessToApiPayload(
   access: Record<AdminPageKey, boolean>,
 ): Record<string, boolean> {
   const out: Record<string, boolean> = {}
   for (const k of ADMIN_PAGE_KEYS) {
-    if (k === 'lostTickets') continue
     out[PAGE_KEY_TO_API[k]] = Boolean(access[k])
   }
   return out
