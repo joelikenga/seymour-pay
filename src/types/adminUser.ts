@@ -1,3 +1,5 @@
+import { pageAccessFromApiRaw } from '../lib/adminPageAccessApi'
+
 export const ADMIN_PAGE_KEYS = [
   'dashboard',
   'transactions',
@@ -51,7 +53,7 @@ export function defaultPageAccess(): Record<AdminPageKey, boolean> {
 export function initialAdminAccountPageAccess(): Record<AdminPageKey, boolean> {
   const out = {} as Record<AdminPageKey, boolean>
   for (const k of ADMIN_PAGE_KEYS) {
-    out[k] = k === 'dashboard' || k === 'transactions' || k === 'lostTickets'
+    out[k] = k === 'dashboard' || k === 'transactions'
   }
   return out
 }
@@ -60,14 +62,7 @@ export function initialAdminAccountPageAccess(): Record<AdminPageKey, boolean> {
 export function pageAccessFromApi(
   raw: Partial<Record<AdminPageKey, boolean>> | undefined | null,
 ): Record<AdminPageKey, boolean> {
-  const out = {} as Record<AdminPageKey, boolean>
-  for (const k of ADMIN_PAGE_KEYS) {
-    out[k] = Boolean(raw?.[k])
-  }
-  if (out.transactions && raw?.lostTickets == null) {
-    out.lostTickets = true
-  }
-  return out
+  return pageAccessFromApiRaw(raw as Partial<Record<string, boolean>> | undefined)
 }
 
 export function adminUserFromApi(row: {

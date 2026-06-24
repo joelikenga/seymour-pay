@@ -87,10 +87,14 @@ export default function AdminTransactionsLedgerPage({
   const copy = LEDGER_PAGE_COPY[variant]
   const lostTicketOnly = variant === 'lostTickets'
   const profileQuery = useAdminProfileQuery()
-  const isSuperAdmin = isSuperAdminRole(profileQuery.data?.role)
-  const showCashierFilter = variant === 'transactions' && isSuperAdmin
+  const profileReady = profileQuery.isSuccess
+  const isSuperAdmin =
+    profileReady && isSuperAdminRole(profileQuery.data?.role)
+  /** Cashier filter + column: transactions ledger only, after profile confirms superadmin. */
+  const showCashierUi = variant === 'transactions' && isSuperAdmin
+  const showCashierColumn = lostTicketOnly || showCashierUi
   const showCustomDateFilter = isSuperAdmin
-  const accessResolved = !profileQuery.isPending
+  const accessResolved = profileReady
   const { appendLog } = useAdminData()
   const navigate = useNavigate()
   const location = useLocation()
@@ -109,7 +113,7 @@ export default function AdminTransactionsLedgerPage({
     setQ,
     debouncedQ,
   } = useTransactionLedgerUrlFilters({
-    showCashierFilter,
+    showCashierFilter: showCashierUi,
     showCustomDateFilter,
     accessResolved,
   })
@@ -159,18 +163,18 @@ export default function AdminTransactionsLedgerPage({
 
   const cashiersQuery = useTransactionCashiersQuery(
     cashiersApiRange,
-    showCashierFilter,
+    showCashierUi,
   )
   const cashierNames: string[] =
     cashiersRangeKey && cashiersQuery.data ? cashiersQuery.data : []
 
   useEffect(() => {
-    if (!showCashierFilter) return
+    if (!showCashierUi) return
     setCashierFilter('all')
-  }, [cashiersRangeKey, showCashierFilter])
+  }, [cashiersRangeKey, setCashierFilter, showCashierUi])
 
   useEffect(() => {
-    if (!showCashierFilter || cashierFilter === 'all') return
+    if (!showCashierUi || cashierFilter === 'all') return
     if (!cashiersRangeKey || cashiersQuery.isFetching) return
     if (cashierNames.length === 0) return
     const selected = cashierFilter.trim()
@@ -183,8 +187,17 @@ export default function AdminTransactionsLedgerPage({
     cashierNames,
     cashiersQuery.isFetching,
     cashiersRangeKey,
-    showCashierFilter,
+    showCashierUi,
   ])
+
+  const ledgerColumnCount = useMemo(() => {
+    if (lostTicketOnly) return 6
+    return showCashierUi ? 9 : 8
+  }, [lostTicketOnly, showCashierUi])
+
+  const amountColumnIndex = lostTicketOnly ? 4 : showCashierUi ? 5 : 4
+
+  const transactionsTableReady = lostTicketOnly || profileReady
 
   const filterSummary = useMemo(
     () =>
@@ -201,7 +214,7 @@ export default function AdminTransactionsLedgerPage({
     transactionsListFiltersQueryKey(
       dateSelection,
       effectiveCustomDateBounds,
-      showCashierFilter ? cashierFilter : '',
+      showCashierUi ? cashierFilter : '',
     ),
     variant,
     isSuperAdmin ? 'superadmin' : 'admin',
@@ -218,7 +231,7 @@ export default function AdminTransactionsLedgerPage({
           customDates: effectiveCustomDateBounds,
         }
       : {
-          ...(showCashierFilter ? { cashier: cashierFilter } : {}),
+          ...(showCashierUi ? { cashier: cashierFilter } : {}),
           customDates: effectiveCustomDateBounds,
         },
   )
@@ -280,7 +293,7 @@ export default function AdminTransactionsLedgerPage({
         from: range.from,
         to: range.to,
         is_lost_ticket: lostTicketOnly,
-        ...(showCashierFilter && cashier && cashier !== 'all'
+        ...(showCashierUi && cashier && cashier !== 'all'
           ? { created_by: cashier }
           : {}),
         ...(search ? { search } : {}),
@@ -316,7 +329,7 @@ export default function AdminTransactionsLedgerPage({
     dateSelection,
     exporting,
     lostTicketOnly,
-    showCashierFilter,
+    showCashierUi,
     variant,
   ])
 
@@ -349,7 +362,7 @@ export default function AdminTransactionsLedgerPage({
                 match{totalItems === 1 ? '' : 'es'}
               </span>
               <span aria-hidden className="text-zinc-300">·</span>
-              {showCashierFilter ? (
+              {showCashierUi ? (
                 <>
                   <TransactionCashierFilterPicker
                     key={cashiersRangeKey || 'no-range'}
@@ -420,7 +433,13 @@ export default function AdminTransactionsLedgerPage({
           aria-busy={listQuery.isPending}
         >
           <table
-            className={`w-full border-collapse text-left text-sm ${lostTicketOnly ? 'min-w-[720px]' : 'min-w-[1400px]'}`}
+            className={`w-full border-collapse text-left text-sm ${
+              lostTicketOnly
+                ? 'min-w-[720px]'
+                : showCashierUi
+                  ? 'min-w-[1400px]'
+                  : 'min-w-[1240px]'
+            }`}
             aria-label={
               listQuery.isPending ? copy.tableAriaBusy : copy.tableAriaReady
             }
@@ -433,7 +452,9 @@ export default function AdminTransactionsLedgerPage({
                 {!lostTicketOnly ? (
                   <th className="whitespace-nowrap px-5 py-3.5">Pay ID</th>
                 ) : null}
-                <th className="whitespace-nowrap px-5 py-3.5">Cashier</th>
+                {showCashierColumn ? (
+                  <th className="whitespace-nowrap px-5 py-3.5">Cashier</th>
+                ) : null}
                 <th className="whitespace-nowrap px-5 py-3.5">Vehicle</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Payment type</th>
                 <th className="whitespace-nowrap px-5 py-3.5 text-right">
@@ -449,14 +470,14 @@ export default function AdminTransactionsLedgerPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {listQuery.isPending ? (
+              {!transactionsTableReady || listQuery.isPending ? (
                 <AdminTableSkeletonBody
                   rows={TRANSACTIONS_PAGE_SIZE}
-                  columns={lostTicketOnly ? 6 : 9}
-                  rightAlignIndices={[lostTicketOnly ? 4 : 5]}
+                  columns={ledgerColumnCount}
+                  rightAlignIndices={[amountColumnIndex]}
                 />
               ) : rows.length === 0 ? (
-                <AdminTableEmptyState colSpan={lostTicketOnly ? 6 : 9} />
+                <AdminTableEmptyState colSpan={ledgerColumnCount} />
               ) : (
                 rows.map((t) => (
                   <tr key={t.id} className="transition hover:bg-orange-50/50">
@@ -470,9 +491,11 @@ export default function AdminTransactionsLedgerPage({
                         {displayTransactionField(t.carfeeId)}
                       </td>
                     ) : null}
-                    <td className="whitespace-nowrap px-5 py-3.5 text-zinc-700">
-                      {displayTransactionField(t.createdBy)}
-                    </td>
+                    {showCashierColumn ? (
+                      <td className="whitespace-nowrap px-5 py-3.5 text-zinc-700">
+                        {displayTransactionField(t.createdBy)}
+                      </td>
+                    ) : null}
                     <td className="whitespace-nowrap px-5 py-3.5">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${vehiclePillClass[t.vehicleType]}`}

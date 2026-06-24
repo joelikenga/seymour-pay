@@ -6,6 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import AdminTableEmptyState from '../../components/admin/AdminTableEmptyState'
 import AdminTableSkeletonBody from '../../components/admin/AdminTableSkeletonBody'
@@ -81,12 +82,15 @@ function ModalBackdrop({
   children: ReactNode
   zClass?: string
 }) {
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div
-      className={`fixed inset-0 flex items-center justify-center bg-zinc-950/40 p-4 ${zClass}`}
+      className={`fixed inset-0 flex items-center justify-center bg-zinc-950/40 p-4 sm:p-6 ${zClass}`}
     >
       {children}
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -600,9 +604,16 @@ export default function SettingsPage() {
       {/* Create user - credentials */}
       {createOpen && createStep === 2 && lastCreated ? (
         <ModalBackdrop>
-          <div role="dialog" aria-modal="true" className={adminModalPanel}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="account-created-title"
+            className={`${adminModalPanel} w-full max-w-lg`}
+          >
             <div className={adminModalHeader}>
-              <h2 className={adminModalTitle}>Account created</h2>
+              <h2 id="account-created-title" className={adminModalTitle}>
+                Account created
+              </h2>
               <p className={adminModalSubtitle}>
                 Share securely. They should reset their password after first sign-in.
               </p>
@@ -643,7 +654,7 @@ export default function SettingsPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="save-access-title"
-            className={adminModalPanel}
+            className={`${adminModalPanel} w-full max-w-lg`}
           >
             <div className={adminModalHeader}>
               <h2 id="save-access-title" className={adminModalTitle}>

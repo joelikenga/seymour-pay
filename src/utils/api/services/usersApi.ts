@@ -1,8 +1,9 @@
 import { axios$ } from '../..'
 import {
-  initialAdminAccountPageAccess,
-  type AdminPageKey,
-} from '../../../types/adminUser'
+  newUserPageAccessApiPayload,
+  pageAccessToApiPayload,
+} from '../../../lib/adminPageAccessApi'
+import type { AdminPageKey } from '../../../types/adminUser'
 import type {
   AdminCreateUserResponse,
   AdminDeleteUserResponse,
@@ -57,7 +58,7 @@ export async function adminCreateUser(
     email: body.email.trim(),
     firstName: body.firstName.trim(),
     lastName: body.lastName.trim(),
-    pageAccess: initialAdminAccountPageAccess(),
+    pageAccess: newUserPageAccessApiPayload(),
   })
   return asBody<AdminCreateUserResponse>(data)
 }
@@ -72,7 +73,7 @@ export async function adminUpdateUserById(
 ): Promise<AdminUserResponse> {
   const data = await axios$.patch(
     `/admin/users/${encodeURIComponent(id)}/page-access`,
-    { pageAccess },
+    { pageAccess: pageAccessToApiPayload(pageAccess) },
   )
   return asBody<AdminUserResponse>(data)
 }
