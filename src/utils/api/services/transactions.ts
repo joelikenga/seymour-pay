@@ -16,6 +16,8 @@ export type AdminGetTransactionsListParams = {
   is_lost_ticket?: boolean;
   /** Cashier username (`created_by`). */
   created_by?: string;
+  /** Payment channel filter (e.g. `cash`). */
+  channel?: string;
 };
 
 function compactListParams(
@@ -44,6 +46,9 @@ function compactListParams(
   }
   if (typeof params.created_by === "string" && params.created_by.trim() !== "") {
     out.created_by = params.created_by.trim();
+  }
+  if (typeof params.channel === "string" && params.channel.trim() !== "") {
+    out.channel = params.channel.trim();
   }
   return out;
 }

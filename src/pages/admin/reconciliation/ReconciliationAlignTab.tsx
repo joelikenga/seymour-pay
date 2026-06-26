@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useAdminListPage } from '../../../hooks/useAdminListPage'
 import { toast } from 'sonner'
@@ -10,7 +11,13 @@ import TableToolbar from '../../../components/admin/TableToolbar'
 import { useAdminData } from '../../../context/AdminDataContext'
 import { channelLabel, channelPillClass } from '../../../lib/channelStyles'
 import { vehicleLabel, vehiclePillClass } from '../../../lib/vehicleStyles'
-import { formatMoney, formatTransactionLedgerTime, displayTransactionField } from '../../../lib/formatters'
+import {
+  formatDayStamp,
+  formatMoney,
+  formatTransactionLedgerTime,
+  displayTransactionField,
+} from '../../../lib/formatters'
+import type { DateFilterSelection } from '../../../lib/transactionDateFilter'
 import type { Transaction } from '../../../types/transaction'
 import {
   RECONCILIATION_PAGE_SIZE,
@@ -32,27 +39,84 @@ import {
   adminModalTitle,
 } from '../../../lib/adminModalStyles'
 
+/** A selected reconciliation row - ticket ref for bulk delete, amount for the running total. */
+interface SelectedRow {
+  ref: string
+  amount: number
+}
+
+/** Strict `YYYY-MM-DD` check for the `?day=` search param. */
+function isValidYmd(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const d = new Date(`${value}T12:00:00`)
+  return !Number.isNaN(d.getTime())
+}
+
 export default function ReconciliationAlignTab() {
   const { appendLog } = useAdminData()
 
+  const [searchParams, setSearchParams] = useSearchParams()
+  const dayParam = useMemo(() => {
+    const raw = searchParams.get('day')?.trim() ?? ''
+    return isValidYmd(raw) ? raw : ''
+  }, [searchParams])
+
+  const setDay = useCallback(
+    (next: string) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev)
+          if (next && isValidYmd(next)) params.set('day', next)
+          else params.delete('day')
+          return params
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
+
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300)
-  const { pageIndex, setPageIndex, uiPage } = useAdminListPage([debouncedQuery])
-  /** Map row id → ticket id for API bulk delete (`ids` = ticket references). */
-  const [selectedById, setSelectedById] = useState<Map<string, string>>(
+  const { pageIndex, setPageIndex, uiPage } = useAdminListPage([
+    debouncedQuery,
+    dayParam,
+  ])
+  /** Selected rows keyed by id - keeps ticket ref (for bulk delete) and amount (for the running total). */
+  const [selectedById, setSelectedById] = useState<Map<string, SelectedRow>>(
     () => new Map(),
   )
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  /** Single-day filter on pay time (`createdAt`); empty = all dates. */
+  const daySelection: DateFilterSelection = useMemo(() => {
+    if (!dayParam) return { kind: 'all' }
+    return { kind: 'custom', start: `${dayParam}T00:00:00`, end: `${dayParam}T23:59:59` }
+  }, [dayParam])
+
+  /** Datetime bounds so the API gets from=`day T00:00:00` and to=`day T23:59:59`. */
+  const dayCustomDates = useMemo(
+    () =>
+      dayParam
+        ? { from: `${dayParam}T00:00:00`, to: `${dayParam}T23:59:59` }
+        : { from: '', to: '' },
+    [dayParam],
+  )
+
   const listQuery = useTransactionsListQuery(
     pageIndex,
     debouncedQuery,
-    { kind: 'all' },
+    daySelection,
     RECONCILIATION_PAGE_SIZE,
+    { channel: 'cash', customDates: dayCustomDates },
   )
   const payload = listQuery.data
-  const paginated = payload?.data ?? []
+  /** Cash payments only; the pay-time day is filtered server-side via `from`/`to`. */
+  const paginated = useMemo(
+    () => (payload?.data ?? []).filter((t) => t.channel === 'cash'),
+    [payload],
+  )
   const total = payload?.total ?? 0
   const apiTotalPages = payload?.total_pages ?? 0
 
@@ -80,6 +144,11 @@ export default function ReconciliationAlignTab() {
   const someVisibleSelected =
     visibleSelectedCount > 0 && !allVisibleSelected
   const selectionCount = selectedById.size
+  const selectedTotal = useMemo(() => {
+    let sum = 0
+    for (const row of selectedById.values()) sum += row.amount
+    return sum
+  }, [selectedById])
   const hasSelectionsOnOtherPages =
     selectionCount > visibleSelectedCount
   const headerIndeterminate =
@@ -99,7 +168,7 @@ export default function ReconciliationAlignTab() {
     setSelectedById((prev) => {
       const next = new Map(prev)
       if (next.has(id)) next.delete(id)
-      else next.set(id, ref)
+      else next.set(id, { ref, amount: t.amount })
       return next
     })
   }, [ticketRef])
@@ -112,7 +181,7 @@ export default function ReconciliationAlignTab() {
       if (allSelected) {
         for (const id of visibleIds) next.delete(id)
       } else {
-        for (const t of paginated) next.set(t.id, ticketRef(t))
+        for (const t of paginated) next.set(t.id, { ref: ticketRef(t), amount: t.amount })
       }
       return next
     })
@@ -124,16 +193,19 @@ export default function ReconciliationAlignTab() {
 
   const handleConfirmDelete = useCallback(async () => {
     if (selectedById.size === 0 || deleting) return
-    const ticketIds = [...new Set(Array.from(selectedById.values()))]
+    /** Delete by transaction `id` (UUID), not the ticket reference. */
+    const ids = [...selectedById.keys()]
+    const refs = [
+      ...new Set(Array.from(selectedById.values(), (row) => row.ref)),
+    ]
     setDeleting(true)
     try {
-      await TransactionsApi.adminDeleteBulkTransactions(ticketIds)
-      const preview = ticketIds.slice(0, 5).join(', ')
-      const more =
-        ticketIds.length > 5 ? ` (+${ticketIds.length - 5} more)` : ''
+      await TransactionsApi.adminDeleteBulkTransactions(ids)
+      const preview = refs.slice(0, 5).join(', ')
+      const more = refs.length > 5 ? ` (+${refs.length - 5} more)` : ''
       appendLog({
         action: 'reconciliation',
-        summary: `Deleted ${ticketIds.length} transaction${ticketIds.length === 1 ? '' : 's'}`,
+        summary: `Deleted ${ids.length} transaction${ids.length === 1 ? '' : 's'}`,
         detail: `Bulk deleted on server - ticket IDs: ${preview}${more}`,
       })
       void queryClient.invalidateQueries({ queryKey: ['admin', 'transactions'] })
@@ -146,9 +218,9 @@ export default function ReconciliationAlignTab() {
       setSelectedById(new Map())
       setConfirmOpen(false)
       toast.success(
-        ticketIds.length === 1
+        ids.length === 1
           ? 'Transaction deleted'
-          : `${ticketIds.length} transactions deleted`,
+          : `${ids.length} transactions deleted`,
         {
           description: 'The ledger and dashboards will refresh momentarily.',
         },
@@ -171,6 +243,8 @@ export default function ReconciliationAlignTab() {
         <TableToolbar
           right={
             <>
+              <DayFilterDropdown value={dayParam} onChange={setDay} />
+              <span aria-hidden className="text-zinc-300">·</span>
               <span className="tabular-nums">
                 {listQuery.isPending ? (
                   <span
@@ -197,7 +271,7 @@ export default function ReconciliationAlignTab() {
                 <>
                   <span aria-hidden className="text-zinc-300">·</span>
                   <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-[11px] font-semibold text-orange-800 ring-1 ring-orange-200">
-                    {selectionCount} selected
+                    {selectionCount} selected · {formatMoney(selectedTotal)}
                   </span>
                   <button
                     type="button"
@@ -224,12 +298,20 @@ export default function ReconciliationAlignTab() {
             role="status"
             className="flex flex-wrap items-center justify-between gap-3 border-b border-orange-100 bg-orange-50/60 px-5 py-3"
           >
-            <p className="text-sm font-semibold text-orange-900">
-              {selectionCount} transaction{selectionCount === 1 ? '' : 's'} selected
-              <span className="ml-2 text-xs font-medium text-orange-800/80">
-                Selections persist across pages.
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              <p className="text-sm font-semibold text-orange-900">
+                {selectionCount} transaction{selectionCount === 1 ? '' : 's'} selected
+                <span className="ml-2 text-xs font-medium text-orange-800/80">
+                  Selections persist across pages.
+                </span>
+              </p>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-sm font-bold tabular-nums text-orange-900 ring-1 ring-orange-200">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-orange-700/80">
+                  Selected total
+                </span>
+                {formatMoney(selectedTotal)}
               </span>
-            </p>
+            </div>
             <button
               type="button"
               disabled={deleting}
@@ -282,28 +364,27 @@ export default function ReconciliationAlignTab() {
                 <th className="whitespace-nowrap px-5 py-3.5">Entry time</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Exit time</th>
                 <th className="whitespace-nowrap px-5 py-3.5">Pay time</th>
-                <th className="whitespace-nowrap px-5 py-3.5 text-right"> </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {listQuery.isPending ? (
                 <AdminTableSkeletonBody
                   rows={RECONCILIATION_PAGE_SIZE}
-                  columns={10}
+                  columns={9}
                   checkboxColumn
-                  rightAlignIndices={[5, 9]}
+                  rightAlignIndices={[5]}
                 />
               ) : listQuery.isError ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={10}
                     className="px-5 py-10 text-center text-sm text-rose-700"
                   >
                     Could not load transactions. Try again later.
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
-                <AdminTableEmptyState colSpan={11} />
+                <AdminTableEmptyState colSpan={10} />
               ) : (
                 paginated.map((t) => {
                   const isSelected = selectedById.has(t.id)
@@ -359,15 +440,6 @@ export default function ReconciliationAlignTab() {
                       <td className="whitespace-nowrap px-5 py-3.5 font-mono text-[12px] tabular-nums text-zinc-600">
                         {formatTransactionLedgerTime(t.createdAt)}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-3.5 text-right">
-                        <button
-                          type="button"
-                          disabled
-                          className="rounded-xl bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Edit
-                        </button>
-                      </td>
                     </tr>
                   )
                 })
@@ -376,7 +448,54 @@ export default function ReconciliationAlignTab() {
           </table>
         </div>
 
-        <div className="border-t border-zinc-100 px-5 pb-5 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 px-5 pt-3">
+          <label className="inline-flex cursor-pointer select-none items-center gap-2 text-xs font-semibold text-zinc-700">
+            <SelectAllCheckbox
+              checked={allVisibleSelected}
+              indeterminate={headerIndeterminate}
+              onChange={togglePage}
+              disabled={visibleIds.length === 0 || listQuery.isPending}
+              label="Select all rows on this page"
+            />
+            Select all on this page
+          </label>
+          {selectionCount > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-1 text-sm font-bold tabular-nums text-orange-900 ring-1 ring-orange-200">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-orange-700/80">
+                  {selectionCount} selected
+                </span>
+                {formatMoney(selectedTotal)}
+              </span>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setConfirmOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Delete {selectionCount}
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="text-[11px] font-semibold text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline"
+              >
+                Clear
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="px-5 pb-5 pt-2">
           <AdminPagination
             page={uiPage}
             totalPages={totalPagesForUi}
@@ -396,6 +515,125 @@ export default function ReconciliationAlignTab() {
         />
       ) : null}
     </>
+  )
+}
+
+interface DayFilterDropdownProps {
+  value: string
+  onChange: (next: string) => void
+}
+
+function DayFilterDropdown({ value, onChange }: DayFilterDropdownProps) {
+  const [open, setOpen] = useState(false)
+  /** Draft date kept local until "Done" commits it (so the request fires on Done, not on pick). */
+  const [draft, setDraft] = useState(value)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (open) setDraft(value)
+  }, [open, value])
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: PointerEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const triggerLabel = value ? formatDayStamp(value) : 'All dates'
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold shadow-sm transition focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-200 ${
+          value
+            ? 'border-orange-300 bg-orange-50 text-orange-900 hover:bg-orange-100'
+            : 'border-zinc-200 bg-white text-zinc-700 hover:border-orange-200 hover:bg-orange-50/40'
+        }`}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M8 2v4M16 2v4M3 9h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="max-w-[160px] truncate">{triggerLabel}</span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+          className={`transition-transform ${open ? 'rotate-180' : ''}`}
+        >
+          <path
+            d="M6 9l6 6 6-6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {open ? (
+        <div
+          role="dialog"
+          aria-label="Filter by pay date"
+          className="absolute right-0 z-30 mt-2 w-64 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl ring-1 ring-zinc-950/5"
+        >
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Pay date
+          </label>
+          <input
+            type="date"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="mt-1.5 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+          />
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                setDraft('')
+                onChange('')
+                setOpen(false)
+              }}
+              disabled={!draft && !value}
+              className="text-xs font-semibold text-zinc-500 underline-offset-2 transition hover:text-zinc-800 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onChange(draft)
+                setOpen(false)
+              }}
+              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   )
 }
 

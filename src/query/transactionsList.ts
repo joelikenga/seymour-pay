@@ -15,8 +15,8 @@ export const lostTicketsListQueryKey = ['admin', 'lost-tickets', 'list'] as cons
 export const recentTransactionsQueryKey = ['admin', 'transactions', 'recent'] as const
 
 export const TRANSACTIONS_PAGE_SIZE = 12
-/** Reconciliation table uses a smaller page size. */
-export const RECONCILIATION_PAGE_SIZE = 10
+/** Reconciliation table uses a larger page size for easier pagination. */
+export const RECONCILIATION_PAGE_SIZE = 100
 const RECENT_COUNT = 5
 
 export type TransactionListFilterOptions = {
@@ -24,6 +24,8 @@ export type TransactionListFilterOptions = {
   lostTicketOnly?: boolean
   cashier?: string
   customDates?: TransactionCustomDateBounds
+  /** Payment channel filter (e.g. `cash`). */
+  channel?: string
 }
 
 function buildTransactionsListParams(
@@ -39,6 +41,7 @@ function buildTransactionsListParams(
   )
   const trimmedSearch = search.trim()
   const cashier = options?.cashier?.trim()
+  const channel = options?.channel?.trim()
   const lostTicketOnly = options?.lostTicketOnly === true
   return {
     page: pageIndex + 1,
@@ -48,6 +51,7 @@ function buildTransactionsListParams(
     ...(range.from && range.to ? { from: range.from, to: range.to } : {}),
     is_lost_ticket: lostTicketOnly,
     ...(cashier && cashier !== 'all' ? { created_by: cashier } : {}),
+    ...(channel ? { channel } : {}),
   }
 }
 
@@ -92,6 +96,7 @@ export function useTransactionsListQuery(
   const lostTicketOnly = options?.lostTicketOnly === true
   const customDates = options?.customDates ?? { from: '', to: '' }
   const cashier = options?.cashier ?? ''
+  const channel = options?.channel ?? ''
   const filtersKey = transactionsListFiltersQueryKey(
     dateSelection,
     customDates,
@@ -107,6 +112,7 @@ export function useTransactionsListQuery(
       pageSize,
       trimmedSearch,
       filtersKey,
+      channel,
     ],
     queryFn: async ({ signal }) => {
       const raw = await TransactionsApi.adminGetTransactionsList(
