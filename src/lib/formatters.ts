@@ -84,7 +84,9 @@ export function formatUsd(n: number) {
 export const TRANSACTION_LEDGER_TIME_EMPTY = '--/--/---- --:--:--' as const
 
 /**
- * Ledger table timestamps: `DD/MM/YYYY HH:MM:SS` (24-hour, Lagos).
+ * Ledger table timestamps: `DD/MM/YYYY HH:MM:SS` (24-hour).
+ * Shows the **exact** timestamp as sent by the backend (no timezone shift) so
+ * the table always matches the API response digit-for-digit.
  * Returns {@link TRANSACTION_LEDGER_TIME_EMPTY} when the value is null or invalid.
  */
 export function formatTransactionLedgerTime(
@@ -95,7 +97,7 @@ export function formatTransactionLedgerTime(
   if (Number.isNaN(d.getTime())) return TRANSACTION_LEDGER_TIME_EMPTY
 
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: DISPLAY_TIMEZONE,
+    timeZone: 'UTC',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -117,30 +119,32 @@ export function displayTransactionField(value: string | null | undefined): strin
   return v ? v : '-'
 }
 
+/** Exact backend timestamp (no timezone shift) - date + time. */
 export function formatDateTime(iso: string) {
   const d = new Date(iso)
   return d.toLocaleString('en-NG', {
-    timeZone: DISPLAY_TIMEZONE,
+    timeZone: 'UTC',
     dateStyle: 'medium',
     timeStyle: 'short',
   })
 }
 
+/** Exact backend timestamp (no timezone shift) - date only. */
 export function formatDateShort(iso: string) {
   const d = new Date(iso)
   return d.toLocaleDateString('en-NG', {
-    timeZone: DISPLAY_TIMEZONE,
+    timeZone: 'UTC',
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
 }
 
-/** Time only (Lagos) - for compact log timelines. */
+/** Exact backend timestamp (no timezone shift) - time only, for compact log timelines. */
 export function formatTimeOnly(iso: string) {
   const d = new Date(iso)
   return d.toLocaleTimeString('en-NG', {
-    timeZone: DISPLAY_TIMEZONE,
+    timeZone: 'UTC',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',

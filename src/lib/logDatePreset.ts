@@ -1,9 +1,9 @@
 import { DISPLAY_TIMEZONE } from './formatters'
 
-/** YYYY-MM-DD for the instant in the Lagos (WAT) calendar. */
+/** YYYY-MM-DD for a timestamp, read exactly as sent by the backend (no timezone shift). */
 export function lagosCalendarYmd(isoOrDate: string | Date): string {
   const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate
-  return d.toLocaleDateString('en-CA', { timeZone: DISPLAY_TIMEZONE })
+  return d.toLocaleDateString('en-CA', { timeZone: 'UTC' })
 }
 
 export function lagosTodayYmd(now: Date = new Date()): string {
@@ -12,7 +12,7 @@ export function lagosTodayYmd(now: Date = new Date()): string {
 
 export function lagosYesterdayYmd(now: Date = new Date()): string {
   const todayYmd = lagosTodayYmd(now)
-  const startTodayMs = new Date(`${todayYmd}T00:00:00+01:00`).getTime()
+  const startTodayMs = new Date(`${todayYmd}T00:00:00Z`).getTime()
   return lagosCalendarYmd(new Date(startTodayMs - 1))
 }
 

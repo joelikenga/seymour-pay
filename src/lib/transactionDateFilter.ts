@@ -1,4 +1,4 @@
-import { DISPLAY_TIMEZONE, formatDayStamp, formatDateTime } from './formatters'
+import { DISPLAY_TIMEZONE, formatDayStamp } from './formatters'
 
 /** Earliest year offered in admin date filters (year dropdown + month tiles). */
 export const TRANSACTION_FILTER_MIN_YEAR = 2026
@@ -296,7 +296,16 @@ export function describeDateSelectionForExportLog(
     const start = parseCustomRangeBound(selection.start, 'start')
     const end = parseCustomRangeBound(selection.end, 'end')
     if (start && end) {
-      return `date range: from ${formatDateTime(start.toISOString())} to ${formatDateTime(end.toISOString())}`
+      // These bounds come from the admin's own datetime-local input (local
+      // wall-clock), not a backend timestamp, so keep the Lagos-zoned label
+      // here rather than the exact/no-shift formatting used for API data.
+      const displayLocal = (d: Date) =>
+        d.toLocaleString('en-NG', {
+          timeZone: DISPLAY_TIMEZONE,
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        })
+      return `date range: from ${displayLocal(start)} to ${displayLocal(end)}`
     }
   }
   const { from, to } = dateSelectionToApiRange(selection, now)

@@ -111,16 +111,17 @@ export function topVehicleTypesByVolume(
     .slice(0, limit)
 }
 
-/** Sum volume for transactions whose local calendar day (Lagos / WAT) is “today”. */
+/** Sum volume for transactions whose calendar day (exact backend UTC digits) is “today”. */
 function isLagosCalendarToday(iso: string, todayYmd: string): boolean {
   const ymd = lagosYmd(iso)
   return ymd === todayYmd
 }
 
-/** YYYY-MM-DD for a date in the Lagos calendar (en-CA gives ISO format). */
+/** YYYY-MM-DD for a timestamp, read exactly as sent by the backend (no timezone shift). */
 function lagosYmd(iso: string | Date): string {
-  return new Date(iso).toLocaleDateString('en-CA', {
-    timeZone: 'Africa/Lagos',
+  const d = typeof iso === 'string' ? new Date(iso) : iso
+  return d.toLocaleDateString('en-CA', {
+    timeZone: 'UTC',
   })
 }
 
