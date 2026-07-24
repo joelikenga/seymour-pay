@@ -150,7 +150,7 @@ export default function Dashboard() {
       {overviewLoading ? (
         <DashboardOverviewSkeleton />
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[3fr_2fr] lg:items-stretch">
+        <div className="grid gap-5 lg:grid-cols-[3fr_2fr] lg:items-start">
           <div className="relative overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.35)] ring-1 ring-zinc-950/4 sm:p-8">
             <div
               className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-orange-200/60 to-transparent"
@@ -228,116 +228,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="mt-8 border-t border-zinc-100 pt-7">
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
-                    Volume by settlement state
-                  </p>
-
-                </div>
-              </div>
-              {(() => {
-                const visibleTotal = STATUS_SEGMENTS.reduce(
-                  (a, { key }) => a + stats.byStatus[key].volume,
-                  0,
-                )
-                if (visibleTotal <= 0) {
-                  return (
-                    <p className="mt-4 text-sm text-zinc-500">
-                      No transactions yet - volume breakdown will appear here.
-                    </p>
-                  )
-                }
-                return (
-                  <>
-                    <div
-                      className="mt-4 flex h-3.5 w-full overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/90"
-                      role="img"
-                      aria-label="Share of volume by transaction status"
-                    >
-                      {STATUS_SEGMENTS.map(({ key, bar }) => {
-                        const vol = stats.byStatus[key].volume
-                        const pct = (vol / visibleTotal) * 100
-                        if (pct <= 0) return null
-                        return (
-                          <div
-                            key={key}
-                            title={`${key}: ${formatMoney(vol)}`}
-                            className={`${bar} h-full min-w-px shrink-0 first:rounded-l-full last:rounded-r-full`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        )
-                      })}
-                    </div>
-                    <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs">
-                      {STATUS_SEGMENTS.map(({ key, label }) => {
-                        const row = stats.byStatus[key]
-                        if (row.volume <= 0) return null
-                        const pct = Math.round((row.volume / visibleTotal) * 100)
-                        return (
-                          <li key={key} className="flex items-baseline gap-2">
-                            <span className="font-semibold capitalize text-zinc-700">
-                              {label}
-                            </span>
-                            <span className="font-bold tabular-nums text-zinc-900">
-                              {formatMoney(row.volume)}
-                            </span>
-                            <span className="text-zinc-400">({pct}%)</span>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </>
-                )
-              })()}
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-3 border-t border-zinc-100 pt-8">
-              {canAccessPage('transactions') ? (
-                <Link
-                  to="/admin/transactions"
-                  className="inline-flex items-center justify-center rounded-xl bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-800"
-                >
-                  All transactions
-                </Link>
-              ) : null}
-              {canAccessPage('settlement') ? (
-                <Link
-                  to="/admin/settlement"
-                  className="inline-flex items-center justify-center rounded-xl border border-sky-200 bg-sky-50/80 px-5 py-2.5 text-sm font-semibold text-sky-950 shadow-sm transition hover:border-sky-300 hover:bg-sky-100/80"
-                >
-                  Settlement
-                </Link>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-1">
-            <section className="group relative overflow-hidden rounded-[1.75rem] border border-sky-200/70 bg-linear-to-br from-sky-50/90 via-white to-white p-6 shadow-[0_16px_48px_-36px_rgba(14,165,233,0.28)] ring-1 ring-sky-950/5 transition hover:shadow-lg hover:ring-sky-200/80">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5 shadow-inner ring-1 ring-sky-200/80">
-                    <img
-                      src={fidelityLogo}
-                      alt="Fidelity Bank Plc"
-                      className="h-full w-full object-contain object-center"
-                    />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-sky-900/85">
-                      Fidelity Bank Plc
-                    </p>
-                    <p className="text-sm leading-snug text-sky-900/70">
-                      Pay provider · POS, transfer, e-pay & USSD
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <FidelityChannelMix mix={stats.fidelityMix} />
-            </section>
-
-            <section className="group relative overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-linear-to-br from-white via-zinc-50/50 to-orange-50/25 p-6 shadow-[0_16px_48px_-36px_rgba(15,23,42,0.22)] ring-1 ring-zinc-950/5 transition hover:border-orange-100/80 hover:shadow-lg hover:ring-orange-100/50">
+            {/* account security */}
+            <section className="group relative mt-6 overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-linear-to-br from-white via-zinc-50/50 to-orange-50/25 p-6 shadow-[0_16px_48px_-36px_rgba(15,23,42,0.22)] ring-1 ring-zinc-950/5 transition hover:border-orange-100/80 hover:shadow-lg hover:ring-orange-100/50">
               <p className="text-xs font-semibold uppercase tracking-wider text-orange-800/75">
                 Account security
               </p>
@@ -409,6 +301,96 @@ export default function Dashboard() {
                 </svg>
                 Log out
               </button>
+            </section>
+
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-1">
+            <section className="group relative overflow-hidden rounded-[1.75rem] border border-sky-200/70 bg-linear-to-br from-sky-50/90 via-white to-white p-6 shadow-[0_16px_48px_-36px_rgba(14,165,233,0.28)] ring-1 ring-sky-950/5 transition hover:shadow-lg hover:ring-sky-200/80">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5 shadow-inner ring-1 ring-sky-200/80">
+                    <img
+                      src={fidelityLogo}
+                      alt="Fidelity Bank Plc"
+                      className="h-full w-full object-contain object-center"
+                    />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-sky-900/85">
+                      Fidelity Bank Plc
+                    </p>
+                    <p className="text-sm leading-snug text-sky-900/70">
+                      Pay provider · POS, transfer, e-pay & USSD
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <FidelityChannelMix mix={stats.fidelityMix} />
+              <div className="mt-8 border-t border-zinc-100 pt-7">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+                    Volume by settlement state
+                  </p>
+
+                </div>
+              </div>
+              {(() => {
+                const visibleTotal = STATUS_SEGMENTS.reduce(
+                  (a, { key }) => a + stats.byStatus[key].volume,
+                  0,
+                )
+                if (visibleTotal <= 0) {
+                  return (
+                    <p className="mt-4 text-sm text-zinc-500">
+                      No transactions yet - volume breakdown will appear here.
+                    </p>
+                  )
+                }
+                return (
+                  <>
+                    <div
+                      className="mt-4 flex h-3.5 w-full overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/90"
+                      role="img"
+                      aria-label="Share of volume by transaction status"
+                    >
+                      {STATUS_SEGMENTS.map(({ key, bar }) => {
+                        const vol = stats.byStatus[key].volume
+                        const pct = (vol / visibleTotal) * 100
+                        if (pct <= 0) return null
+                        return (
+                          <div
+                            key={key}
+                            title={`${key}: ${formatMoney(vol)}`}
+                            className={`${bar} h-full min-w-px shrink-0 first:rounded-l-full last:rounded-r-full`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        )
+                      })}
+                    </div>
+                    <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+                      {STATUS_SEGMENTS.map(({ key, label }) => {
+                        const row = stats.byStatus[key]
+                        if (row.volume <= 0) return null
+                        const pct = Math.round((row.volume / visibleTotal) * 100)
+                        return (
+                          <li key={key} className="flex items-baseline gap-2">
+                            <span className="font-semibold capitalize text-zinc-700">
+                              {label}
+                            </span>
+                            <span className="font-bold tabular-nums text-zinc-900">
+                              {formatMoney(row.volume)}
+                            </span>
+                            <span className="text-zinc-400">({pct}%)</span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </>
+                )
+              })()}
+            </div>
             </section>
           </div>
         </div>
