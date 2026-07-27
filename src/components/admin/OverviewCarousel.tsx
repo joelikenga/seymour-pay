@@ -41,7 +41,7 @@ function TotalVolumeSlide({
   amountText,
   totalCount,
   channelsUsed,
-  wow,
+  // wow,
 }: TotalVolumeSlideProps) {
   return (
     <div>
