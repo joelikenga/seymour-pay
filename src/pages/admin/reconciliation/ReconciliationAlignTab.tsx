@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useAdminListPage } from '../../../hooks/useAdminListPage'
+import { useTransactionLedgerUrlFilters } from '../../../hooks/useTransactionLedgerUrlFilters'
 import { toast } from 'sonner'
 import AdminPagination from '../../../components/admin/AdminPagination'
 import AdminTableSkeletonBody from '../../../components/admin/AdminTableSkeletonBody'
@@ -12,12 +12,17 @@ import { useAdminData } from '../../../context/AdminDataContext'
 import { channelLabel, channelPillClass } from '../../../lib/channelStyles'
 import { vehicleLabel, vehiclePillClass } from '../../../lib/vehicleStyles'
 import {
-  formatDayStamp,
   formatMoney,
   formatTransactionLedgerTime,
   displayTransactionField,
 } from '../../../lib/formatters'
-import type { DateFilterSelection } from '../../../lib/transactionDateFilter'
+import {
+  parseFilterValue,
+  type DateFilterSelection,
+} from '../../../lib/transactionDateFilter'
+import { labelForLedgerDateFilter } from '../../../lib/transactionLedgerFilters'
+import { defaultLedgerFilterValue } from '../../../lib/transactionLedgerSearchParams'
+import TransactionDateFilterDropdown from '../../../components/admin/TransactionDateFilterDropdown'
 import type { Transaction } from '../../../types/transaction'
 import {
   RECONCILIATION_PAGE_SIZE,
@@ -45,42 +50,35 @@ interface SelectedRow {
   amount: number
 }
 
-/** Strict `YYYY-MM-DD` check for the `?day=` search param. */
-function isValidYmd(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
-  const d = new Date(`${value}T12:00:00`)
-  return !Number.isNaN(d.getTime())
-}
-
 export default function ReconciliationAlignTab() {
   const { appendLog } = useAdminData()
 
-  const [searchParams, setSearchParams] = useSearchParams()
-  const dayParam = useMemo(() => {
-    const raw = searchParams.get('day')?.trim() ?? ''
-    return isValidYmd(raw) ? raw : ''
-  }, [searchParams])
-
-  const setDay = useCallback(
-    (next: string) => {
-      setSearchParams(
-        (prev) => {
-          const params = new URLSearchParams(prev)
-          if (next && isValidYmd(next)) params.set('day', next)
-          else params.delete('day')
-          return params
-        },
-        { replace: true },
-      )
-    },
-    [setSearchParams],
-  )
-
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300)
+  const {
+    filterValue,
+    setFilterValue,
+    customStart,
+    setCustomStart,
+    customEnd,
+    setCustomEnd,
+  } = useTransactionLedgerUrlFilters({
+    showCashierFilter: false,
+    showCustomDateFilter: true,
+  })
+  const reconciliationFilterValue = filterValue.startsWith('quarter:')
+    ? defaultLedgerFilterValue()
+    : filterValue
+
+  useEffect(() => {
+    if (filterValue.startsWith('quarter:')) {
+      setFilterValue(reconciliationFilterValue)
+    }
+  }, [filterValue, reconciliationFilterValue, setFilterValue])
+
   const { pageIndex, setPageIndex, uiPage } = useAdminListPage([
     debouncedQuery,
-    dayParam,
+    reconciliationFilterValue,
   ])
   /** Selected rows keyed by id - keeps ticket ref (for bulk delete) and amount (for the running total). */
   const [selectedById, setSelectedById] = useState<Map<string, SelectedRow>>(
@@ -89,27 +87,21 @@ export default function ReconciliationAlignTab() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  /** Single-day filter on pay time (`createdAt`); empty = all dates. */
-  const daySelection: DateFilterSelection = useMemo(() => {
-    if (!dayParam) return { kind: 'all' }
-    return { kind: 'custom', start: `${dayParam}T00:00:00`, end: `${dayParam}T23:59:59` }
-  }, [dayParam])
-
-  /** Datetime bounds so the API gets from=`day T00:00:00` and to=`day T23:59:59`. */
-  const dayCustomDates = useMemo(
-    () =>
-      dayParam
-        ? { from: `${dayParam}T00:00:00`, to: `${dayParam}T23:59:59` }
-        : { from: '', to: '' },
-    [dayParam],
+  const dateSelection: DateFilterSelection = useMemo(
+    () => parseFilterValue(reconciliationFilterValue, customStart, customEnd),
+    [customEnd, customStart, reconciliationFilterValue],
+  )
+  const filterSummary = useMemo(
+    () => labelForLedgerDateFilter(reconciliationFilterValue, customStart, customEnd),
+    [customEnd, customStart, reconciliationFilterValue],
   )
 
   const listQuery = useTransactionsListQuery(
     pageIndex,
     debouncedQuery,
-    daySelection,
+    dateSelection,
     RECONCILIATION_PAGE_SIZE,
-    { channel: 'cash', customDates: dayCustomDates },
+    { channel: 'cash', customDates: { from: customStart, to: customEnd } },
   )
   const payload = listQuery.data
   /** Cash payments only; the pay-time day is filtered server-side via `from`/`to`. */
@@ -243,7 +235,16 @@ export default function ReconciliationAlignTab() {
         <TableToolbar
           right={
             <>
-              <DayFilterDropdown value={dayParam} onChange={setDay} />
+              <TransactionDateFilterDropdown
+                filterValue={reconciliationFilterValue}
+                onFilterChange={setFilterValue}
+                triggerLabel={filterSummary}
+                customStart={customStart}
+                customEnd={customEnd}
+                onCustomStartChange={setCustomStart}
+                onCustomEndChange={setCustomEnd}
+                mode="monthCustom"
+              />
               <span aria-hidden className="text-zinc-300">·</span>
               <span className="tabular-nums">
                 {listQuery.isPending ? (
@@ -515,125 +516,6 @@ export default function ReconciliationAlignTab() {
         />
       ) : null}
     </>
-  )
-}
-
-interface DayFilterDropdownProps {
-  value: string
-  onChange: (next: string) => void
-}
-
-function DayFilterDropdown({ value, onChange }: DayFilterDropdownProps) {
-  const [open, setOpen] = useState(false)
-  /** Draft date kept local until "Done" commits it (so the request fires on Done, not on pick). */
-  const [draft, setDraft] = useState(value)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (open) setDraft(value)
-  }, [open, value])
-
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (e: PointerEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  const triggerLabel = value ? formatDayStamp(value) : 'All dates'
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold shadow-sm transition focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-200 ${
-          value
-            ? 'border-orange-300 bg-orange-50 text-orange-900 hover:bg-orange-100'
-            : 'border-zinc-200 bg-white text-zinc-700 hover:border-orange-200 hover:bg-orange-50/40'
-        }`}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path
-            d="M8 2v4M16 2v4M3 9h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span className="max-w-[160px] truncate">{triggerLabel}</span>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden
-          className={`transition-transform ${open ? 'rotate-180' : ''}`}
-        >
-          <path
-            d="M6 9l6 6 6-6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Filter by pay date"
-          className="absolute right-0 z-30 mt-2 w-64 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl ring-1 ring-zinc-950/5"
-        >
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-            Pay date
-          </label>
-          <input
-            type="date"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            className="mt-1.5 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-          />
-          <div className="mt-3 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                setDraft('')
-                onChange('')
-                setOpen(false)
-              }}
-              disabled={!draft && !value}
-              className="text-xs font-semibold text-zinc-500 underline-offset-2 transition hover:text-zinc-800 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onChange(draft)
-                setOpen(false)
-              }}
-              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </div>
   )
 }
 

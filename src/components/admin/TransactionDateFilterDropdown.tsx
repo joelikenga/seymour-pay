@@ -30,8 +30,8 @@ interface TransactionDateFilterDropdownProps {
   onCustomEndChange: (v: string) => void
   /** Optional accessible label override for the trigger button. */
   ariaLabel?: string
-  /** When `monthQuarter`, only By month and By quarter. `monthQuarterCustom` adds From/To datetimes. */
-  mode?: 'full' | 'monthQuarter' | 'monthQuarterCustom'
+  /** When `monthQuarter`, only By month and By quarter. Custom modes add From/To datetimes. */
+  mode?: 'full' | 'monthQuarter' | 'monthQuarterCustom' | 'monthCustom'
 }
 
 export default function TransactionDateFilterDropdown({
@@ -45,8 +45,9 @@ export default function TransactionDateFilterDropdown({
   ariaLabel = 'Date range',
   mode = 'full',
 }: TransactionDateFilterDropdownProps) {
-  const monthQuarterOnly = mode === 'monthQuarter' || mode === 'monthQuarterCustom'
-  const showCustomDateFooter = mode === 'monthQuarterCustom'
+  const monthQuarterOnly = mode !== 'full'
+  const showCustomDateFooter = mode === 'monthQuarterCustom' || mode === 'monthCustom'
+  const showQuarterSection = mode !== 'monthCustom'
   const titleId = useId()
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -435,7 +436,7 @@ export default function TransactionDateFilterDropdown({
               </>
             ) : null}
 
-            {quartersForYear.length > 0 ? (
+            {showQuarterSection && quartersForYear.length > 0 ? (
               <>
                 <div className="my-2 h-px bg-zinc-100" />
                 <button
