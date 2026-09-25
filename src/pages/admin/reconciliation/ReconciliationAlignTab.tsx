@@ -193,12 +193,13 @@ export default function ReconciliationAlignTab() {
     setDeleting(true)
     try {
       await TransactionsApi.adminDeleteBulkTransactions(ids)
-      const preview = refs.slice(0, 5).join(', ')
-      const more = refs.length > 5 ? ` (+${refs.length - 5} more)` : ''
+      const preview = refs
+      // .slice(0, 5).join(', ')
+      // const more = refs.length > 5 ? ` (+${refs.length - 5} more)` : ''
       appendLog({
         action: 'reconciliation',
         summary: `Deleted ${ids.length} transaction${ids.length === 1 ? '' : 's'}`,
-        detail: `Bulk deleted on server - ticket IDs: ${preview}${more}`,
+        detail: `Bulk deleted on server - ticket IDs: ${preview}`,
       })
       void queryClient.invalidateQueries({ queryKey: ['admin', 'transactions'] })
       void queryClient.invalidateQueries({
