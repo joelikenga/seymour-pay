@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import ChannelDetailPanel, {
   type ChannelDetailAnalyticsBundle,
 } from '../../components/admin/ChannelDetailPanel'
@@ -44,6 +44,12 @@ export default function AnalyticsPage() {
   const [filterValue, setFilterValue] = useState<string>('all')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
+
+  const handleApplyCustomRange = useCallback((start: string, end: string) => {
+    setFilterValue('custom')
+    setCustomStart(start)
+    setCustomEnd(end)
+  }, [])
 
   const dateSelection: DateFilterSelection = useMemo(() => {
     const parsed = parseFilterValue(filterValue, customStart, customEnd)
@@ -239,6 +245,7 @@ export default function AnalyticsPage() {
         customEnd={customEnd}
         onCustomStartChange={setCustomStart}
         onCustomEndChange={setCustomEnd}
+        onApplyCustomRange={handleApplyCustomRange}
         analytics={analyticsDetail}
         detailLoading={overviewLoading || channelDetailLoading}
       />

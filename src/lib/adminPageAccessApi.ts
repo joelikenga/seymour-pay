@@ -4,6 +4,7 @@ import { ADMIN_PAGE_KEYS, type AdminPageKey } from '../types/adminUser'
 const PAGE_KEY_TO_API: Record<AdminPageKey, string> = {
   dashboard: 'dashboard',
   transactions: 'transactions',
+  cashiers: 'cashiers',
   lostTickets: 'lost_tickets',
   settlement: 'settlement',
   analytics: 'analytics',
@@ -15,6 +16,7 @@ const PAGE_KEY_TO_API: Record<AdminPageKey, string> = {
 const API_KEY_TO_PAGE: Record<string, AdminPageKey> = {
   dashboard: 'dashboard',
   transactions: 'transactions',
+  cashiers: 'cashiers',
   lost_tickets: 'lostTickets',
   lostTickets: 'lostTickets',
   settlement: 'settlement',
@@ -39,13 +41,12 @@ export function newUserPageAccessApiPayload(): Record<string, boolean> {
   return out
 }
 
-/** `PATCH …/page-access` — map app keys to API wire names (`lostTickets` → `lost_tickets`). */
 export function pageAccessToApiPayload(
   access: Record<AdminPageKey, boolean>,
 ): Record<string, boolean> {
   const out: Record<string, boolean> = {}
   for (const k of ADMIN_PAGE_KEYS) {
-    out[PAGE_KEY_TO_API[k]] = Boolean(access[k])
+    out[PAGE_KEY_TO_API[k]] = k === 'dashboard' || k === 'transactions' ? true : Boolean(access[k])
   }
   return out
 }
@@ -58,10 +59,14 @@ export function pageAccessFromApiRaw(
   for (const k of ADMIN_PAGE_KEYS) {
     out[k] = false
   }
-  if (!raw || typeof raw !== 'object') return out
-  for (const [key, allowed] of Object.entries(raw)) {
-    const page = API_KEY_TO_PAGE[key]
-    if (page) out[page] = Boolean(allowed)
+  if (raw && typeof raw === 'object') {
+    for (const [key, allowed] of Object.entries(raw)) {
+      const page = API_KEY_TO_PAGE[key]
+      if (page) out[page] = Boolean(allowed)
+    }
   }
+  // Dashboard and transactions are automatically true to all users
+  out.dashboard = true
+  out.transactions = true
   return out
 }

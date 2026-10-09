@@ -3,6 +3,7 @@ import { pageAccessFromApiRaw } from '../lib/adminPageAccessApi'
 export const ADMIN_PAGE_KEYS = [
   'dashboard',
   'transactions',
+  'cashiers',
   'lostTickets',
   'settlement',
   'analytics',
@@ -13,9 +14,23 @@ export const ADMIN_PAGE_KEYS = [
 
 export type AdminPageKey = (typeof ADMIN_PAGE_KEYS)[number]
 
+/** Pages that can be toggled in Settings. Dashboard and Transactions are always enabled for all users. */
+export const ADMIN_SETTINGS_TOGGLE_KEYS = [
+  'cashiers',
+  'lostTickets',
+  'settlement',
+  'analytics',
+  'logs',
+  'reconciliation',
+  'settings',
+] as const
+
+export type AdminSettingsToggleKey = (typeof ADMIN_SETTINGS_TOGGLE_KEYS)[number]
+
 export const ADMIN_PAGE_LABELS: Record<AdminPageKey, string> = {
   dashboard: 'Dashboard',
   transactions: 'Transactions',
+  cashiers: 'Cashiers',
   lostTickets: 'Lost tickets',
   settlement: 'Settlement',
   analytics: 'Analytics',
@@ -37,6 +52,7 @@ export function defaultPageAccess(): Record<AdminPageKey, boolean> {
   return {
     dashboard: true,
     transactions: true,
+    cashiers: true,
     lostTickets: true,
     settlement: true,
     analytics: true,

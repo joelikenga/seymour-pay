@@ -104,6 +104,16 @@ export function useTransactionLedgerUrlFilters({
     [patchUrlFilters],
   )
 
+  const applyCustomRange = useCallback(
+    (start: string, end: string) =>
+      patchUrlFilters({
+        filterValue: 'custom',
+        customStart: start,
+        customEnd: end,
+      }),
+    [patchUrlFilters],
+  )
+
   const setCashierFilter = useCallback(
     (value: string) => patchUrlFilters({ cashier: value }),
     [patchUrlFilters],
@@ -116,6 +126,7 @@ export function useTransactionLedgerUrlFilters({
     setCustomStart,
     customEnd: urlFilters.customEnd,
     setCustomEnd,
+    applyCustomRange,
     cashierFilter: urlFilters.cashier,
     setCashierFilter,
     q,

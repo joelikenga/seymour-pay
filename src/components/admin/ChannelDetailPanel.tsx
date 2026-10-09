@@ -41,6 +41,7 @@ interface ChannelDetailPanelProps {
   customEnd: string
   onCustomStartChange: (v: string) => void
   onCustomEndChange: (v: string) => void
+  onApplyCustomRange?: (start: string, end: string) => void
   /** When set, KPIs + chart use the analytics API instead of local `transactions`. */
   analytics?: ChannelDetailAnalyticsBundle | null
   /** Shown while a scoped overview request is in flight (e.g. a payment-type card). */
@@ -58,6 +59,7 @@ export default function ChannelDetailPanel({
   customEnd,
   onCustomStartChange,
   onCustomEndChange,
+  onApplyCustomRange,
   analytics,
   detailLoading = false,
 }: ChannelDetailPanelProps) {
@@ -136,6 +138,7 @@ export default function ChannelDetailPanel({
           customEnd={customEnd}
           onCustomStartChange={onCustomStartChange}
           onCustomEndChange={onCustomEndChange}
+          onApplyCustomRange={onApplyCustomRange}
         />
       </div>
 

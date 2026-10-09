@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import CustomDateRangePicker from './CustomDateRangePicker'
 import {
   defaultTransactionFilterYear,
   monthOptionsForCalendarYear,
@@ -20,7 +21,7 @@ const PRESETS: { value: string; label: string }[] = [
   { value: '30d', label: 'Last 30 days' },
 ]
 
-interface TransactionDateFilterDropdownProps {
+export interface TransactionDateFilterDropdownProps {
   filterValue: string
   onFilterChange: (value: string) => void
   triggerLabel: string
@@ -28,6 +29,7 @@ interface TransactionDateFilterDropdownProps {
   customEnd: string
   onCustomStartChange: (v: string) => void
   onCustomEndChange: (v: string) => void
+  onApplyCustomRange?: (start: string, end: string) => void
   /** Optional accessible label override for the trigger button. */
   ariaLabel?: string
   /** When `monthQuarter`, only By month and By quarter. Custom modes add From/To datetimes. */
@@ -42,12 +44,14 @@ export default function TransactionDateFilterDropdown({
   customEnd,
   onCustomStartChange,
   onCustomEndChange,
+  onApplyCustomRange,
   ariaLabel = 'Date range',
   mode = 'full',
 }: TransactionDateFilterDropdownProps) {
-  const monthQuarterOnly = mode !== 'full'
-  const showCustomDateFooter = mode === 'monthQuarterCustom' || mode === 'monthCustom'
-  const showQuarterSection = mode !== 'monthCustom'
+  const allowCustom = mode !== 'monthQuarter'
+  const showPresetsList = mode === 'full'
+  const showQuarterSection = mode !== 'monthCustom' && mode !== 'monthQuarter' ? true : mode === 'monthQuarter'
+
   const titleId = useId()
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -56,9 +60,12 @@ export default function TransactionDateFilterDropdown({
   const [quarterSectionOpen, setQuarterSectionOpen] = useState(true)
   const [yearMenuOpen, setYearMenuOpen] = useState(false)
   const [panelYear, setPanelYear] = useState(() => defaultTransactionFilterYear())
-  const [draftCustomStart, setDraftCustomStart] = useState(customStart)
-  const [draftCustomEnd, setDraftCustomEnd] = useState(customEnd)
-  const [customPanelOpen, setCustomPanelOpen] = useState(false)
+
+  const isCustomActive =
+    filterValue === 'custom' || Boolean(customStart.trim() && customEnd.trim())
+  const [activeTab, setActiveTab] = useState<'presets' | 'custom'>(() =>
+    isCustomActive && allowCustom ? 'custom' : 'presets',
+  )
 
   const isMonthFilter = filterValue.startsWith('month:')
   const isQuarterFilter = filterValue.startsWith('quarter:')
@@ -74,10 +81,12 @@ export default function TransactionDateFilterDropdown({
 
   useEffect(() => {
     if (!open) return
-    setDraftCustomStart(customStart)
-    setDraftCustomEnd(customEnd)
-    setCustomPanelOpen(filterValue === 'custom')
-  }, [open, customStart, customEnd, filterValue])
+    if (allowCustom && isCustomActive) {
+      setActiveTab('custom')
+    } else {
+      setActiveTab('presets')
+    }
+  }, [open, allowCustom, isCustomActive])
 
   useEffect(() => {
     if (open && isMonthFilter) setMonthSectionOpen(true)
@@ -159,15 +168,23 @@ export default function TransactionDateFilterDropdown({
 
   function select(value: string) {
     onFilterChange(value)
-    if (value !== 'custom') closeMenu()
+    if (value !== 'custom') {
+      onCustomStartChange('')
+      onCustomEndChange('')
+      closeMenu()
+    } else {
+      setActiveTab('custom')
+    }
   }
 
-  function applyCustomDateFilter() {
-    if (!monthQuarterOnly) {
+  function handleCustomApply(start: string, end: string) {
+    if (onApplyCustomRange) {
+      onApplyCustomRange(start, end)
+    } else {
       onFilterChange('custom')
+      onCustomStartChange(start)
+      onCustomEndChange(end)
     }
-    onCustomStartChange(draftCustomStart)
-    onCustomEndChange(draftCustomEnd)
     closeMenu()
   }
 
@@ -194,7 +211,7 @@ export default function TransactionDateFilterDropdown({
             />
           </svg>
         </span>
-        <span className="max-w-[min(100%,14rem)] truncate sm:max-w-xs">
+        <span className="max-w-[min(100%,15rem)] truncate sm:max-w-xs font-medium text-zinc-900">
           {triggerLabel}
         </span>
         <span
@@ -225,133 +242,210 @@ export default function TransactionDateFilterDropdown({
             role="dialog"
             aria-modal="true"
             aria-label={ariaLabel}
-            className="fixed inset-0 z-50 flex max-h-dvh flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:z-40 sm:mt-2 sm:max-h-none sm:w-[min(22rem,calc(100vw-2rem))] sm:max-w-none sm:rounded-2xl sm:border sm:border-zinc-200/90 sm:bg-white sm:pt-0 sm:shadow-[0_24px_60px_-20px_rgba(15,23,42,0.28)] sm:ring-1 sm:ring-zinc-950/5"
+            className="fixed inset-0 z-50 flex max-h-dvh flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:z-40 sm:mt-2 sm:max-h-none sm:w-[min(26rem,calc(100vw-2rem))] sm:max-w-none sm:rounded-2xl sm:border sm:border-zinc-200/90 sm:bg-white sm:pt-0 sm:shadow-[0_24px_60px_-20px_rgba(15,23,42,0.28)] sm:ring-1 sm:ring-zinc-950/5"
           >
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/80 px-4 py-3">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
-              <button
-                type="button"
-                onClick={closeMenu}
-                className="-ml-1 rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 sm:hidden"
-                aria-label="Close date filter"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M18 6L6 18M6 6l12 12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-                Date range
-              </p>
-            </div>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              {!monthQuarterOnly && filterValue !== 'all' ? (
+            {/* Header */}
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-linear-to-r from-white to-zinc-50/80 px-4 py-3">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
                 <button
                   type="button"
-                  onClick={() => select('all')}
-                  className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-link hover:bg-primary-soft/14 hover:text-link-hover"
+                  onClick={closeMenu}
+                  className="-ml-1 rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 sm:hidden"
+                  aria-label="Close date filter"
                 >
-                  Reset
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M18 6L6 18M6 6l12 12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </button>
-              ) : null}
-              <div className="relative">
-                <button
-                  type="button"
-                  aria-haspopup="listbox"
-                  aria-expanded={yearMenuOpen}
-                  aria-label="Year for month picker"
-                  onClick={() => setYearMenuOpen((v) => !v)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white py-1 pl-2 pr-1.5 text-xs font-semibold tabular-nums text-zinc-800 shadow-sm outline-none transition hover:border-primary/30 focus-visible:ring-2 focus-visible:ring-primary/20"
-                >
-                  <span>{panelYear}</span>
-                  <span
-                    className={`text-zinc-400 transition ${yearMenuOpen ? 'rotate-180' : ''}`}
-                    aria-hidden
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-600">
+                  Date range filter
+                </p>
+              </div>
+
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                {filterValue !== 'all' ? (
+                  <button
+                    type="button"
+                    onClick={() => select('all')}
+                    className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-link hover:bg-primary-soft/14 hover:text-link-hover"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M6 9l6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-                {yearMenuOpen ? (
-                  <div
-                    role="listbox"
-                    aria-label="Choose year"
-                    className="absolute right-0 z-60 mt-1.5 max-h-48 w-24 overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg ring-1 ring-zinc-950/5"
-                  >
-                    {yearChoices.map((y) => {
-                      const active = y === panelYear
-                      return (
-                        <button
-                          key={y}
-                          type="button"
-                          role="option"
-                          aria-selected={active}
-                          onClick={() => {
-                            setPanelYear(y)
-                            setYearMenuOpen(false)
-                          }}
-                          className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-xs font-semibold tabular-nums transition ${
-                            active
-                              ? 'bg-primary-soft/22 text-orange-950'
-                              : 'text-zinc-700 hover:bg-zinc-50'
-                          }`}
-                        >
-                          {y}
-                          {active ? (
-                            <span className="text-link" aria-hidden>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                                <path
-                                  d="M5 12.5l4.5 4.5L19 6.5"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </span>
-                          ) : null}
-                        </button>
-                      )
-                    })}
+                    Reset
+                  </button>
+                ) : null}
+
+                {/* Year menu (active in presets view) */}
+                {activeTab === 'presets' ? (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      aria-haspopup="listbox"
+                      aria-expanded={yearMenuOpen}
+                      aria-label="Year for month picker"
+                      onClick={() => setYearMenuOpen((v) => !v)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white py-1 pl-2 pr-1.5 text-xs font-semibold tabular-nums text-zinc-800 shadow-sm outline-none transition hover:border-primary/30 focus-visible:ring-2 focus-visible:ring-primary/20"
+                    >
+                      <span>{panelYear}</span>
+                      <span
+                        className={`text-zinc-400 transition ${yearMenuOpen ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M6 9l6 6 6-6"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    </button>
+                    {yearMenuOpen ? (
+                      <div
+                        role="listbox"
+                        aria-label="Choose year"
+                        className="absolute right-0 z-60 mt-1.5 max-h-48 w-24 overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg ring-1 ring-zinc-950/5"
+                      >
+                        {yearChoices.map((y) => {
+                          const active = y === panelYear
+                          return (
+                            <button
+                              key={y}
+                              type="button"
+                              role="option"
+                              aria-selected={active}
+                              onClick={() => {
+                                setPanelYear(y)
+                                setYearMenuOpen(false)
+                              }}
+                              className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-xs font-semibold tabular-nums transition ${
+                                active
+                                  ? 'bg-primary-soft/22 text-orange-950'
+                                  : 'text-zinc-700 hover:bg-zinc-50'
+                              }`}
+                            >
+                              {y}
+                              {active ? (
+                                <span className="text-link" aria-hidden>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                                    <path
+                                      d="M5 12.5l4.5 4.5L19 6.5"
+                                      stroke="currentColor"
+                                      strokeWidth="2.2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </span>
+                              ) : null}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
             </div>
-          </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:block sm:flex-none">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:max-h-[min(28rem,70vh)] sm:flex-none">
-            {!monthQuarterOnly ? (
-              <div className="space-y-0.5">
-                {PRESETS.map((p) => {
-                  const active = filterValue === p.value
-                  return (
-                    <button
-                      key={p.value}
-                      type="button"
-                      role="option"
-                      aria-selected={active}
-                      onClick={() => select(p.value)}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                        active
-                          ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
-                          : 'text-zinc-800 hover:bg-zinc-50'
-                      }`}
-                    >
-                      {p.label}
-                      {active ? (
-                        <span className="text-link" aria-hidden>
+            {/* View Tabs if Custom Range is allowed */}
+            {allowCustom ? (
+              <div className="flex border-b border-zinc-100 bg-zinc-50/70 p-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('presets')}
+                  className={`flex-1 rounded-xl py-1.5 text-center text-xs font-bold transition ${
+                    activeTab === 'presets'
+                      ? 'bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80'
+                      : 'text-zinc-500 hover:text-zinc-900'
+                  }`}
+                >
+                  {mode === 'monthCustom' ? 'By month' : 'Period / Month'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('custom')}
+                  className={`flex-1 rounded-xl py-1.5 text-center text-xs font-bold transition ${
+                    activeTab === 'custom'
+                      ? 'bg-white text-orange-950 shadow-sm ring-1 ring-orange-200'
+                      : 'text-zinc-500 hover:text-zinc-900'
+                  }`}
+                >
+                  Custom (From / To)
+                  {isCustomActive && (
+                    <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-orange-500 align-middle" />
+                  )}
+                </button>
+              </div>
+            ) : null}
+
+            {/* Tab 1: Presets & Month Picker */}
+            {activeTab === 'presets' ? (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:block sm:flex-none">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2.5 sm:max-h-[min(28rem,70vh)] sm:flex-none">
+                  {showPresetsList ? (
+                    <div className="space-y-0.5">
+                      {PRESETS.map((p) => {
+                        const active = filterValue === p.value
+                        return (
+                          <button
+                            key={p.value}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            onClick={() => select(p.value)}
+                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
+                              active
+                                ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
+                                : 'text-zinc-800 hover:bg-zinc-50'
+                            }`}
+                          >
+                            {p.label}
+                            {active ? (
+                              <span className="text-link" aria-hidden>
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                >
+                                  <path
+                                    d="M5 12.5l4.5 4.5L19 6.5"
+                                    stroke="currentColor"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </span>
+                            ) : null}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : null}
+
+                  {monthsForYear.length > 0 ? (
+                    <>
+                      {showPresetsList ? <div className="my-2 h-px bg-zinc-100" /> : null}
+                      <button
+                        type="button"
+                        onClick={() => setMonthSectionOpen((s) => !s)}
+                        className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left transition hover:bg-zinc-50"
+                        aria-expanded={monthSectionOpen}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                          By month ({panelYear})
+                        </span>
+                        <span
+                          className={`text-zinc-400 transition ${monthSectionOpen ? 'rotate-180' : ''}`}
+                          aria-hidden
+                        >
                           <svg
                             width="14"
                             height="14"
@@ -359,270 +453,154 @@ export default function TransactionDateFilterDropdown({
                             fill="none"
                           >
                             <path
-                              d="M5 12.5l4.5 4.5L19 6.5"
+                              d="M6 9l6 6 6-6"
                               stroke="currentColor"
-                              strokeWidth="2.2"
+                              strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             />
                           </svg>
                         </span>
+                      </button>
+
+                      {monthSectionOpen ? (
+                        <div className="mt-1.5 px-1 pb-1">
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {monthsForYear.map((m) => {
+                              const active = filterValue === m.value
+                              return (
+                                <button
+                                  key={m.value}
+                                  type="button"
+                                  role="option"
+                                  title={m.label}
+                                  aria-selected={active}
+                                  onClick={() => select(m.value)}
+                                  className={`rounded-lg border py-1.5 text-center text-[11px] font-bold transition active:scale-[0.98] ${
+                                    active
+                                      ? 'border-primary/50 bg-linear-to-b from-primary-soft/28 to-primary-soft/10 text-orange-900 shadow-sm ring-2 ring-primary-soft/30'
+                                      : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-primary/30 hover:bg-white hover:text-zinc-900'
+                                  }`}
+                                >
+                                  {monthShort(m.monthIndex)}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
                       ) : null}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : null}
-
-            {monthsForYear.length > 0 ? (
-              <>
-                {!monthQuarterOnly ? <div className="my-2 h-px bg-zinc-100" /> : null}
-                <button
-                  type="button"
-                  onClick={() => setMonthSectionOpen((s) => !s)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left transition hover:bg-zinc-50"
-                  aria-expanded={monthSectionOpen}
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
-                    By month ({panelYear})
-                  </span>
-                  <span
-                    className={`text-zinc-400 transition ${monthSectionOpen ? 'rotate-180' : ''}`}
-                    aria-hidden
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <path
-                        d="M6 9l6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-
-                {monthSectionOpen ? (
-                  <div className="mt-1.5 px-1 pb-1">
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {monthsForYear.map((m) => {
-                        const active = filterValue === m.value
-                        return (
-                          <button
-                            key={m.value}
-                            type="button"
-                            role="option"
-                            title={m.label}
-                            aria-selected={active}
-                            onClick={() => select(m.value)}
-                            className={`rounded-lg border py-1.5 text-center text-[11px] font-bold transition active:scale-[0.98] ${
-                              active
-                                ? 'border-primary/50 bg-linear-to-b from-primary-soft/28 to-primary-soft/10 text-orange-900 shadow-sm ring-2 ring-primary-soft/30'
-                                : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-primary/30 hover:bg-white hover:text-zinc-900'
-                            }`}
-                          >
-                            {monthShort(m.monthIndex)}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-
-            {showQuarterSection && quartersForYear.length > 0 ? (
-              <>
-                <div className="my-2 h-px bg-zinc-100" />
-                <button
-                  type="button"
-                  onClick={() => setQuarterSectionOpen((s) => !s)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left transition hover:bg-zinc-50"
-                  aria-expanded={quarterSectionOpen}
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
-                    By quarter ({panelYear})
-                  </span>
-                  <span
-                    className={`text-zinc-400 transition ${quarterSectionOpen ? 'rotate-180' : ''}`}
-                    aria-hidden
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <path
-                        d="M6 9l6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-
-                {quarterSectionOpen ? (
-                  <div className="mt-1.5 px-1 pb-1">
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {quartersForYear.map((q) => {
-                        const active = filterValue === q.value
-                        return (
-                          <button
-                            key={q.value}
-                            type="button"
-                            role="option"
-                            title={
-                              q.disabled
-                                ? `${q.label} - not complete yet`
-                                : q.label
-                            }
-                            aria-selected={active}
-                            aria-disabled={q.disabled}
-                            disabled={q.disabled}
-                            onClick={() => select(q.value)}
-                            className={`rounded-lg border py-1.5 text-center text-[11px] font-bold transition ${
-                              q.disabled
-                                ? 'cursor-not-allowed border-zinc-200/70 bg-zinc-100/60 text-zinc-300'
-                                : active
-                                  ? 'border-primary/50 bg-linear-to-b from-primary-soft/28 to-primary-soft/10 text-orange-900 shadow-sm ring-2 ring-primary-soft/30 active:scale-[0.98]'
-                                  : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-primary/30 hover:bg-white hover:text-zinc-900 active:scale-[0.98]'
-                            }`}
-                          >
-                            Q{q.quarter}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-
-            {!monthQuarterOnly ? (
-              <>
-                <div className="my-2 h-px bg-zinc-100" />
-
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={filterValue === 'custom' || customPanelOpen}
-                  onClick={() => setCustomPanelOpen(true)}
-                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                    filterValue === 'custom' || customPanelOpen
-                      ? 'bg-primary-soft/22 text-orange-950 ring-1 ring-primary-soft/45'
-                      : 'text-zinc-800 hover:bg-zinc-50'
-                  }`}
-                >
-                  Custom range…
-                  {filterValue === 'custom' || customPanelOpen ? (
-                    <span className="text-link" aria-hidden>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M5 12.5l4.5 4.5L19 6.5"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </span>
+                    </>
                   ) : null}
-                </button>
-              </>
-            ) : null}
-          </div>
-          </div>
 
-          {showCustomDateFooter ? (
-            <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
-                <label className="flex min-w-0 flex-col gap-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    From
-                  </span>
-                  <input
-                    type="datetime-local"
-                    step={1}
-                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
-                    value={draftCustomStart}
-                    onChange={(e) => setDraftCustomStart(e.target.value)}
-                    className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
-                  />
-                </label>
-                <label className="flex min-w-0 flex-col gap-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    To
-                  </span>
-                  <input
-                    type="datetime-local"
-                    step={1}
-                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
-                    value={draftCustomEnd}
-                    onChange={(e) => setDraftCustomEnd(e.target.value)}
-                    className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
-                  />
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={applyCustomDateFilter}
-                className="mt-3 w-full rounded-xl bg-zinc-950 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-zinc-800"
-              >
-                Filter
-              </button>
-            </div>
-          ) : null}
+                  {showQuarterSection && quartersForYear.length > 0 ? (
+                    <>
+                      <div className="my-2 h-px bg-zinc-100" />
+                      <button
+                        type="button"
+                        onClick={() => setQuarterSectionOpen((s) => !s)}
+                        className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left transition hover:bg-zinc-50"
+                        aria-expanded={quarterSectionOpen}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                          By quarter ({panelYear})
+                        </span>
+                        <span
+                          className={`text-zinc-400 transition ${quarterSectionOpen ? 'rotate-180' : ''}`}
+                          aria-hidden
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M6 9l6 6 6-6"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                      </button>
 
-          {!monthQuarterOnly && customPanelOpen ? (
-            <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
-              <p className="mb-2 text-[10px] font-medium leading-snug text-zinc-500">
-                Pick start and end date &amp; time (local).
-              </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
-                <label className="flex min-w-0 flex-col gap-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Start date &amp; time
-                  </span>
-                  <input
-                    type="datetime-local"
-                    step={1}
-                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
-                    value={draftCustomStart}
-                    onChange={(e) => setDraftCustomStart(e.target.value)}
-                    className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
-                  />
-                </label>
-                <label className="flex min-w-0 flex-col gap-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    End date &amp; time
-                  </span>
-                  <input
-                    type="datetime-local"
-                    step={1}
-                    min={`${TRANSACTION_FILTER_MIN_YEAR}-01-01T00:00`}
-                    value={draftCustomEnd}
-                    onChange={(e) => setDraftCustomEnd(e.target.value)}
-                    className="min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
-                  />
-                </label>
+                      {quarterSectionOpen ? (
+                        <div className="mt-1.5 px-1 pb-1">
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {quartersForYear.map((q) => {
+                              const active = filterValue === q.value
+                              return (
+                                <button
+                                  key={q.value}
+                                  type="button"
+                                  role="option"
+                                  title={
+                                    q.disabled
+                                      ? `${q.label} - not complete yet`
+                                      : q.label
+                                  }
+                                  aria-selected={active}
+                                  aria-disabled={q.disabled}
+                                  disabled={q.disabled}
+                                  onClick={() => select(q.value)}
+                                  className={`rounded-lg border py-1.5 text-center text-[11px] font-bold transition ${
+                                    q.disabled
+                                      ? 'cursor-not-allowed border-zinc-200/70 bg-zinc-100/60 text-zinc-300'
+                                      : active
+                                        ? 'border-primary/50 bg-linear-to-b from-primary-soft/28 to-primary-soft/10 text-orange-900 shadow-sm ring-2 ring-primary-soft/30 active:scale-[0.98]'
+                                        : 'border-zinc-200/90 bg-zinc-50/70 text-zinc-700 hover:border-primary/30 hover:bg-white hover:text-zinc-900 active:scale-[0.98]'
+                                  }`}
+                                >
+                                  Q{q.quarter}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+
+                  {/* Switch to custom range button at the bottom */}
+                  {allowCustom ? (
+                    <>
+                      <div className="my-2 h-px bg-zinc-100" />
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('custom')}
+                        className="flex w-full items-center justify-between rounded-xl border border-dashed border-orange-300 bg-orange-50/30 px-3 py-2 text-left text-xs font-semibold text-orange-950 transition hover:bg-orange-50 hover:border-orange-400"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          Pick custom date range (From / To)…
+                        </span>
+                        <span aria-hidden className="text-orange-600">→</span>
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={applyCustomDateFilter}
-                className="mt-3 w-full rounded-xl bg-zinc-950 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-zinc-800"
-              >
-                Filter
-              </button>
-            </div>
-          ) : null}
+            ) : (
+              /* Tab 2: Rich Custom Date Range Picker */
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <CustomDateRangePicker
+                  initialStart={customStart}
+                  initialEnd={customEnd}
+                  onApply={handleCustomApply}
+                  onCancel={closeMenu}
+                  onReset={() => select('all')}
+                />
+              </div>
+            )}
           </div>
         </>
       ) : null}

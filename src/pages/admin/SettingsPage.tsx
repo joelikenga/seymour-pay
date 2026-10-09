@@ -16,6 +16,7 @@ import { useAdminProfileQuery } from '../../query/adminProfile'
 import {
   ADMIN_PAGE_KEYS,
   ADMIN_PAGE_LABELS,
+  ADMIN_SETTINGS_TOGGLE_KEYS,
   type AdminPageKey,
   type AdminUserRecord,
 } from '../../types/adminUser'
@@ -94,7 +95,7 @@ function ModalBackdrop({
   )
 }
 
-const USER_TABLE_COL_COUNT = 2 + ADMIN_PAGE_KEYS.length + 1
+const USER_TABLE_COL_COUNT = 2 + ADMIN_SETTINGS_TOGGLE_KEYS.length + 1
 
 export default function SettingsPage() {
   const {
@@ -159,8 +160,12 @@ export default function SettingsPage() {
   const effectivePageAccess = useCallback(
     (user: AdminUserRecord): Record<AdminPageKey, boolean> => {
       const draft = pageAccessDraft[user.id]
-      if (draft) return draft
-      return user.pageAccess
+      const base = draft ?? user.pageAccess
+      return {
+        ...base,
+        dashboard: true,
+        transactions: true,
+      }
     },
     [pageAccessDraft],
   )
@@ -186,10 +191,15 @@ export default function SettingsPage() {
 
   const applyAccessForUser = useCallback(
     async (userId: string) => {
-      const access = pageAccessDraft[userId]
-      if (!access) {
+      const rawAccess = pageAccessDraft[userId]
+      if (!rawAccess) {
         setAccessSaveUserId(null)
         return
+      }
+      const access: Record<AdminPageKey, boolean> = {
+        ...rawAccess,
+        dashboard: true,
+        transactions: true,
       }
       const u = adminUsers.find((x) => x.id === userId)
       try {
@@ -425,7 +435,7 @@ export default function SettingsPage() {
                 <h2 className="text-lg font-bold text-zinc-950">Users & access</h2>
                 <p className="mt-1 text-sm text-zinc-600">
                   Toggle page access, then click <span className="font-medium text-zinc-800">Save</span> on that row to
-                  confirm.{' '}
+                  confirm. Dashboard and Transactions are always enabled for all users.{' '}
                   {hasUnsavedAccessChanges ? (
                     <button
                       type="button"
@@ -483,7 +493,7 @@ export default function SettingsPage() {
                   <th className="whitespace-nowrap px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                     Email
                   </th>
-                  {ADMIN_PAGE_KEYS.map((key) => (
+                  {ADMIN_SETTINGS_TOGGLE_KEYS.map((key) => (
                     <th
                       key={key}
                       className="whitespace-nowrap px-2 py-4 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500"
@@ -778,7 +788,7 @@ function UserRow({
       <td className="max-w-[220px] truncate px-5 py-4 text-zinc-600" title={user.email}>
         {user.email}
       </td>
-      {ADMIN_PAGE_KEYS.map((key) => (
+      {ADMIN_SETTINGS_TOGGLE_KEYS.map((key) => (
         <td key={key} className="px-2 py-4 text-center align-middle">
           <div className="flex justify-center">
             <PageAccessToggle

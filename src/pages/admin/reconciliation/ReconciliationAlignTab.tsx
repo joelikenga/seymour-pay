@@ -62,6 +62,7 @@ export default function ReconciliationAlignTab() {
     setCustomStart,
     customEnd,
     setCustomEnd,
+    applyCustomRange,
   } = useTransactionLedgerUrlFilters({
     showCashierFilter: false,
     showCustomDateFilter: true,
@@ -244,6 +245,7 @@ export default function ReconciliationAlignTab() {
                 customEnd={customEnd}
                 onCustomStartChange={setCustomStart}
                 onCustomEndChange={setCustomEnd}
+                onApplyCustomRange={applyCustomRange}
                 mode="monthCustom"
               />
               <span aria-hidden className="text-zinc-300">·</span>

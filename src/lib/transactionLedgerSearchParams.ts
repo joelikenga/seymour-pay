@@ -14,8 +14,20 @@ export function defaultLedgerFilterValue(now: Date = new Date()): string {
   return `month:${year}-${month}`
 }
 
-function isValidLedgerPeriod(value: string): boolean {
-  return value.startsWith('month:') || value.startsWith('quarter:')
+function isValidLedgerPeriod(value: string, allowCustomDates: boolean): boolean {
+  if (!value) return false
+  if (value === 'custom') return allowCustomDates
+  if (
+    value === 'all' ||
+    value === 'today' ||
+    value === '7d' ||
+    value === '30d' ||
+    value.startsWith('month:') ||
+    value.startsWith('quarter:')
+  ) {
+    return true
+  }
+  return false
 }
 
 export function readLedgerFiltersFromSearchParams(
@@ -25,9 +37,15 @@ export function readLedgerFiltersFromSearchParams(
   const allowCashier = options?.allowCashier ?? true
   const allowCustomDates = options?.allowCustomDates ?? true
   const rawPeriod = params.get('period')?.trim() ?? ''
-  const filterValue = isValidLedgerPeriod(rawPeriod)
+  const hasCustomDates =
+    allowCustomDates &&
+    Boolean(params.get('from')?.trim() && params.get('to')?.trim())
+
+  const filterValue = isValidLedgerPeriod(rawPeriod, allowCustomDates)
     ? rawPeriod
-    : defaultLedgerFilterValue()
+    : hasCustomDates
+      ? 'custom'
+      : defaultLedgerFilterValue()
 
   return {
     filterValue,
@@ -63,15 +81,19 @@ export function applyLedgerFiltersToSearchParams(
     next.delete('period')
   }
 
-  if (allowCustomDates && filters.customStart.trim()) {
-    next.set('from', filters.customStart.trim())
-  } else {
+  if (allowCustomDates && filters.filterValue === 'custom') {
+    if (filters.customStart.trim()) {
+      next.set('from', filters.customStart.trim())
+    } else {
+      next.delete('from')
+    }
+    if (filters.customEnd.trim()) {
+      next.set('to', filters.customEnd.trim())
+    } else {
+      next.delete('to')
+    }
+  } else if (!allowCustomDates || filters.filterValue !== 'custom') {
     next.delete('from')
-  }
-
-  if (allowCustomDates && filters.customEnd.trim()) {
-    next.set('to', filters.customEnd.trim())
-  } else {
     next.delete('to')
   }
 

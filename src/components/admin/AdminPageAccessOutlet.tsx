@@ -28,7 +28,7 @@ export default function AdminPageAccessOutlet() {
   if (page === null) {
     return <AdminInaccessibleRoute />
   }
-  if (!profile.pageAccess[page]) {
+  if (page !== 'dashboard' && page !== 'transactions' && !profile.pageAccess[page]) {
     return <AdminInaccessibleRoute />
   }
 

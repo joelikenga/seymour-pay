@@ -146,7 +146,7 @@ function buildCashierTransactions(): CashierTransaction[] {
   return rows
 }
 
-const ALL_CASHIER_TX = buildCashierTransactions()
+export const ALL_CASHIER_TX = buildCashierTransactions()
 
 const DUMMY_LOSS_TICKETS: LossTicketRow[] = [
   {

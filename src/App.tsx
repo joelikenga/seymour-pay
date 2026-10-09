@@ -24,6 +24,7 @@ const ReconciliationPage = lazy(() => import('./pages/admin/ReconciliationPage.t
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage.tsx'))
 const SettlementPage = lazy(() => import('./pages/admin/SettlementPage.tsx'))
 const TransactionsPage = lazy(() => import('./pages/admin/TransactionsPage.tsx'))
+const CashiersPage = lazy(() => import('./pages/admin/CashiersPage.tsx'))
 const LostTicketsPage = lazy(() => import('./pages/admin/LostTicketsPage.tsx'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage.tsx'))
 const HomePage = lazy(() => import('./pages/marketing/HomePage.tsx'))
@@ -131,6 +132,22 @@ export default function App() {
               element={
                 <Suspense fallback={<PageFallback />}>
                   <TransactionsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="cashiers"
+              element={
+                <Suspense fallback={<PageFallback />}>
+                  <CashiersPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="cashiers/:cashierId"
+              element={
+                <Suspense fallback={<PageFallback />}>
+                  <CashiersPage />
                 </Suspense>
               }
             />

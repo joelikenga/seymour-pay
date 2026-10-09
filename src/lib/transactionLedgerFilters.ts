@@ -36,17 +36,29 @@ export function resolveTransactionsListApiRange(
   dateSelection: DateFilterSelection,
   customDates: TransactionCustomDateBounds,
 ): { from?: string; to?: string } {
+  const customFrom = filterBoundCalendarDate(customDates.from)
+  const customTo = filterBoundCalendarDate(customDates.to)
+
+  if (dateSelection.kind === 'custom' || (customFrom && customTo)) {
+    const fromVal =
+      customFrom ||
+      (dateSelection.kind === 'custom'
+        ? filterBoundCalendarDate(dateSelection.start)
+        : '')
+    const toVal =
+      customTo ||
+      (dateSelection.kind === 'custom'
+        ? filterBoundCalendarDate(dateSelection.end)
+        : '')
+    if (!fromVal || !toVal) return {}
+    const [from, to] = fromVal <= toVal ? [fromVal, toVal] : [toVal, fromVal]
+    return { from, to }
+  }
+
   const base = dateSelectionToTransactionsApiRange(dateSelection)
   if (!base.from || !base.to) return base
 
-  const customFrom = filterBoundCalendarDate(customDates.from)
-  const customTo = filterBoundCalendarDate(customDates.to)
-  if (!customFrom || !customTo) return base
-
-  const from = customFrom > base.from ? customFrom : base.from
-  const to = customTo < base.to ? customTo : base.to
-  if (from > to) return { from, to: from }
-  return { from, to }
+  return { from: base.from, to: base.to }
 }
 
 /**
@@ -58,33 +70,33 @@ export function resolveTransactionsListApiDatetimeRange(
   dateSelection: DateFilterSelection,
   customDates: TransactionCustomDateBounds,
 ): { from?: string; to?: string } {
-  const base = dateSelectionToTransactionsApiRange(dateSelection)
-  if (!base.from || !base.to) return {}
-
   const customFrom = customDates.from.trim()
   const customTo = customDates.to.trim()
 
-  if (!customFrom || !customTo) {
-    return { from: base.from, to: base.to }
+  if (dateSelection.kind === 'custom' || (customFrom && customTo)) {
+    const fromVal =
+      customFrom || (dateSelection.kind === 'custom' ? dateSelection.start : '')
+    const toVal =
+      customTo || (dateSelection.kind === 'custom' ? dateSelection.end : '')
+    if (!fromVal || !toVal) return {}
+
+    const start = parseCustomRangeBound(fromVal, 'start')
+    const end = parseCustomRangeBound(toVal, 'end')
+    if (!start || !end) return {}
+
+    const [clampedStart, clampedEnd] =
+      start <= end ? [start, end] : [end, start]
+
+    return {
+      from: dateToLocalApiDatetime(clampedStart),
+      to: dateToLocalApiDatetime(clampedEnd),
+    }
   }
 
-  const presetStart = parseCustomRangeBound(base.from, 'start')
-  const presetEnd = parseCustomRangeBound(base.to, 'end')
-  const start = parseCustomRangeBound(customFrom, 'start')
-  const end = parseCustomRangeBound(customTo, 'end')
-  if (!presetStart || !presetEnd || !start || !end) return {}
+  const base = dateSelectionToTransactionsApiRange(dateSelection)
+  if (!base.from || !base.to) return {}
 
-  const clampedStart = start < presetStart ? presetStart : start
-  const clampedEnd = end > presetEnd ? presetEnd : end
-  if (clampedStart.getTime() > clampedEnd.getTime()) {
-    const from = dateToLocalApiDatetime(clampedStart)
-    return { from, to: from }
-  }
-
-  return {
-    from: dateToLocalApiDatetime(clampedStart),
-    to: dateToLocalApiDatetime(clampedEnd),
-  }
+  return { from: base.from, to: base.to }
 }
 
 /** @deprecated Use {@link resolveTransactionsListApiDatetimeRange}. */
@@ -126,9 +138,13 @@ export function labelForLedgerDateFilter(
   customFrom: string,
   customTo: string,
 ): string {
-  const base = labelForTransactionDateFilter(filterValue, '', '')
   const from = customFrom.trim()
   const to = customTo.trim()
+  if (filterValue === 'custom') {
+    if (from && to) return labelForCustomDatetimeRange(from, to)
+    return 'Custom range'
+  }
+  const base = labelForTransactionDateFilter(filterValue, '', '')
   if (!from || !to) return base
   if (from.includes('T') || to.includes('T')) {
     return `${base} · ${labelForCustomDatetimeRange(from, to)}`

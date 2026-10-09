@@ -107,6 +107,7 @@ export default function AdminTransactionsLedgerPage({
     setCustomStart,
     customEnd,
     setCustomEnd,
+    applyCustomRange,
     cashierFilter,
     setCashierFilter,
     q,
@@ -383,6 +384,7 @@ export default function AdminTransactionsLedgerPage({
                 customEnd={customEnd}
                 onCustomStartChange={setCustomStart}
                 onCustomEndChange={setCustomEnd}
+                onApplyCustomRange={applyCustomRange}
                 mode={showCustomDateFilter ? 'monthQuarterCustom' : 'monthQuarter'}
               />
               <button
