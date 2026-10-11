@@ -1,17 +1,9 @@
 import type { PaymentChannel, Transaction } from '../types/transaction'
 import type { CashierTransaction } from '../types/reconciliation'
+import type { CashierAccount } from '../types/cashierAccount'
 import { ALL_CASHIER_TX } from '../data/reconciliationDummyData'
 
-export interface CashierAccount {
-  id: string
-  username: string
-  password: string
-  shift: 'morning' | 'night'
-  createdAt: string
-  name?: string
-  status?: 'active' | 'inactive'
-  notes?: string
-}
+export type { CashierAccount }
 
 export interface CashierChannelTotals {
   volume: number
@@ -35,30 +27,42 @@ const DEFAULT_CASHIERS: CashierAccount[] = [
   {
     id: 'csh-001',
     username: 'Ada',
-    password: 'Password@2026!',
+    email: 'ada@seymour.ng',
+    firstName: 'Ada',
+    lastName: 'Okafor',
+    name: 'Ada Okafor',
+    gate: 'Gate 1',
     shift: 'morning',
-    createdAt: '2026-09-01T08:00:00Z',
   },
   {
     id: 'csh-002',
     username: 'Kunle',
-    password: 'Password@2026!',
+    email: 'kunle@seymour.ng',
+    firstName: 'Kunle',
+    lastName: 'Adeleke',
+    name: 'Kunle Adeleke',
+    gate: 'Gate 2',
     shift: 'morning',
-    createdAt: '2026-09-05T08:30:00Z',
   },
   {
     id: 'csh-003',
     username: 'Fatima',
-    password: 'Password@2026!',
+    email: 'fatima@seymour.ng',
+    firstName: 'Fatima',
+    lastName: 'Bello',
+    name: 'Fatima Bello',
+    gate: 'Main Gate',
     shift: 'night',
-    createdAt: '2026-09-10T20:00:00Z',
   },
   {
     id: 'csh-004',
     username: 'Chidi',
-    password: 'Password@2026!',
+    email: 'chidi@seymour.ng',
+    firstName: 'Chidi',
+    lastName: 'Eze',
+    name: 'Chidi Eze',
+    gate: 'VIP Gate',
     shift: 'night',
-    createdAt: '2026-09-12T20:15:00Z',
   },
 ]
 

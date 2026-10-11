@@ -7,6 +7,7 @@ import * as SettlementApi from "./services/settlement";
 import * as PublicApi from "./services/publicApi";
 import * as LogsApi from "./services/logsApi";
 import * as UsersApi from "./services/usersApi";
+import * as CashierAccountsApi from "./services/cashierAccountsApi";
 
 export {
   AuthApi,
@@ -18,4 +19,5 @@ export {
   PublicApi,
   LogsApi,
   UsersApi,
+  CashierAccountsApi,
 };

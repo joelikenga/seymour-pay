@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import {
-  createCashierAccount,
-  generateCashierPassword,
-  type CashierAccount,
-} from '../../lib/cashiersService'
+import DropdownSelect from './DropdownSelect'
+import { CashierAccountsApi } from '../../utils'
+import type { CashierAccount } from '../../types/cashierAccount'
 import {
   adminBtnPrimary,
   adminBtnSecondary,
@@ -15,6 +13,7 @@ import {
   adminModalSubtitle,
   adminModalTitle,
 } from '../../lib/adminModalStyles'
+import { toastRequestFailed } from '../../lib/apiErrors'
 
 interface CreateCashierModalProps {
   isOpen: boolean
@@ -27,33 +26,35 @@ export default function CreateCashierModal({
   onClose,
   onSuccess,
 }: CreateCashierModalProps) {
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [username, setUsername] = useState('')
-  const [password, setPassword] = useState(() => generateCashierPassword())
   const [shift, setShift] = useState<'morning' | 'night'>('morning')
   const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  // Success state showing credentials (the ONLY time credentials can be copied)
+  // Success state showing credentials with one-time password from API
   const [createdCashier, setCreatedCashier] = useState<CashierAccount | null>(null)
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null)
 
   if (!isOpen) return null
-
-  function handleRegeneratePassword() {
-    setPassword(generateCashierPassword())
-    toast.success('Generated new password')
-  }
 
   function handleCopy(text: string, label: string) {
     navigator.clipboard.writeText(text)
     toast.success(`Copied ${label} to clipboard!`)
   }
 
-  function handleCopyAll(account: CashierAccount) {
+  function handleCopyAll(account: CashierAccount, passwordText: string) {
+    const shiftLabel =
+      (account.gate || shift).toLowerCase().includes('night') ? 'NIGHT SHIFT' : 'MORNING SHIFT'
+
     const text = [
       `Seymour Pay - Cashier Account Credentials`,
       `---------------------------------------`,
+      `Name: ${account.name || `${account.firstName} ${account.lastName}`.trim()}`,
       `Username: ${account.username}`,
-      `Password: ${account.password}`,
-      `Shift: ${account.shift.toUpperCase()} SHIFT`,
+      `Shift: ${shiftLabel}`,
+      `One-time Password: ${passwordText}`,
       `Portal: ${window.location.origin}/login`,
     ].join('\n')
 
@@ -61,32 +62,44 @@ export default function CreateCashierModal({
     toast.success('All cashier login details copied to clipboard!')
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setErrorMessage(null)
+
+    const cleanFirst = firstName.trim()
+    const cleanLast = lastName.trim()
     const cleanUser = username.trim()
-    if (!cleanUser) {
-      toast.error('Please enter a username for the cashier')
+
+    if (!cleanFirst || !cleanLast) {
+      setErrorMessage('Please enter both first and last name.')
       return
     }
-    if (!password.trim()) {
-      toast.error('Please generate a password')
+    if (!cleanUser) {
+      setErrorMessage('Please enter a username.')
       return
     }
 
     setSubmitting(true)
     try {
-      const newAccount = createCashierAccount({
+      // Backend gate parameter represents the cashier shift
+      const response = await CashierAccountsApi.adminCreateCashierAccount({
+        firstName: cleanFirst,
+        lastName: cleanLast,
         username: cleanUser,
-        password: password.trim(),
-        shift,
-        status: 'active',
+        gate: shift,
       })
 
-      setCreatedCashier(newAccount)
-      onSuccess(newAccount)
+      const cashier = response.cashier
+      const oneTimePassword = response.password
+
+      setCreatedCashier(cashier)
+      setCreatedPassword(oneTimePassword)
+      onSuccess(cashier)
       toast.success('Cashier account created successfully!')
-    } catch {
-      toast.error('Could not save cashier account')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not create cashier account.'
+      setErrorMessage(msg)
+      toastRequestFailed('Could not create cashier account', err)
     } finally {
       setSubmitting(false)
     }
@@ -94,11 +107,19 @@ export default function CreateCashierModal({
 
   function handleResetAndClose() {
     setCreatedCashier(null)
+    setCreatedPassword(null)
+    setFirstName('')
+    setLastName('')
     setUsername('')
-    setPassword(generateCashierPassword())
     setShift('morning')
+    setErrorMessage(null)
     onClose()
   }
+
+  const shiftDisplayName =
+    createdCashier?.gate?.toLowerCase().includes('night') || shift === 'night'
+      ? 'Night Shift'
+      : 'Morning Shift'
 
   return (
     <div
@@ -107,7 +128,7 @@ export default function CreateCashierModal({
       aria-modal="true"
     >
       <div className={`${adminModalPanel} max-w-lg`}>
-        {createdCashier ? (
+        {createdCashier && createdPassword ? (
           /* Credentials Presentation View - ONLY time credentials can be copied */
           <div>
             <div className={`${adminModalHeader} bg-emerald-50/60 border-b border-emerald-100`}>
@@ -142,9 +163,11 @@ export default function CreateCashierModal({
                       {createdCashier.username.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-bold text-zinc-900">{createdCashier.username}</p>
-                      <p className="text-xs text-zinc-500 capitalize">
-                        {createdCashier.shift} shift
+                      <p className="font-bold text-zinc-900">
+                        {createdCashier.name || `${createdCashier.firstName} ${createdCashier.lastName}`.trim()}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        @{createdCashier.username} • {shiftDisplayName}
                       </p>
                     </div>
                   </div>
@@ -169,19 +192,34 @@ export default function CreateCashierModal({
                       </button>
                     </div>
 
-                    {/* Password card (visible) */}
+                    {/* Assigned Shift card */}
                     <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-3 shadow-2xs">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                          Password
+                          Assigned Shift
+                        </p>
+                        <p className="text-sm font-semibold text-zinc-800">
+                          {shiftDisplayName}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-900">
+                        {shift.toUpperCase()}
+                      </span>
+                    </div>
+
+                    {/* One-time password card (visible) */}
+                    <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-3 shadow-2xs">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                          One-Time Password
                         </p>
                         <p className="font-mono text-sm font-bold text-zinc-900">
-                          {createdCashier.password}
+                          {createdPassword}
                         </p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleCopy(createdCashier.password, 'Password')}
+                        onClick={() => handleCopy(createdPassword, 'Password')}
                         className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 active:scale-95"
                       >
                         Copy
@@ -193,7 +231,7 @@ export default function CreateCashierModal({
                 <div className="rounded-xl border border-amber-200/80 bg-amber-50/60 p-3 text-xs leading-relaxed text-amber-900">
                   <p className="font-semibold">⚠️ Important Notice</p>
                   <p className="mt-0.5">
-                    Please copy and store these credentials now. For security, login credentials can only be copied upon cashier creation and will not be displayed on the cashier profile.
+                    Please copy and store these credentials now. For security, login credentials can only be copied upon cashier creation and cannot be retrieved later.
                   </p>
                 </div>
               </div>
@@ -202,7 +240,7 @@ export default function CreateCashierModal({
             <div className={`${adminModalFooter} flex items-center justify-between`}>
               <button
                 type="button"
-                onClick={() => handleCopyAll(createdCashier)}
+                onClick={() => handleCopyAll(createdCashier, createdPassword)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-bold text-zinc-800 shadow-2xs hover:bg-zinc-50 active:scale-95"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -227,13 +265,44 @@ export default function CreateCashierModal({
             <div className={adminModalHeader}>
               <h2 className={adminModalTitle}>Create Cashier Account</h2>
               <p className={adminModalSubtitle}>
-                Enter the cashier username and select a shift. Password is auto-generated.
+                Add a new cashier profile. The server generates a secure one-time password upon creation.
               </p>
             </div>
 
             <div className={adminModalBody}>
               <div className="space-y-4 text-xs">
-                {/* Username (typed by user, not auto gen) */}
+                {/* Names (firstName & lastName) */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block font-bold text-zinc-700">
+                      First Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="e.g. Ada"
+                      className="mt-1 h-10 w-full rounded-xl border border-zinc-200 px-3 text-sm text-zinc-900 shadow-2xs outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-zinc-700">
+                      Last Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="e.g. Okafor"
+                      className="mt-1 h-10 w-full rounded-xl border border-zinc-200 px-3 text-sm text-zinc-900 shadow-2xs outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Username */}
                 <div>
                   <label className="block font-bold text-zinc-700">
                     Username <span className="text-rose-500">*</span>
@@ -247,50 +316,27 @@ export default function CreateCashierModal({
                     className="mt-1 h-10 w-full rounded-xl border border-zinc-200 px-3 text-sm text-zinc-900 shadow-2xs outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                   />
                   <p className="mt-1 text-[11px] text-zinc-400">
-                    This username will be used by the cashier to log in.
+                    Cashier username used for portal sign-in and transaction tracking.
                   </p>
                 </div>
 
-                {/* Auto-generated Password (visible, not typed) */}
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="font-bold text-zinc-700">
-                      Auto-generated Password <span className="text-rose-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleRegeneratePassword}
-                      className="text-[11px] font-semibold text-orange-700 hover:text-orange-900"
-                    >
-                      ↻ Regenerate
-                    </button>
-                  </div>
-                  <div className="relative mt-1">
-                    <input
-                      type="text"
-                      readOnly
-                      required
-                      value={password}
-                      className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-100/80 px-3 font-mono text-sm font-semibold text-zinc-900 shadow-2xs cursor-not-allowed outline-none select-all"
-                    />
-                  </div>
-                  <p className="mt-1 text-[11px] text-zinc-400">
-                    Password is auto-generated and visible. It cannot be typed manually.
-                  </p>
-                </div>
+                {/* Assigned Shift dropdown (div-based DropdownSelect) */}
+                <DropdownSelect<'morning' | 'night'>
+                  label="Assigned Shift *"
+                  value={shift}
+                  options={[
+                    { value: 'morning', label: 'Morning Shift' },
+                    { value: 'night', label: 'Night Shift' },
+                  ]}
+                  onChange={(val) => setShift(val)}
+                  triggerClassName="h-10 bg-white"
+                />
 
-                {/* Shift Selection (just morning and night) */}
-                <div>
-                  <label className="block font-bold text-zinc-700">Assigned Shift</label>
-                  <select
-                    value={shift}
-                    onChange={(e) => setShift(e.target.value as 'morning' | 'night')}
-                    className="mt-1 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 shadow-2xs outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                  >
-                    <option value="morning">Morning Shift</option>
-                    <option value="night">Night Shift</option>
-                  </select>
-                </div>
+                {errorMessage ? (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
+                    {errorMessage}
+                  </div>
+                ) : null}
               </div>
             </div>
 

@@ -34,11 +34,13 @@ import type { Transaction } from '../../types/transaction'
 interface CashierProfileViewProps {
   cashier: CashierAccount
   onBack: () => void
+  onEdit?: () => void
 }
 
 export default function CashierProfileView({
   cashier,
   onBack,
+  onEdit,
 }: CashierProfileViewProps) {
   // Date filtering state
   const [filterValue, setFilterValue] = useState<string>('today')
@@ -185,21 +187,50 @@ export default function CashierProfileView({
           aria-hidden
         />
 
-        <div className="relative flex items-center justify-between">
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-orange-400 via-orange-500 to-orange-600 text-lg font-bold text-white shadow-md shadow-orange-500/20 ring-4 ring-white">
               {cashier.username.slice(0, 2).toUpperCase()}
             </div>
 
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-orange-700">
-                Cashier Account
-              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-orange-700">
+                  Cashier Account
+                </span>
+                <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-900">
+                  {cashier.gate?.toLowerCase().includes('night') || cashier.shift === 'night'
+                    ? 'Night Shift'
+                    : 'Morning Shift'}
+                </span>
+              </div>
               <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
-                {cashier.username}
+                {cashier.name || `${cashier.firstName || ''} ${cashier.lastName || ''}`.trim() || cashier.username}
               </h1>
+              <p className="text-xs text-zinc-500">
+                @{cashier.username}
+              </p>
             </div>
           </div>
+
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-800 shadow-2xs hover:bg-zinc-50"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Edit Details
+            </button>
+          ) : null}
         </div>
       </section>
 
