@@ -7,6 +7,7 @@ export interface CashierAccount {
   name: string
   username: string
   shift?: 'morning' | 'night'
+  createdAt?: string
 }
 
 export interface CashierAccountsListResponse {

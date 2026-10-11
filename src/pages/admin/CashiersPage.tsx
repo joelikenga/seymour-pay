@@ -111,9 +111,8 @@ export default function CashiersPage() {
     })
   }, [cashiers, searchQuery, shiftFilter])
 
-  function handleCreateSuccess(newCashier: CashierAccount) {
+  function handleCreateSuccess() {
     void queryClient.invalidateQueries({ queryKey: cashierAccountsQueryKey })
-    setSelectedCashierId(newCashier.id)
   }
 
   function handleEditSuccess(updatedCashier: CashierAccount) {
