@@ -8,7 +8,6 @@ import AdminTableEmptyState from './AdminTableEmptyState'
 import TransactionDateFilterDropdown from './TransactionDateFilterDropdown'
 import {
   computeSalesSummary,
-  getMockTransactionsForCashier,
   type CashierAccount,
 } from '../../lib/cashiersService'
 import {
@@ -23,7 +22,6 @@ import {
 } from '../../lib/transactionDateFilter'
 import {
   labelForLedgerDateFilter,
-  resolveTransactionsListApiDatetimeRange,
 } from '../../lib/transactionLedgerFilters'
 import {
   TRANSACTIONS_PAGE_SIZE,
@@ -67,10 +65,6 @@ export default function CashierProfileView({
     [filterValue, customStart, customEnd],
   )
 
-  const range = useMemo(
-    () => resolveTransactionsListApiDatetimeRange(dateSelection, effectiveCustomBounds),
-    [dateSelection, effectiveCustomBounds],
-  )
 
   // Fetch transactions from API for this cashier
   const listQuery = useTransactionsListQuery(
@@ -87,35 +81,21 @@ export default function CashierProfileView({
   const apiRows = listQuery.data?.data ?? []
   const apiTotal = listQuery.data?.total ?? 0
 
-  // Fallback to mock data if API returns empty
-  const mockRows = useMemo(
-    () => getMockTransactionsForCashier(cashier.username, range.from, range.to),
-    [cashier.username, range.from, range.to],
-  )
-
   const displayedTransactions: Transaction[] = useMemo(() => {
-    if (apiRows.length > 0) return apiRows
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim()
-      return mockRows.filter(
-        (t) =>
-          t.ticketId.toLowerCase().includes(q) ||
-          t.code.toLowerCase().includes(q) ||
-          t.channel.toLowerCase().includes(q),
-      )
-    }
-    return mockRows
-  }, [apiRows, mockRows, searchQuery])
+    if (!searchQuery.trim()) return apiRows
+    const q = searchQuery.toLowerCase().trim()
+    return apiRows.filter(
+      (t) =>
+        t.ticketId.toLowerCase().includes(q) ||
+        t.code.toLowerCase().includes(q) ||
+        t.channel.toLowerCase().includes(q),
+    )
+  }, [apiRows, searchQuery])
 
   // Compute sales summary for the 4 channel cards: Cash, POS, Transfer, USSD
-  const allSalesForPeriod = useMemo(() => {
-    if (apiRows.length > 0) return apiRows
-    return mockRows
-  }, [apiRows, mockRows])
-
   const salesSummary = useMemo(
-    () => computeSalesSummary(allSalesForPeriod),
-    [allSalesForPeriod],
+    () => computeSalesSummary(apiRows),
+    [apiRows],
   )
 
   const totalItems = apiTotal > 0 ? apiTotal : displayedTransactions.length
@@ -333,7 +313,16 @@ export default function CashierProfileView({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {displayedTransactions.length === 0 ? (
+              {listQuery.isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-xs text-zinc-400">
+                    <div className="inline-flex items-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+                      Loading transactions…
+                    </div>
+                  </td>
+                </tr>
+              ) : displayedTransactions.length === 0 ? (
                 <AdminTableEmptyState
                   colSpan={6}
                   message={`No completed sales found for ${cashier.username} matching the selected filter.`}

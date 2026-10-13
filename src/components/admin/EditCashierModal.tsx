@@ -115,7 +115,7 @@ export default function EditCashierModal({
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="e.g. Ada"
+                    placeholder="First name"
                     className="mt-1 h-10 w-full rounded-xl border border-zinc-200 px-3 text-sm text-zinc-900 shadow-2xs outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                   />
                 </div>
@@ -126,7 +126,7 @@ export default function EditCashierModal({
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    placeholder="e.g. Okafor"
+                    placeholder="Last name"
                     className="mt-1 h-10 w-full rounded-xl border border-zinc-200 px-3 text-sm text-zinc-900 shadow-2xs outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                   />
                 </div>

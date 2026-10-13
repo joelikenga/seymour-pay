@@ -11,10 +11,6 @@ import {
 } from '../../query/cashierAccounts'
 import { queryClient } from '../../query/queryClient'
 import { CashierAccountsApi } from '../../utils'
-import {
-  getCashierAccounts as getLocalCashierAccounts,
-  deleteCashierAccount as deleteLocalCashierAccount,
-} from '../../lib/cashiersService'
 import type { CashierAccount } from '../../types/cashierAccount'
 import {
   messageIndicatesAdminAccessDenied,
@@ -43,21 +39,19 @@ export default function CashiersPage() {
     error,
   } = useCashierAccountsQuery()
 
-  // Local fallback if offline or initial load
-  const localCashiers = useMemo(() => getLocalCashierAccounts(), [])
+  // Purge any legacy mock cashiers stored in local storage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('pay:admin:cashier-accounts:v2')
+    } catch {
+      // ignore
+    }
+  }, [])
 
+  // Real cashier accounts from API
   const cashiers: CashierAccount[] = useMemo(() => {
-    if (apiCashiers && apiCashiers.length > 0) {
-      return apiCashiers
-    }
-    if (apiCashiers && apiCashiers.length === 0) {
-      return []
-    }
-    if (isError) {
-      return localCashiers
-    }
-    return apiCashiers ?? localCashiers
-  }, [apiCashiers, isError, localCashiers])
+    return apiCashiers ?? []
+  }, [apiCashiers])
 
   const [selectedCashierId, setSelectedCashierId] = useState<string | null>(
     routeCashierId ?? null,
@@ -128,7 +122,6 @@ export default function CashiersPage() {
     setIsDeleting(true)
     try {
       await CashierAccountsApi.adminDeleteCashierAccount(deletingCashier.id)
-      deleteLocalCashierAccount(deletingCashier.id)
       void queryClient.invalidateQueries({ queryKey: cashierAccountsQueryKey })
 
       if (selectedCashierId === deletingCashier.id) {
@@ -266,7 +259,7 @@ export default function CashiersPage() {
           </div>
 
           {/* Loading Skeletons */}
-          {isLoading && cashiers.length === 0 ? (
+          {isLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((n) => (
                 <div

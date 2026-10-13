@@ -1,7 +1,5 @@
 import type { PaymentChannel, Transaction } from '../types/transaction'
-import type { CashierTransaction } from '../types/reconciliation'
 import type { CashierAccount } from '../types/cashierAccount'
-import { ALL_CASHIER_TX } from '../data/reconciliationDummyData'
 
 export type { CashierAccount }
 
@@ -22,49 +20,6 @@ export interface CashierSalesSummary {
 }
 
 const STORAGE_KEY = 'pay:admin:cashier-accounts:v2'
-
-const DEFAULT_CASHIERS: CashierAccount[] = [
-  {
-    id: 'csh-001',
-    username: 'Ada',
-    email: 'ada@seymour.ng',
-    firstName: 'Ada',
-    lastName: 'Okafor',
-    name: 'Ada Okafor',
-    gate: 'Gate 1',
-    shift: 'morning',
-  },
-  {
-    id: 'csh-002',
-    username: 'Kunle',
-    email: 'kunle@seymour.ng',
-    firstName: 'Kunle',
-    lastName: 'Adeleke',
-    name: 'Kunle Adeleke',
-    gate: 'Gate 2',
-    shift: 'morning',
-  },
-  {
-    id: 'csh-003',
-    username: 'Fatima',
-    email: 'fatima@seymour.ng',
-    firstName: 'Fatima',
-    lastName: 'Bello',
-    name: 'Fatima Bello',
-    gate: 'Main Gate',
-    shift: 'night',
-  },
-  {
-    id: 'csh-004',
-    username: 'Chidi',
-    email: 'chidi@seymour.ng',
-    firstName: 'Chidi',
-    lastName: 'Eze',
-    name: 'Chidi Eze',
-    gate: 'VIP Gate',
-    shift: 'night',
-  },
-]
 
 export function generateCashierUsername(name?: string): string {
   const randomSuffix = Math.floor(10 + Math.random() * 90)
@@ -91,21 +46,25 @@ export function generateCashierPassword(): string {
   return `${prefix}${symbol}${num}`
 }
 
+/** Returns locally saved cashier accounts, filtering out any legacy mock accounts. */
 export function getCashierAccounts(): CashierAccount[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CASHIERS))
-      return DEFAULT_CASHIERS
-    }
+    if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed as CashierAccount[]
+    if (Array.isArray(parsed)) {
+      // Filter out any lingering mock accounts like Ada, Kunle, etc.
+      return (parsed as CashierAccount[]).filter(
+        (c) =>
+          c &&
+          typeof c === 'object' &&
+          !['csh-001', 'csh-002', 'csh-003', 'csh-004'].includes(c.id) &&
+          !['ada', 'kunle', 'fatima', 'chidi'].includes((c.username || '').toLowerCase()),
+      )
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CASHIERS))
-    return DEFAULT_CASHIERS
+    return []
   } catch {
-    return DEFAULT_CASHIERS
+    return []
   }
 }
 
@@ -178,44 +137,4 @@ export function computeSalesSummary(transactions: Transaction[]): CashierSalesSu
     grandVolume,
     totalCount,
   }
-}
-
-/** Converts reconciliation dummy cashier transactions to standard Transaction rows for fallback. */
-export function getMockTransactionsForCashier(
-  cashierUsername: string,
-  fromDate?: string,
-  toDate?: string,
-): Transaction[] {
-  const normalizedUser = cashierUsername.toLowerCase().trim()
-  const matching = ALL_CASHIER_TX.filter((tx: CashierTransaction) => {
-    const matchesUser =
-      (tx.createdBy || '').toLowerCase() === normalizedUser ||
-      (tx.cashierName || '').toLowerCase() === normalizedUser ||
-      (tx.cashierId || '').toLowerCase().includes(normalizedUser)
-
-    if (!matchesUser) return false
-
-    if (fromDate && tx.createdAt < fromDate) return false
-    if (toDate && tx.createdAt > toDate) return false
-    return true
-  })
-
-  return matching.map((m: CashierTransaction): Transaction => ({
-    id: m.id,
-    reference: m.reference || m.ticketId || m.id,
-    ticketId: m.ticketId || m.reference || m.id,
-    code: m.code || '',
-    customerName: m.customerName || m.cashierName,
-    amount: m.amount,
-    channel: m.channel,
-    vehicleType: m.vehicleType,
-    status: m.status || 'completed',
-    createdAt: m.createdAt,
-    notes: m.notes || `Shift: ${m.shift} | Terminal: ${m.cashpointId}`,
-    isLostTicket: m.isLostTicket ?? false,
-    carfeeId: m.carfeeId || m.id,
-    createdBy: m.createdBy || m.cashierName,
-    entryTime: m.entryTime,
-    exitTime: m.exitTime,
-  }))
 }
