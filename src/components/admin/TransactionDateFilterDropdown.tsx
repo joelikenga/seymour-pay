@@ -167,7 +167,6 @@ export default function TransactionDateFilterDropdown({
   }, [open])
 
   function select(value: string) {
-    onFilterChange(value)
     if (value !== 'custom') {
       onCustomStartChange('')
       onCustomEndChange('')
@@ -175,6 +174,7 @@ export default function TransactionDateFilterDropdown({
     } else {
       setActiveTab('custom')
     }
+    onFilterChange(value)
   }
 
   function handleCustomApply(start: string, end: string) {
